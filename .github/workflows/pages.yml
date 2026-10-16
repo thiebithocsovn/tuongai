@@ -1,0 +1,42 @@
+name: Xuất bản Tường AI lên GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Kiểm tra kiểu xuất bản đang chọn
+        id: kind
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "type=$(gh api repos/${{ github.repository }}/pages --jq .build_type 2>/dev/null || echo none)" >> "$GITHUB_OUTPUT"
+      - name: Ghi chú khi Pages xuất bản từ nhánh
+        if: steps.kind.outputs.type != 'workflow'
+        run: echo "Pages đang xuất bản trực tiếp từ nhánh (${{ steps.kind.outputs.type }}), GitHub tự lo phần này."
+      - uses: actions/checkout@v4
+        if: steps.kind.outputs.type == 'workflow'
+      - uses: actions/configure-pages@v5
+        if: steps.kind.outputs.type == 'workflow'
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.kind.outputs.type == 'workflow'
+        with:
+          path: .
+      - id: deployment
+        if: steps.kind.outputs.type == 'workflow'
+        uses: actions/deploy-pages@v4
