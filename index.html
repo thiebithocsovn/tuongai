@@ -1152,6 +1152,67 @@ textarea.inp{min-height:64px;resize:vertical;line-height:1.45}
 }
 
 
+/* ---------- Thành viên: bảng có cột ---------- */
+.mb-bulk{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px 12px 9px 14px;border:1px solid #c9d8f6;background:#eef4ff;border-radius:12px;font-size:14.5px;color:var(--ink-2)}
+.mb-bulk[hidden]{display:none}
+.mb-bulk>span{display:inline-flex;align-items:center;gap:7px}
+.mb-bulk>span .ic{color:var(--blue)}
+.mtable-wrap{background:#fff;border:1px solid var(--line);border-radius:14px;overflow-x:auto;box-shadow:0 8px 24px -20px rgba(20,45,95,.5)}
+.mtable{width:100%;border-collapse:collapse;font-size:14.5px;color:var(--ink)}
+.mtable th{background:#f3f6fb;text-align:left;font-weight:600;font-size:13.5px;color:var(--ink-2);padding:11px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.mtable td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.mtable tbody tr:last-child td{border-bottom:0}
+.mtable tbody tr:hover{background:#f8faff}
+.mtable tbody tr.sel,.mtable tbody tr.sel:hover{background:#eef4ff}
+.mtable tr.is-locked .mname b,.mtable tr.is-locked .c-mail,.mtable tr.is-locked .c-unit{color:var(--muted)}
+.mtable .c-chk{width:38px;padding-right:0;text-align:center}
+.mtable .c-chk input{width:17px;height:17px;accent-color:var(--blue);cursor:pointer;vertical-align:middle}
+.mtable .c-no{width:46px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:center}
+.th-sort{display:inline-flex;align-items:center;gap:5px;font:inherit;color:inherit;padding:0;white-space:nowrap}
+.th-sort:hover{color:var(--blue)}
+.th-sort .srt{font-size:11px;color:#a2aec0}
+th[aria-sort=ascending] .srt,th[aria-sort=descending] .srt{color:var(--blue)}
+.mname{display:flex;align-items:center;gap:10px;min-width:160px}
+.mname .av{width:36px;height:36px;flex:none}
+.mname>div>b{display:block;font-weight:600;font-size:15px}
+.mname>div>b em{font-style:normal;color:var(--blue);font-weight:500}
+.mname>div>span{display:block;font-size:12.5px;color:var(--muted);margin-top:1px}
+.mtable .c-mail{overflow-wrap:break-word;word-break:normal;min-width:140px}
+.mtable .c-unit{min-width:130px}
+.mtable .nil{color:var(--muted);font-style:italic;font-size:13.5px}
+.mtable .c-st small{display:block;font-size:12px;color:var(--muted);margin-top:4px;white-space:nowrap}
+.mtable .c-act{text-align:right;white-space:nowrap;width:1%}
+.macts{display:inline-flex;gap:6px;align-items:center;justify-content:flex-end}
+.macts .icon-btn{width:32px;height:32px;color:var(--ink-2)}
+.mb-count{font-size:13.5px;color:var(--muted);margin-top:-8px}
+.mb-menu{min-width:220px}
+.cred{display:grid;gap:10px;margin-top:12px;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.cred span{display:block;font-size:12.5px;color:var(--muted)}
+.cred b{font-size:15.5px;overflow-wrap:anywhere}
+.fld input[readonly]{background:var(--soft);color:var(--ink-2);cursor:default}
+.fld-hint{font-size:12.5px;color:var(--muted);line-height:1.4}
+@media (max-width:1300px){.macts .btn-ghost .t,.macts .btn-danger .t{display:none}.macts .btn-ghost,.macts .btn-danger{padding:4px 8px}}
+@media (max-width:1240px){
+  .mtable-wrap{background:transparent;border:0;box-shadow:none;overflow:visible;border-radius:0}
+  .mtable thead{display:none}
+  .mtable,.mtable tbody,.mtable tr,.mtable td{display:block;width:auto}
+  .mtable tbody tr{position:relative;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr;column-gap:14px}
+  .mtable td{border:0!important;padding:4px 0;text-align:left;min-width:0}
+  .mtable td[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:var(--muted);margin-bottom:1px}
+  .mtable td.c-name{grid-column:1/-1;padding-right:34px;margin-bottom:4px}
+  .mtable td.c-name::before{display:none}
+  .mtable .c-no{display:none}
+  .mtable .c-chk{position:absolute;top:16px;right:14px;width:auto;padding:0}
+  .mtable .c-st,.mtable .c-act{grid-column:1/-1}
+  .mtable .c-st small{display:inline;margin:0 0 0 8px}
+  .mtable .c-act{width:auto;padding-top:8px;white-space:normal}
+  .macts{display:flex;flex-wrap:wrap;justify-content:flex-start}
+  .macts .btn-ghost .t,.macts .btn-danger .t{display:inline}
+  .macts .btn-ghost,.macts .btn-danger{padding:4px 10px}
+  .mname{min-width:0}
+}
+@media (max-width:520px){.mtable tbody tr{grid-template-columns:1fr}}
+
 /* ---------- chân trang cố định chạy hết đáy + ô tài khoản góc phải ---------- */
 body.has-sbar{--sbh:calc(44px + env(safe-area-inset-bottom,0px));padding-bottom:var(--sbh)}
 .sbar{position:fixed;left:0;right:0;bottom:0;z-index:45;background:#fffffff0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-top:1px solid var(--line);box-shadow:0 -8px 22px -18px rgba(20,45,95,.45);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -1261,7 +1322,7 @@ body.has-sbar .toast{bottom:calc(var(--sbh) + 16px)}
         <p class="info-box">Đăng ký dành cho <b>giáo viên</b>, tài khoản dùng được sau khi Quản trị hệ thống duyệt. Học sinh không cần tài khoản: các em vào lớp bằng đường link thầy cô chia sẻ.</p>
         <label class="fld"><span>Họ và tên</span><input id="rg-name" autocomplete="name" placeholder="Ví dụ: Nguyễn Thị Lan"></label>
         <div class="grid2">
-          <label class="fld"><span>Trường</span><input id="rg-school" autocomplete="organization" placeholder="Ví dụ: THCS Yên Lạc"></label>
+          <label class="fld"><span>Đơn vị công tác</span><input id="rg-school" autocomplete="organization" placeholder="Ví dụ: Trường THCS Yên Lạc"></label>
           <label class="fld"><span>Môn dạy <em>(không bắt buộc)</em></span><input id="rg-subject" placeholder="Toán, Tin học…"></label>
         </div>
         <label class="fld"><span>Email</span><input id="rg-user" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="ten@gmail.com"></label>
@@ -1723,7 +1784,7 @@ const S = {
   layout: LS.get(K_LAYOUT) === 'list' ? 'list' : 'grid',
   grading: new Set(), batch: null,
   imgCache: new Map(),
-  memberList: null, memberFilter: 'all', memberQ: '',
+  memberList: null, memberFilter: 'all', memberQ: '', memberSel: new Set(), memberSort: { k: '', dir: 1 },
 };
 function meAcc() {
   const p = S.profile; if (!p) return null;
@@ -4545,18 +4606,46 @@ function renderMembers() {
     v.innerHTML = `
       <div class="crumbs"><nav><span>Không gian làm việc</span><span>/</span><span class="cur">Thành viên</span></nav><div class="crumbs-r"><span class="pill">${ic('shield', 'ic-sm')}Chỉ Quản trị</span>${acctChip()}</div></div>
       <section class="hero">
-        <div><p class="eyebrow">Quản trị hệ thống</p><h1>Thành viên</h1><p class="lede">Duyệt giáo viên mới, khóa, đặt lại mật khẩu, tạo hoặc xóa tài khoản. Mỗi giáo viên chỉ thấy dữ liệu của mình; Quản trị thấy tất cả.</p></div>
-        <div class="row-gap"><button class="btn btn-ghost" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button><button class="btn btn-navy" data-act="mb-create">${ic('plus')}Tạo tài khoản</button></div>
+        <div><p class="eyebrow">Quản trị hệ thống</p><h1>Thành viên</h1><p class="lede">Thêm, sửa, khóa hoặc xóa tài khoản giáo viên; duyệt người mới đăng ký và đặt lại mật khẩu. Mỗi giáo viên chỉ thấy dữ liệu của mình; Quản trị thấy tất cả.</p></div>
+        <div class="row-gap"><button class="btn btn-ghost" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button><button class="btn btn-brand" data-act="mb-create">${ic('plus')}Thêm thành viên</button></div>
       </section>
       <div class="summary" id="mb-sum"></div>
       <div class="toolbar">
-        <label class="search">${ic('search')}<span class="sr">Tìm thành viên</span><input id="mb-q" type="search" placeholder="Tìm theo tên, email, trường..." value="${esc(S.memberQ)}"></label>
+        <label class="search">${ic('search')}<span class="sr">Tìm thành viên</span><input id="mb-q" type="search" placeholder="Tìm theo họ tên, email, đơn vị công tác..." value="${esc(S.memberQ)}"></label>
         <div class="seg2 seg-text" role="group" aria-label="Lọc theo trạng thái">${[['all', 'Tất cả'], ['pending', 'Chờ duyệt'], ['active', 'Hoạt động'], ['locked', 'Đã khóa']].map(([k, t]) => `<button data-act="mb-filter" data-v="${k}" aria-pressed="${S.memberFilter === k}">${t}</button>`).join('')}</div>
       </div>
-      <div id="mb-list" class="acc"></div>`;
+      <div class="mb-bulk" id="mb-bulk" hidden></div>
+      <div id="mb-list" class="mb-list"></div>`;
     $('#mb-q').addEventListener('input', (e) => { S.memberQ = e.target.value; drawMembers(); });
+    // Ô chọn từng dòng và "chọn tất cả" để khóa, mở khóa hoặc xóa nhiều tài khoản một lúc.
+    $('#mb-list').addEventListener('change', (e) => {
+      const c = e.target.closest('input[type=checkbox]'); if (!c) return;
+      if (c.id === 'mb-all') { membersShown().forEach((m) => { if (m.id !== S.meId) c.checked ? S.memberSel.add(m.id) : S.memberSel.delete(m.id); }); drawMembers(); return; }
+      if (c.checked) S.memberSel.add(c.dataset.id); else S.memberSel.delete(c.dataset.id);
+      c.closest('tr')?.classList.toggle('sel', c.checked);
+      const all = $('#mb-all'), vis = membersShown().filter((m) => m.id !== S.meId);
+      if (all) all.checked = !!vis.length && vis.every((m) => S.memberSel.has(m.id));
+      drawBulk();
+    });
   }
   drawMembers();
+}
+const fmtDay = (v) => { const t = ts(v); return t ? new Date(t).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''; };
+const ST_RANK = { pending: 0, active: 1, locked: 2 };
+function membersShown() {
+  const q = (S.memberQ || '').trim().toLowerCase();
+  const { k, dir } = S.memberSort;
+  const txt = (m) => (k === 'name' ? m.full_name || m.email : k === 'email' ? m.email : m.school || '');
+  return (S.memberList || [])
+    .filter((m) => (S.memberFilter === 'all' || m.status === S.memberFilter) && (!q || [m.full_name, m.email, m.school, m.subject].join(' ').toLowerCase().includes(q)))
+    .sort((a, b) => {
+      if (k === 'status') return dir * ((ST_RANK[a.status] ?? 9) - (ST_RANK[b.status] ?? 9)) || String(b.created_at || '').localeCompare(String(a.created_at || ''));
+      if (k) {
+        if (k === 'school' && !a.school !== !b.school) return a.school ? -1 : 1; // chưa ghi đơn vị luôn ở cuối
+        return dir * txt(a).localeCompare(txt(b), 'vi', { sensitivity: 'base' });
+      }
+      return (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    });
 }
 function drawMembers() {
   const el = $('#mb-list'); if (!el) return;
@@ -4565,34 +4654,75 @@ function drawMembers() {
   if (!all) { el.innerHTML = '<div class="empty"><span class="spin"></span><p>Đang tải danh sách thành viên…</p></div>'; return; }
   const c = { pending: 0, active: 0, locked: 0 }; all.forEach((m) => { c[m.status] = (c[m.status] || 0) + 1; });
   $('#mb-sum').innerHTML = `<span class="sum"><i style="background:var(--warn)"></i>Chờ duyệt <b>${c.pending}</b></span><span class="sum"><i style="background:var(--ok)"></i>Đang hoạt động <b>${c.active}</b></span><span class="sum"><i style="background:var(--muted)"></i>Đã khóa <b>${c.locked}</b></span><span class="sum">Tổng <b>${all.length}</b></span>`;
-  const q = S.memberQ.trim().toLowerCase();
-  const list = all
-    .filter((m) => (S.memberFilter === 'all' || m.status === S.memberFilter) && (!q || [m.full_name, m.email, m.school, m.subject].join(' ').toLowerCase().includes(q)))
-    .sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
-  el.innerHTML = list.length ? list.map(memberRow).join('') : `<div class="empty">${ic('users')}<h3>${q || S.memberFilter !== 'all' ? 'Không có thành viên nào khớp' : 'Chưa có thành viên'}</h3><p>${S.memberFilter === 'pending' ? 'Không có giáo viên nào đang chờ duyệt.' : 'Giáo viên đăng ký sẽ hiện ở đây.'}</p></div>`;
+  const ids = new Set(all.map((m) => m.id));
+  [...S.memberSel].forEach((id) => { if (!ids.has(id) || id === S.meId) S.memberSel.delete(id); });
+  const q = S.memberQ.trim();
+  const list = membersShown();
+  if (!list.length) {
+    el.innerHTML = `<div class="empty">${ic('users')}<h3>${q || S.memberFilter !== 'all' ? 'Không có thành viên nào khớp' : 'Chưa có thành viên'}</h3><p>${S.memberFilter === 'pending' ? 'Không có giáo viên nào đang chờ duyệt.' : 'Bấm Thêm thành viên để tạo tài khoản, hoặc chờ giáo viên tự đăng ký.'}</p></div>`;
+    drawBulk(); return;
+  }
+  const vis = list.filter((m) => m.id !== S.meId);
+  const allOn = !!vis.length && vis.every((m) => S.memberSel.has(m.id));
+  const th = (k, t, cls) => {
+    const on = S.memberSort.k === k, d = S.memberSort.dir > 0;
+    return `<th scope="col" class="${cls}" aria-sort="${on ? (d ? 'ascending' : 'descending') : 'none'}"><button class="th-sort" data-act="mb-sort" data-k="${k}" title="Sắp xếp theo ${t.toLowerCase()}">${t}<span class="srt" aria-hidden="true">${on ? (d ? '▲' : '▼') : '⇅'}</span></button></th>`;
+  };
+  el.innerHTML = `<div class="mtable-wrap"><table class="mtable">
+    <thead><tr><th class="c-chk"><input type="checkbox" id="mb-all" aria-label="Chọn tất cả thành viên đang hiện" ${allOn ? 'checked' : ''} ${vis.length ? '' : 'disabled'}></th><th class="c-no" scope="col">STT</th>${th('name', 'Họ và tên', 'c-name')}${th('email', 'Email đăng ký', 'c-mail')}${th('school', 'Đơn vị công tác', 'c-unit')}${th('status', 'Trạng thái', 'c-st')}<th class="c-act" scope="col">Thao tác</th></tr></thead>
+    <tbody>${list.map(memberRow).join('')}</tbody></table></div>
+    <p class="mb-count">Hiển thị ${list.length}/${all.length} thành viên${S.memberSort.k ? ' · <button class="link" data-act="mb-sort" data-k="">Bỏ sắp xếp</button>' : ''}</p>`;
+  drawBulk();
 }
-function memberRow(m) {
-  const self = m.id === S.meId, st = m.status;
+function memberRow(m, i) {
+  const self = m.id === S.meId, st = m.status, sel = S.memberSel.has(m.id);
   const cls = st === 'active' ? 'chip-ok' : st === 'pending' ? 'chip-warn' : 'chip-info';
-  return `<div class="accrow mrow" data-id="${m.id}">${avatar({ id: m.id, name: m.full_name || m.email })}
-    <div class="mwho"><b>${esc(m.full_name || '(chưa có tên)')}${self ? ' (bạn)' : ''}</b><span class="mmail">${esc(m.email)}${m.school ? ' · ' + esc(m.school) : ''}${m.subject ? ' · ' + esc(m.subject) : ''}</span>
-      <span class="mmeta"><span class="chip ${cls}"><i></i>${STATUS_LABEL[st] || st}</span>${m.role === 'admin' ? `<span class="chip chip-info"><i></i>Quản trị</span>` : ''}<span>${m.boards || 0} bảng · ${m.posts || 0} bài</span><span>Tham gia ${timeAgo(ts(m.created_at))}</span></span></div>
-    <div class="acts">
-      ${st === 'pending' ? `<button class="btn btn-sm btn-brand" data-act="mb-approve" data-id="${m.id}">${ic('check', 'ic-sm')}Duyệt</button>` : ''}
-      ${st === 'locked' ? `<button class="btn btn-sm btn-brand" data-act="mb-approve" data-id="${m.id}">${ic('unlock', 'ic-sm')}Mở khóa</button>` : ''}
-      ${m.boards ? `<button class="btn btn-sm btn-ghost" data-act="mb-view" data-id="${m.id}">${ic('eye', 'ic-sm')}Xem bảng</button>` : ''}
-      <button class="btn btn-sm btn-ghost" data-act="mb-reset" data-id="${m.id}">${ic('key', 'ic-sm')}Đặt lại mật khẩu</button>
-      ${!self && st === 'active' ? `<button class="btn btn-sm btn-ghost" data-act="mb-lock" data-id="${m.id}">${ic('lock', 'ic-sm')}Khóa</button>` : ''}
-      ${!self ? `<button class="btn btn-sm btn-ghost" data-act="mb-role" data-id="${m.id}">${ic('shield', 'ic-sm')}${m.role === 'admin' ? 'Bỏ quyền quản trị' : 'Cấp quyền quản trị'}</button>` : ''}
-      ${!self ? `<button class="btn btn-sm btn-danger" data-act="mb-delete" data-id="${m.id}">${ic('trash', 'ic-sm')}Xóa</button>` : ''}
-    </div></div>`;
+  const name = m.full_name || '(chưa có tên)';
+  const sub = [m.role === 'admin' ? 'Quản trị hệ thống' : 'Giáo viên', m.subject || '', (m.boards || 0) + ' bảng · ' + (m.posts || 0) + ' bài'].filter(Boolean).join(' · ');
+  const b = (act, icon, label, kind = 'btn-ghost') => `<button class="btn btn-sm ${kind}" data-act="${act}" data-id="${m.id}" title="${label}">${ic(icon, 'ic-sm')}<span class="t">${label}</span></button>`;
+  return `<tr data-id="${m.id}" class="${sel ? 'sel' : ''}${st === 'locked' ? ' is-locked' : ''}">
+    <td class="c-chk">${self ? '' : `<input type="checkbox" data-id="${m.id}" aria-label="Chọn ${esc(name)}" ${sel ? 'checked' : ''}>`}</td>
+    <td class="c-no">${i + 1}</td>
+    <td class="c-name" data-l="Họ và tên"><div class="mname">${avatar({ id: m.id, name: m.full_name || m.email })}<div><b>${esc(name)}${self ? ' <em>(bạn)</em>' : ''}</b><span>${esc(sub)}</span></div></div></td>
+    <td class="c-mail" data-l="Email đăng ký">${esc(m.email).replace('@', '<wbr>@')}</td>
+    <td class="c-unit" data-l="Đơn vị công tác">${m.school ? esc(m.school) : '<span class="nil">Chưa ghi</span>'}</td>
+    <td class="c-st" data-l="Trạng thái"><span class="chip ${cls}"><i></i>${STATUS_LABEL[st] || st}</span><small>Đăng ký ${fmtDay(m.created_at)}</small></td>
+    <td class="c-act"><div class="macts">
+      ${st === 'pending' ? b('mb-approve', 'check', 'Duyệt', 'btn-brand') : ''}${st === 'locked' ? b('mb-approve', 'unlock', 'Mở khóa', 'btn-brand') : ''}${!self && st === 'active' ? b('mb-lock', 'lock', 'Khóa') : ''}
+      ${b('mb-edit', 'pencil', 'Sửa')}
+      ${!self ? b('mb-delete', 'trash', 'Xóa', 'btn-danger') : ''}
+      <button class="icon-btn mb-more" data-act="mb-more" data-id="${m.id}" aria-label="Thêm thao tác cho ${esc(name)}" title="Thêm thao tác">${ic('dots')}</button>
+    </div></td></tr>`;
+}
+function drawBulk() {
+  const el = $('#mb-bulk'); if (!el) return;
+  const ms = [...S.memberSel].map(memberOf).filter(Boolean);
+  if (!ms.length) { el.hidden = true; el.innerHTML = ''; return; }
+  const canOn = ms.some((m) => m.status !== 'active'), canLock = ms.some((m) => m.status !== 'locked');
+  el.hidden = false;
+  el.innerHTML = `<span>${ic('check', 'ic-sm')}Đã chọn <b>${ms.length}</b> thành viên</span><div class="row-gap">${canOn ? `<button class="btn btn-sm btn-brand" data-act="mb-bulk" data-v="active">${ic('unlock', 'ic-sm')}Kích hoạt / Mở khóa</button>` : ''}${canLock ? `<button class="btn btn-sm btn-ghost" data-act="mb-bulk" data-v="locked">${ic('lock', 'ic-sm')}Khóa</button>` : ''}<button class="btn btn-sm btn-danger" data-act="mb-bulk" data-v="delete">${ic('trash', 'ic-sm')}Xóa</button><button class="btn btn-sm btn-ghost" data-act="mb-bulk" data-v="clear">${ic('x', 'ic-sm')}Bỏ chọn</button></div>`;
 }
 const memberOf = (id) => (S.memberList || []).find((m) => m.id === id) || S.members.get(id);
+function dropMemberLocal(id) {
+  S.memberList = (S.memberList || []).filter((x) => x.id !== id); S.members.delete(id); S.memberSel.delete(id);
+  for (const [bid, b] of S.boards) if (b.ownerAcc === id) S.boards.delete(bid);
+  for (const [pid, p] of S.posts) if (p.ownerAcc === id) S.posts.delete(pid);
+}
+function memberMenu(btn, m) {
+  const old = $('.menu'); if (old) { const same = old.dataset.id === m.id; old.remove(); if (same) return; }
+  const self = m.id === S.meId;
+  const menu = document.createElement('div'); menu.className = 'menu mb-menu'; menu.dataset.id = m.id; menu.setAttribute('role', 'menu');
+  menu.innerHTML = `<button role="menuitem" data-act="mb-edit" data-id="${m.id}">${ic('pencil')}Sửa thông tin</button><button role="menuitem" data-act="mb-reset" data-id="${m.id}">${ic('key')}Đặt lại mật khẩu</button>${m.boards ? `<button role="menuitem" data-act="mb-view" data-id="${m.id}">${ic('eye')}Xem bảng của họ</button>` : ''}${!self ? `<button role="menuitem" data-act="mb-role" data-id="${m.id}">${ic('shield')}${m.role === 'admin' ? 'Bỏ quyền quản trị' : 'Cấp quyền quản trị'}</button>` : ''}<button role="menuitem" data-act="mb-copy" data-id="${m.id}">${ic('copy')}Sao chép email</button>`;
+  document.body.appendChild(menu);
+  const r = btn.getBoundingClientRect();
+  menu.style.cssText = `position:fixed;z-index:60;left:auto;right:${Math.max(8, innerWidth - r.right)}px;top:${Math.max(8, Math.min(r.bottom + 6, innerHeight - menu.offsetHeight - 56))}px`;
+  addEventListener('scroll', () => menu.remove(), { once: true, passive: true });
+}
 async function memberAct(act, id) {
   const m = memberOf(id);
   const who = m ? (m.full_name || m.email) : 'thành viên';
   try {
-    if (act === 'mb-approve') { await api('admin_update', { id, status: 'active' }); toast('Đã kích hoạt tài khoản ' + who + '.'); }
+    if (act === 'mb-approve') { await api('admin_update', { id, status: 'active' }); toast((m?.status === 'locked' ? 'Đã mở khóa tài khoản ' : 'Đã kích hoạt tài khoản ') + who + '.'); }
     else if (act === 'mb-lock') {
       if (!(await confirmBox('Khóa tài khoản?', '<b>' + esc(who) + '</b> sẽ không đăng nhập được, học sinh cũng không vào được các lớp của họ. Dữ liệu vẫn được giữ, có thể mở khóa lại.', 'Khóa tài khoản', true))) return;
       await api('admin_update', { id, status: 'locked' }); toast('Đã khóa tài khoản ' + who + '.');
@@ -4601,16 +4731,83 @@ async function memberAct(act, id) {
       if (!(await confirmBox(toAdmin ? 'Cấp quyền quản trị?' : 'Bỏ quyền quản trị?', toAdmin ? '<b>' + esc(who) + '</b> sẽ thấy dữ liệu của mọi giáo viên và quản lý được thành viên.' : '<b>' + esc(who) + '</b> trở lại là giáo viên, chỉ thấy dữ liệu của mình.', toAdmin ? 'Cấp quyền' : 'Bỏ quyền', !toAdmin))) return;
       await api('admin_update', { id, role: toAdmin ? 'admin' : 'teacher' }); toast(toAdmin ? 'Đã cấp quyền quản trị.' : 'Đã bỏ quyền quản trị.');
     } else if (act === 'mb-delete') {
-      if (!(await confirmBox('Xóa vĩnh viễn tài khoản?', 'Tài khoản <b>' + esc(who) + '</b> cùng <b>' + (m?.boards || 0) + ' bảng</b> và <b>' + (m?.posts || 0) + ' bài làm</b> sẽ bị xóa hẳn, không khôi phục được.', 'Xóa vĩnh viễn', true))) return;
+      if (!(await confirmBox('Xóa vĩnh viễn tài khoản?', 'Tài khoản <b>' + esc(who) + '</b> (' + esc(m?.email || '') + ') cùng <b>' + (m?.boards || 0) + ' bảng</b> và <b>' + (m?.posts || 0) + ' bài làm</b> sẽ bị xóa hẳn, không khôi phục được. Nếu chỉ muốn tạm dừng, hãy chọn Khóa.', 'Xóa vĩnh viễn', true))) return;
       await api('admin_delete', { id }); toast('Đã xóa tài khoản ' + who + '.');
-      S.memberList = (S.memberList || []).filter((x) => x.id !== id); S.members.delete(id);
-      for (const [bid, b] of S.boards) if (b.ownerAcc === id) S.boards.delete(bid);
-      for (const [pid, p] of S.posts) if (p.ownerAcc === id) S.posts.delete(pid);
+      dropMemberLocal(id);
     } else if (act === 'mb-view') {
       S.view = { name: 'home', tab: 'mine', q: '', owner: id }; homeKey = ''; render(); window.scrollTo(0, 0); return;
     } else if (act === 'mb-reset') { resetForm(m); return; }
+    else if (act === 'mb-edit') { editMemberForm(m); return; }
+    else if (act === 'mb-copy') { try { await navigator.clipboard.writeText(m?.email || ''); toast('Đã sao chép ' + (m?.email || '') + '.'); } catch (e) { toast('Email: ' + (m?.email || '')); } return; }
   } catch (e) { toast(aiMsg(e)); return; }
   refreshMembers(true);
+}
+async function memberBulk(v) {
+  if (v === 'clear') { S.memberSel.clear(); drawMembers(); return; }
+  const ms = [...S.memberSel].map(memberOf).filter((m) => m && m.id !== S.meId);
+  const todo = v === 'active' ? ms.filter((m) => m.status !== 'active') : v === 'locked' ? ms.filter((m) => m.status !== 'locked') : ms;
+  if (!todo.length) return;
+  const names = todo.slice(0, 5).map((m) => '<b>' + esc(m.full_name || m.email) + '</b>').join(', ') + (todo.length > 5 ? ' và ' + (todo.length - 5) + ' người khác' : '');
+  if (v === 'locked' && !(await confirmBox('Khóa ' + todo.length + ' tài khoản?', names + ' sẽ không đăng nhập được, học sinh cũng không vào được các lớp của họ. Dữ liệu vẫn được giữ, có thể mở khóa lại.', 'Khóa ' + todo.length + ' tài khoản', true))) return;
+  if (v === 'delete') {
+    const nb = todo.reduce((s, m) => s + (m.boards || 0), 0), np = todo.reduce((s, m) => s + (m.posts || 0), 0);
+    if (!(await confirmBox('Xóa vĩnh viễn ' + todo.length + ' tài khoản?', names + ' cùng <b>' + nb + ' bảng</b> và <b>' + np + ' bài làm</b> sẽ bị xóa hẳn, không khôi phục được.', 'Xóa vĩnh viễn ' + todo.length + ' tài khoản', true))) return;
+  }
+  $$('#mb-bulk button').forEach((x) => (x.disabled = true));
+  toast('Đang xử lý ' + todo.length + ' tài khoản…');
+  let ok = 0, lastErr = '';
+  for (const m of todo) {
+    try {
+      if (v === 'delete') { await api('admin_delete', { id: m.id }); dropMemberLocal(m.id); }
+      else await api('admin_update', { id: m.id, status: v });
+      ok++;
+    } catch (e) { lastErr = aiMsg(e); }
+  }
+  S.memberSel.clear();
+  const verb = v === 'delete' ? 'Đã xóa ' : v === 'locked' ? 'Đã khóa ' : 'Đã kích hoạt ';
+  toast(ok === todo.length ? verb + ok + ' tài khoản.' : verb + ok + '/' + todo.length + ' tài khoản. ' + lastErr);
+  refreshMembers(true);
+}
+function editMemberForm(mb) {
+  if (!mb) return;
+  const m = openModal({
+    title: 'Sửa thông tin thành viên',
+    body: `<form class="modal-b" id="mf" novalidate>
+      <label class="fld"><span>Họ và tên</span><input id="mf-name" autocomplete="off" value="${esc(mb.full_name || '')}"></label>
+      <label class="fld"><span>Email đăng ký</span><input id="mf-email" value="${esc(mb.email)}" readonly aria-describedby="mf-eh"><small class="fld-hint" id="mf-eh">Email dùng để đăng nhập nên không đổi ở đây. Cần đổi email thì tạo tài khoản mới rồi xóa tài khoản cũ.</small></label>
+      <label class="fld"><span>Đơn vị công tác</span><input id="mf-school" autocomplete="off" value="${esc(mb.school || '')}" placeholder="Ví dụ: Trường THCS Kim Hỷ"></label>
+      <label class="fld"><span>Môn dạy</span><input id="mf-subject" autocomplete="off" value="${esc(mb.subject || '')}" placeholder="Toán, Tin học…"></label>
+      <p class="form-err" id="mf-err" role="alert"></p>
+    </form>`,
+    foot: `<button class="btn btn-ghost" data-close>Hủy</button><button class="btn btn-brand" id="mf-go">${ic('check')}Lưu thay đổi</button>`,
+  });
+  const el = m.el;
+  $('#mf', el).addEventListener('submit', (e) => e.preventDefault());
+  $('#mf-go', el).onclick = async () => {
+    const err = $('#mf-err', el); err.textContent = '';
+    const full_name = $('#mf-name', el).value.trim().replace(/\s+/g, ' '), school = $('#mf-school', el).value.trim(), subject = $('#mf-subject', el).value.trim();
+    if (full_name.length < 2) { err.textContent = 'Hãy nhập họ và tên.'; $('#mf-name', el).focus(); return; }
+    const btn = $('#mf-go', el); btn.disabled = true;
+    try {
+      await api('admin_update', { id: mb.id, full_name, school, subject });
+      Object.assign(mb, { full_name, school, subject });
+      const p = S.members.get(mb.id); if (p && p !== mb) Object.assign(p, { full_name, school, subject });
+      m.close(); toast('Đã lưu thông tin ' + full_name + '.'); drawMembers(); refreshMembers();
+    } catch (e) { err.textContent = aiMsg(e); }
+    finally { btn.disabled = false; }
+  };
+  setTimeout(() => $('#mf-school', el)?.focus(), 50);
+}
+function credBox(name, email, pw) {
+  const link = location.origin + location.pathname;
+  const text = `Tài khoản Tường Học Tập AI của ${name}\nĐịa chỉ: ${link}\nEmail: ${email}\nMật khẩu tạm: ${pw}\nLần đầu đăng nhập, hãy đổi mật khẩu.`;
+  const m = openModal({
+    title: 'Đã thêm thành viên',
+    body: `<div class="modal-b"><p>Gửi thông tin đăng nhập này cho <b>${esc(name)}</b>. Lần đầu đăng nhập, Tường AI sẽ nhắc đổi mật khẩu.</p>
+      <div class="cred"><div><span>Địa chỉ</span><b>${esc(link)}</b></div><div><span>Email đăng ký</span><b>${esc(email)}</b></div><div><span>Mật khẩu tạm</span><b>${esc(pw)}</b></div></div></div>`,
+    foot: `<button class="btn btn-ghost" id="cr-copy">${ic('copy')}Sao chép thông tin</button><button class="btn btn-brand" data-close>Xong</button>`,
+  });
+  $('#cr-copy', m.el).onclick = async () => { try { await navigator.clipboard.writeText(text); toast('Đã sao chép thông tin đăng nhập.'); } catch (e) { toast('Hãy ghi lại email và mật khẩu tạm.'); } };
 }
 function resetForm(mb) {
   if (!mb) return;
@@ -4632,17 +4829,18 @@ function resetForm(mb) {
 }
 function createMemberForm() {
   const m = openModal({
-    title: 'Tạo tài khoản',
+    title: 'Thêm thành viên',
     body: `<form class="modal-b" id="mc" novalidate>
-      <p class="meta">Tài khoản tạo ở đây dùng được ngay, không cần chờ duyệt. Gửi email và mật khẩu cho giáo viên; họ sẽ được nhắc đổi mật khẩu.</p>
-      <label class="fld"><span>Họ và tên</span><input id="mc-name" autocomplete="off"></label>
-      <label class="fld"><span>Email</span><input id="mc-email" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="ten@gmail.com"></label>
-      <div class="grid2"><label class="fld"><span>Trường</span><input id="mc-school" autocomplete="off"></label><label class="fld"><span>Môn dạy</span><input id="mc-subject" autocomplete="off"></label></div>
+      <p class="meta">Tài khoản thêm ở đây dùng được ngay, không cần chờ duyệt. Gửi email và mật khẩu tạm cho giáo viên; lần đầu đăng nhập họ sẽ được nhắc đổi mật khẩu.</p>
+      <label class="fld"><span>Họ và tên</span><input id="mc-name" autocomplete="off" placeholder="Ví dụ: Nguyễn Thị Lan"></label>
+      <label class="fld"><span>Email đăng ký</span><input id="mc-email" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="ten@gmail.com"></label>
+      <label class="fld"><span>Đơn vị công tác</span><input id="mc-school" autocomplete="off" placeholder="Ví dụ: Trường THCS Kim Hỷ"></label>
+      <label class="fld"><span>Môn dạy <em>(không bắt buộc)</em></span><input id="mc-subject" autocomplete="off" placeholder="Toán, Tin học…"></label>
       <div class="grid2"><label class="fld"><span>Mật khẩu tạm</span><input id="mc-pw" type="text" autocomplete="off" spellcheck="false"></label>
       <label class="fld"><span>Vai trò</span><select id="mc-role"><option value="teacher">Giáo viên</option><option value="admin">Quản trị hệ thống</option></select></label></div>
       <p class="form-err" id="mc-err" role="alert"></p>
     </form>`,
-    foot: `<button class="btn btn-ghost" data-close>Hủy</button><button class="btn btn-brand" id="mc-go">${ic('plus')}Tạo tài khoản</button>`,
+    foot: `<button class="btn btn-ghost" data-close>Hủy</button><button class="btn btn-brand" id="mc-go">${ic('plus')}Thêm thành viên</button>`,
   });
   const el = m.el;
   $('#mc-pw', el).value = Math.random().toString(36).slice(2, 6) + Math.floor(1000 + Math.random() * 9000);
@@ -4656,7 +4854,7 @@ function createMemberForm() {
     const btn = $('#mc-go', el); btn.disabled = true;
     try {
       await api('admin_create', { email, password: wrapPw(pw), full_name: name, school: $('#mc-school', el).value.trim(), subject: $('#mc-subject', el).value.trim(), role: $('#mc-role', el).value });
-      m.close(); toast('Đã tạo tài khoản ' + email + '. Mật khẩu tạm: ' + pw); refreshMembers(true);
+      m.close(); refreshMembers(true); credBox(name, email, pw);
     } catch (e) { err.textContent = aiMsg(e); }
     finally { btn.disabled = false; }
   };
@@ -4689,7 +4887,7 @@ async function copyText(t) {
 /* ================= sự kiện chung ================= */
 document.addEventListener('click', async (e) => {
   const t = e.target.closest('[data-act]');
-  if (!e.target.closest('.menu') && !e.target.closest('[data-act="board-menu"]') && !e.target.closest('[data-act="post-menu"]')) $$('.menu').forEach((x) => x.remove());
+  if (!e.target.closest('.menu') && !e.target.closest('[data-act="board-menu"]') && !e.target.closest('[data-act="post-menu"]') && !e.target.closest('[data-act="mb-more"]')) $$('.menu').forEach((x) => x.remove());
   if (!e.target.closest('.pop') && !e.target.closest('[data-act^="me-menu"]')) $('.pop')?.remove();
   if (!t) return;
   const act = t.dataset.act, id = t.dataset.id;
@@ -4701,7 +4899,10 @@ document.addEventListener('click', async (e) => {
     case 'clear-owner': S.view = { name: 'home', tab: 'mine', q: '', owner: null }; homeKey = ''; render(); break;
     case 'mb-filter': S.memberFilter = t.dataset.v; drawMembers(); break;
     case 'mb-create': createMemberForm(); break;
-    case 'mb-approve': case 'mb-lock': case 'mb-role': case 'mb-delete': case 'mb-view': case 'mb-reset': memberAct(act, id); break;
+    case 'mb-approve': case 'mb-lock': case 'mb-role': case 'mb-delete': case 'mb-view': case 'mb-reset': case 'mb-edit': case 'mb-copy': $$('.menu').forEach((x) => x.remove()); memberAct(act, id); break;
+    case 'mb-more': { const mm = memberOf(id); if (mm) memberMenu(t, mm); break; }
+    case 'mb-sort': { const k = t.dataset.k; S.memberSort = !k ? { k: '', dir: 1 } : S.memberSort.k === k ? { k, dir: -S.memberSort.dir } : { k, dir: 1 }; drawMembers(); break; }
+    case 'mb-bulk': memberBulk(t.dataset.v); break;
     case 'new-board': closeDrawer(); boardForm(null); break;
     case 'join': closeDrawer(); joinForm(); break;
     case 'open-board': if (b && !b.trashed) { S.view = { name: 'board', boardId: b.id, tab: S.view.tab, q: '' }; render(); window.scrollTo(0, 0); } break;
