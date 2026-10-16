@@ -511,7 +511,7 @@ p{margin:0}
         </div>
         <div class="meter" aria-hidden="true"><i id="rg-meter"></i></div>
         <label class="chk"><input type="checkbox" id="rg-agree"> <span id="rg-agree-t">Tôi chỉ dùng bài làm của học sinh cho mục đích dạy và học.</span></label>
-        <p class="info-box" id="rg-admin" hidden>Email này là tài khoản <b>Quản trị hệ thống</b>: thấy mọi bảng và đặt lại mật khẩu khi ai đó quên.</p>
+        <p class="info-box" id="rg-admin" hidden>Email này đã là tài khoản <b>Quản trị hệ thống</b> có sẵn. Hãy dùng thẻ <b>Đăng nhập</b>.</p>
         <p class="form-err" id="rg-err" role="alert"></p>
         <button class="btn btn-brand btn-block" type="submit" id="rg-btn">Tạo tài khoản</button>
         <p class="switch">Đã có tài khoản? <button type="button" class="link" data-go="login">Đăng nhập</button></p>
@@ -830,6 +830,8 @@ async function hashPw(pw, salt) {
 const normUser = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, '');
 /* Tài khoản Quản trị hệ thống: nhận ra qua mã băm của email, không ghi email trong mã nguồn. */
 const ADMIN_SHA = 'a07c6833a2efe0fb6de9bc613c161a849e9a7af16d72db52c27410ab29cc86e5';
+/* Mật khẩu mặc định của tài khoản quản trị (đã mã hóa PBKDF2). Đổi được trong menu tài khoản. */
+const ADMIN_DEFAULT = { salt: 'BxKQjgwdBRT1u/Dkg8pksQ==', hash: 'twXsQplc3wLN8VHf/AFrkwHucAjbUebpi2ip7sXSeew=' };
 async function isAdminUser(u) {
   try {
     const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(normUser(u)));
@@ -1012,43 +1014,38 @@ function quickProfileForm() {
     toast('Đã gắn đăng nhập nhanh cho ' + acc.name + '.');
   };
 }
-function adminSetupForm(username) {
+function changePwForm() {
+  const me = ME(); if (!me || !me.hash) return;
   const m = openModal({
-    title: 'Tạo tài khoản Quản trị hệ thống',
-    body: `<form class="modal-b" id="ad" novalidate>
-      <p class="info-box">Tài khoản <b>${esc(username)}</b> là Quản trị hệ thống của Tường AI nhưng chưa được tạo ở đây. Hãy đặt họ tên và mật khẩu để bắt đầu.</p>
-      <label class="fld"><span>Họ và tên</span><input id="ad-name" autocomplete="name" placeholder="Họ và tên của bạn"></label>
-      <label class="fld"><span>Trường</span><input id="ad-school" autocomplete="organization"></label>
+    title: 'Đổi mật khẩu',
+    body: `<form class="modal-b" id="cp" novalidate>
+      ${me.mustChange ? '<p class="warnline">Bạn đang dùng mật khẩu mặc định. Hãy đặt mật khẩu riêng để người khác không vào được tài khoản quản trị.</p>' : ''}
+      <label class="fld"><span>Mật khẩu hiện tại</span><input id="cp-old" type="password" autocomplete="current-password"></label>
       <div class="grid2">
-        <label class="fld"><span>Mật khẩu</span><input id="ad-pass" type="password" autocomplete="new-password" placeholder="Ít nhất 8 ký tự"></label>
-        <label class="fld"><span>Nhập lại mật khẩu</span><input id="ad-pass2" type="password" autocomplete="new-password"></label>
+        <label class="fld"><span>Mật khẩu mới</span><input id="cp-new" type="password" autocomplete="new-password" placeholder="Ít nhất 6 ký tự"></label>
+        <label class="fld"><span>Nhập lại mật khẩu mới</span><input id="cp-new2" type="password" autocomplete="new-password"></label>
       </div>
-      <p class="form-err" id="ad-err" role="alert"></p>
+      <p class="form-err" id="cp-err" role="alert"></p>
     </form>`,
-    foot: `<button class="btn btn-ghost" data-close>Hủy</button><button class="btn btn-brand" id="ad-go">${ic('shield')}Tạo tài khoản quản trị</button>`,
+    foot: `<button class="btn btn-ghost" data-close>Hủy</button><button class="btn btn-brand" id="cp-go">${ic('key')}Đổi mật khẩu</button>`,
   });
   const el = m.el;
-  $('#ad', el).addEventListener('submit', (e) => e.preventDefault());
-  $('#ad-go', el).onclick = async () => {
-    const err = $('#ad-err', el); err.textContent = '';
-    const name = $('#ad-name', el).value.trim().replace(/\s+/g, ' ');
-    const pw = $('#ad-pass', el).value, pw2 = $('#ad-pass2', el).value;
-    if (name.length < 2) { err.textContent = 'Hãy nhập họ và tên.'; $('#ad-name', el).focus(); return; }
-    if (pw.length < 8) { err.textContent = 'Mật khẩu quản trị cần ít nhất 8 ký tự.'; $('#ad-pass', el).focus(); return; }
-    if (pw !== pw2) { err.textContent = 'Hai lần nhập mật khẩu chưa khớp.'; $('#ad-pass2', el).focus(); return; }
-    if (S.auth.accounts.some((a) => a.username === username)) { err.textContent = 'Tài khoản này vừa được tạo. Hãy đăng nhập.'; return; }
-    const btn = $('#ad-go', el); btn.disabled = true;
+  $('#cp', el).addEventListener('submit', (e) => e.preventDefault());
+  $('#cp-go', el).onclick = async () => {
+    const err = $('#cp-err', el); err.textContent = '';
+    const old = $('#cp-old', el).value, nw = $('#cp-new', el).value, nw2 = $('#cp-new2', el).value;
+    const btn = $('#cp-go', el); btn.disabled = true;
+    const prev = { salt: me.salt, hash: me.hash, mustChange: me.mustChange };
     try {
-      const salt = newSalt();
-      const acc = { id: uid('a_'), username, name, role: 'gv', isAdmin: true, school: $('#ad-school', el).value.trim(), subject: '', className: '', joined: [], salt, hash: await hashPw(pw, salt), createdAt: now() };
-      S.auth.accounts.push(acc);
-      if (!(await saveAuth())) { S.auth.accounts = S.auth.accounts.filter((a) => a.id !== acc.id); err.textContent = 'Chưa lưu được tài khoản. Hãy thử lại.'; return; }
-      m.close();
-      setSession(acc.id, $('#li-remember').checked);
-      $('#li-pass').value = '';
-      enterApp(acc.id, true);
-      toast('Đã tạo tài khoản Quản trị hệ thống.');
+      if ((await hashPw(old, me.salt)) !== me.hash) { err.textContent = 'Mật khẩu hiện tại chưa đúng.'; $('#cp-old', el).focus(); return; }
+      if (nw.length < 6) { err.textContent = 'Mật khẩu mới cần ít nhất 6 ký tự.'; $('#cp-new', el).focus(); return; }
+      if (nw !== nw2) { err.textContent = 'Hai lần nhập mật khẩu mới chưa khớp.'; $('#cp-new2', el).focus(); return; }
+      if (nw === old) { err.textContent = 'Mật khẩu mới cần khác mật khẩu hiện tại.'; $('#cp-new', el).focus(); return; }
+      me.salt = newSalt(); me.hash = await hashPw(nw, me.salt); delete me.mustChange;
+      if (await saveAuth()) { m.close(); toast('Đã đổi mật khẩu.'); homeKey = ''; render(); }
+      else Object.assign(me, prev);
     } catch (x) {
+      Object.assign(me, prev);
       err.textContent = 'Trình duyệt này chưa hỗ trợ mã hóa mật khẩu. Hãy mở bằng Chrome, Safari bản mới.';
     } finally { btn.disabled = false; }
   };
@@ -1065,7 +1062,18 @@ async function onLogin(e) {
   try {
     await ready;
     const acc = S.auth.accounts.find((a) => a.username === u);
-    if (!acc && await isAdminUser(u)) { adminSetupForm(u); return; }
+    if (!acc && await isAdminUser(u)) {
+      if ((await hashPw(pw, ADMIN_DEFAULT.salt)) !== ADMIN_DEFAULT.hash) { err.textContent = 'Mật khẩu chưa đúng. Hãy thử lại.'; return; }
+      const salt = newSalt();
+      const adm = { id: uid('a_'), username: u, name: 'Quản trị hệ thống', role: 'gv', isAdmin: true, school: '', subject: '', className: '', joined: [], salt, hash: await hashPw(pw, salt), mustChange: true, createdAt: now() };
+      S.auth.accounts.push(adm);
+      if (!(await saveAuth())) { S.auth.accounts = S.auth.accounts.filter((a) => a.id !== adm.id); err.textContent = 'Chưa lưu được tài khoản. Hãy thử lại.'; return; }
+      setSession(adm.id, $('#li-remember').checked);
+      $('#li-pass').value = '';
+      enterApp(adm.id, true);
+      toast('Chào Quản trị hệ thống! Hãy đổi mật khẩu mặc định.');
+      return;
+    }
     if (!S.auth.accounts.length) { err.textContent = 'Chưa có tài khoản nào trên Tường AI này. Hãy bấm Đăng ký để tạo tài khoản đầu tiên.'; return; }
     if (!acc) { err.textContent = 'Không tìm thấy tài khoản này trên Tường AI. Kiểm tra lại tên đăng nhập hoặc đăng ký mới.'; return; }
     if (!acc.hash) { err.textContent = 'Tài khoản này dùng đăng nhập nhanh. Hãy bấm nút Tiếp tục ở phía trên.'; return; }
@@ -1097,6 +1105,7 @@ async function onRegister(e) {
   if (regRole === 'hs' && !className) return fail('Hãy nhập lớp của em, ví dụ 9A5.', '#rg-class');
   if (username.length < 3) return fail('Tên đăng nhập cần ít nhất 3 ký tự.', '#rg-user');
   if (!/^[a-z0-9._@+-]+$/.test(username)) return fail('Tên đăng nhập chỉ dùng chữ không dấu, số và các ký tự . _ @ + -', '#rg-user');
+  if (await isAdminUser(username)) return fail('Email này là tài khoản Quản trị hệ thống có sẵn. Hãy dùng thẻ Đăng nhập.', '#rg-user');
   if (pw.length < 6) return fail('Mật khẩu cần ít nhất 6 ký tự.', '#rg-pass');
   if (pw !== pw2) return fail('Hai lần nhập mật khẩu chưa khớp.', '#rg-pass2');
   if (!$('#rg-agree').checked) return fail('Hãy đánh dấu ô cam kết trước khi tạo tài khoản.');
@@ -1314,7 +1323,7 @@ const TAB_TITLE = { mine: 'Bảng của tôi', starred: 'Đã đánh dấu', arc
 let homeKey = '';
 function renderHome() {
   const me = ME(); const tab = S.view.tab; const gv = me.role === 'gv';
-  const key = 'home:' + tab + ':' + me.id;
+  const key = 'home:' + tab + ':' + me.id + ':' + (me.mustChange ? 1 : 0);
   const v = $('#view');
   if (homeKey !== key || !$('#grid')) {
     homeKey = key;
@@ -1322,6 +1331,7 @@ function renderHome() {
     const lede = tab === 'trash' ? 'Bảng trong thùng rác có thể khôi phục hoặc xóa vĩnh viễn.' : tab === 'archived' ? 'Bảng đã lưu trữ không hiện ở trang chính nhưng vẫn giữ nguyên bài làm.' : gv ? 'Tập hợp ý tưởng. Chia sẻ bài làm. Cùng nhau khám phá.' : 'Chọn lớp để xem bài tập, nộp bài và xem AI chỉ lỗi.';
     v.innerHTML = `
       <div class="crumbs"><nav><span>Không gian làm việc</span><span>/</span><span class="cur">${gv ? (me.isAdmin ? 'Toàn hệ thống' : 'Của tôi') : 'Lớp học'}</span></nav><span class="pill">${ic('lock', 'ic-sm')}Riêng tư</span></div>
+      ${me.mustChange ? `<div class="warnline row-between"><span>Tài khoản đang dùng mật khẩu mặc định. Hãy đổi để bảo vệ quyền quản trị.</span><button class="btn btn-sm btn-navy" data-act="change-pw">${ic('key', 'ic-sm')}Đổi mật khẩu</button></div>` : ''}
       <section class="hero">
         <div><p class="eyebrow">Mỗi ý tưởng đều có một chỗ</p><h1>${esc(title)}${tab === 'mine' || tab === 'classes' ? DECO : ''}</h1><p class="lede">${lede}</p></div>
         ${gv ? `<button class="btn btn-navy" data-act="new-board">${ic('plus')}Tạo bảng</button>` : `<button class="btn btn-navy" data-act="join">${ic('door')}Vào lớp bằng mã</button>`}
@@ -2057,7 +2067,7 @@ function meMenu(anchor) {
   const old = $('.pop'); if (old) { old.remove(); return; }
   const pop = document.createElement('div'); pop.className = 'pop'; pop.setAttribute('role', 'menu');
   const canLink = CAP.me?.id && !linkedAcc() && !ME()?.guest;
-  pop.innerHTML = `${STANDALONE && isGV() ? `<button role="menuitem" data-act="ai-settings">${ic('spark')}Cài đặt AI chấm bài</button>` : ''}${canLink ? `<button role="menuitem" data-act="link-quick">${ic('key')}Bật đăng nhập nhanh</button>` : ''}${isAdmin() ? `<button role="menuitem" data-act="accounts">${ic('users')}Quản lý tài khoản</button>` : ''}<button role="menuitem" data-act="logout">${ic('logout')}Đăng xuất</button>`;
+  pop.innerHTML = `${ME()?.hash ? `<button role="menuitem" data-act="change-pw">${ic('key')}Đổi mật khẩu</button>` : ''}${STANDALONE && isGV() ? `<button role="menuitem" data-act="ai-settings">${ic('spark')}Cài đặt AI chấm bài</button>` : ''}${canLink ? `<button role="menuitem" data-act="link-quick">${ic('key')}Bật đăng nhập nhanh</button>` : ''}${isAdmin() ? `<button role="menuitem" data-act="accounts">${ic('users')}Quản lý tài khoản</button>` : ''}<button role="menuitem" data-act="logout">${ic('logout')}Đăng xuất</button>`;
   if (anchor === 'top') { pop.style.cssText = 'position:fixed;z-index:70;top:calc(56px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));left:auto;bottom:auto;width:220px'; document.body.appendChild(pop); }
   else $('.me').appendChild(pop);
 }
@@ -2120,6 +2130,7 @@ document.addEventListener('click', async (e) => {
     case 'me-menu-top': meMenu('top'); break;
     case 'accounts': $('.pop')?.remove(); closeDrawer(); accountsForm(); break;
     case 'ai-settings': $('.pop')?.remove(); closeDrawer(); aiSettingsForm(); break;
+    case 'change-pw': $('.pop')?.remove(); closeDrawer(); changePwForm(); break;
     case 'link-quick': {
       $('.pop')?.remove();
       const acc = ME();
