@@ -125,6 +125,8 @@ p{margin:0}
 .auth-card{background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:22px;min-width:0}
 .tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-2);border-radius:12px;padding:4px;margin-bottom:18px}
 .tabs button{min-height:40px;border-radius:9px;font-weight:600;color:var(--muted)}
+.tabs.tabs3{grid-template-columns:repeat(3,1fr)}
+.code-inp{letter-spacing:.3em;font-weight:700;text-transform:uppercase;font-size:18px!important;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
 .tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
 .form{display:grid;gap:14px}
 .fld{display:grid;gap:6px;min-width:0}
@@ -466,10 +468,21 @@ p{margin:0}
         <p class="quick-note">Đăng nhập nhanh bằng tài khoản bạn đang dùng cho Claude. Nếu bạn đăng nhập Claude bằng Gmail, đây chính là tài khoản Google đó, không cần mật khẩu riêng.</p>
         <p class="divider">hoặc dùng tên đăng nhập</p>
       </div>
-      <div class="tabs" role="tablist" aria-label="Chọn đăng nhập hoặc đăng ký">
+      <div class="tabs tabs3" role="tablist" aria-label="Chọn cách vào Tường AI">
+        <button type="button" role="tab" id="tab-hs" aria-selected="false" aria-controls="f-hs">Học sinh</button>
         <button type="button" role="tab" id="tab-login" aria-selected="true" aria-controls="f-login">Đăng nhập</button>
         <button type="button" role="tab" id="tab-reg" aria-selected="false" aria-controls="f-reg">Đăng ký</button>
       </div>
+
+      <form id="f-hs" class="form" novalidate role="tabpanel" aria-labelledby="tab-hs" hidden>
+        <p class="info-box">Học sinh <b>không cần tài khoản</b>. Nhập mã lớp thầy cô gửi và họ tên của em là vào nộp bài được ngay.</p>
+        <label class="fld"><span>Mã lớp</span><input id="hs-code" class="code-inp" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="6 ký tự"></label>
+        <label class="fld"><span>Họ và tên</span><input id="hs-name" autocomplete="name" placeholder="Ví dụ: Nguyễn Văn An"></label>
+        <label class="fld"><span>Lớp <em>(không bắt buộc)</em></span><input id="hs-class" autocomplete="off" placeholder="Ví dụ: 9A5"></label>
+        <p class="form-err" id="hs-err" role="alert"></p>
+        <button class="btn btn-brand btn-block" type="submit" id="hs-btn">Vào lớp</button>
+        <p class="switch">Muốn thử trước? Dùng mã <b>MAU009</b> của bảng mẫu.</p>
+      </form>
 
       <form id="f-login" class="form" novalidate role="tabpanel" aria-labelledby="tab-login">
         <label class="fld"><span>Tên đăng nhập</span><input id="li-user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Email, số điện thoại hoặc tên đăng nhập"></label>
@@ -485,16 +498,11 @@ p{margin:0}
       </form>
 
       <form id="f-reg" class="form" novalidate role="tabpanel" aria-labelledby="tab-reg" hidden>
-        <div class="seg" role="group" aria-label="Bạn là">
-          <button type="button" data-role="gv" aria-pressed="true"><span class="ri" data-ic="users"></span><span><b>Giáo viên</b><small>Tạo bảng, chụp và chấm bài</small></span></button>
-          <button type="button" data-role="hs" aria-pressed="false"><span class="ri" data-ic="user"></span><span><b>Học sinh</b><small>Vào lớp, nộp bài, xem lỗi</small></span></button>
-        </div>
+        <p class="info-box">Đăng ký dành cho <b>giáo viên</b>. Học sinh không cần tài khoản: chọn thẻ <b>Học sinh</b> và nhập mã lớp.</p>
         <label class="fld"><span>Họ và tên</span><input id="rg-name" autocomplete="name" placeholder="Ví dụ: Nguyễn Thị Lan"></label>
-        <label class="fld"><span>Trường</span><input id="rg-school" autocomplete="organization" placeholder="Ví dụ: Trường THCS Yên Lạc"></label>
         <div class="grid2">
-          <label class="fld" data-for="gv"><span>Môn dạy <em>(không bắt buộc)</em></span><input id="rg-subject" placeholder="Toán, Tin học, Ngữ văn…"></label>
-          <label class="fld" data-for="hs" hidden><span>Lớp</span><input id="rg-class" placeholder="Ví dụ: 9A5"></label>
-          <label class="fld" data-for="hs" hidden><span>Mã lớp <em>(nếu thầy cô đã gửi)</em></span><input id="rg-code" maxlength="6" autocapitalize="characters" spellcheck="false" placeholder="6 ký tự"></label>
+          <label class="fld"><span>Trường</span><input id="rg-school" autocomplete="organization" placeholder="Ví dụ: THCS Yên Lạc"></label>
+          <label class="fld"><span>Môn dạy <em>(không bắt buộc)</em></span><input id="rg-subject" placeholder="Toán, Tin học…"></label>
         </div>
         <label class="fld"><span>Tên đăng nhập</span><input id="rg-user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Email, số điện thoại hoặc tên tự đặt"></label>
         <div class="grid2">
@@ -638,7 +646,7 @@ const S = {
   imgCache: new Map(),
   unsub: [],
 };
-const ME = () => S.auth.accounts.find((a) => a.id === S.meId) || null;
+const ME = () => (S.guest && S.guest.id === S.meId ? S.guest : S.auth.accounts.find((a) => a.id === S.meId) || null);
 const isGV = () => ME()?.role === 'gv';
 const isAdmin = () => !!ME()?.isAdmin;
 
@@ -794,6 +802,8 @@ async function init() {
   makeDemo();
   readyResolve();
   showQuick();
+  let g = null; try { g = JSON.parse(SS.get(K_GUEST) || 'null'); } catch (x) {}
+  if (g && g.id && g.name) { enterGuest({ ...g, role: 'hs', guest: true }, null); updateRegHints(); return; }
   const sid = SS.get(K_SESSION) || LS.get(K_SESSION);
   if (sid && S.auth.accounts.some((a) => a.id === sid)) enterApp(sid, false);
   updateRegHints();
@@ -829,27 +839,62 @@ async function isAdminUser(u) {
 function pwScore(p) { let s = 0; if (p.length >= 6) s++; if (p.length >= 10) s++; if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++; if (/\d/.test(p)) s++; if (/[^A-Za-z0-9]/.test(p)) s++; return Math.min(4, s); }
 
 /* ================= đăng nhập / đăng ký ================= */
-let regRole = 'gv';
+const regRole = 'gv';
 let fails = 0, lockUntil = 0;
 function setTab(t) {
-  const reg = t === 'reg';
-  $('#tab-login').setAttribute('aria-selected', String(!reg));
-  $('#tab-reg').setAttribute('aria-selected', String(reg));
-  $('#f-login').hidden = reg; $('#f-reg').hidden = !reg;
-  (reg ? $('#rg-name') : $('#li-user')).focus({ preventScroll: true });
+  const tabs = { hs: ['#tab-hs', '#f-hs', '#hs-code'], login: ['#tab-login', '#f-login', '#li-user'], reg: ['#tab-reg', '#f-reg', '#rg-name'] };
+  for (const [k, [tab, form]] of Object.entries(tabs)) { $(tab).setAttribute('aria-selected', String(k === t)); $(form).hidden = k !== t; }
+  $(tabs[t][2]).focus({ preventScroll: true });
 }
-function updateRegHints() {
-  $$('[data-for]').forEach((el) => { el.hidden = el.dataset.for !== regRole; });
-  $$('.seg [data-role]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.role === regRole)));
-  $('#rg-agree-t').textContent = regRole === 'hs' ? 'Em cam kết tự làm bài và chỉ nộp bài của chính mình.' : 'Tôi chỉ dùng bài làm của học sinh cho mục đích dạy và học.';
+function updateRegHints() {}
+
+/* ---------- học sinh vào lớp không cần tài khoản ---------- */
+const K_GUEST = 'tuongai.guest';
+function guestId(name) {
+  let h = 0x811c9dc5;
+  for (const c of normUser(name).normalize('NFC')) { h ^= c.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+  return 'g_' + h.toString(36);
 }
+function enterGuest(g, boardId) {
+  S.guest = g;
+  SS.set(K_GUEST, JSON.stringify(g));
+  S.meId = g.id;
+  $('#auth').hidden = true; $('#app').hidden = false;
+  S.view = boardId ? { name: 'board', boardId, tab: 'classes', q: '' } : { name: 'home', tab: 'classes', q: '' };
+  renderSide(); render(); window.scrollTo(0, 0);
+}
+function saveGuest() { if (S.guest) SS.set(K_GUEST, JSON.stringify(S.guest)); }
+async function onGuest(e) {
+  e.preventDefault();
+  const err = $('#hs-err'); err.textContent = '';
+  const code = $('#hs-code').value.trim().toUpperCase();
+  const name = $('#hs-name').value.trim().replace(/\s+/g, ' ');
+  const className = $('#hs-class').value.trim().toUpperCase();
+  if (code.length !== 6) { err.textContent = 'Mã lớp gồm 6 ký tự. Hãy hỏi lại thầy cô.'; $('#hs-code').focus(); return; }
+  if (name.length < 2) { err.textContent = 'Em hãy nhập họ và tên.'; $('#hs-name').focus(); return; }
+  const btn = $('#hs-btn'); btn.disabled = true; btn.textContent = 'Đang tìm lớp…';
+  try {
+    await ready;
+    const b = boardByCode(code);
+    if (!b) { err.textContent = 'Không tìm thấy lớp có mã ' + code + ' trên Tường AI này. Em kiểm tra lại mã với thầy cô nhé.'; return; }
+    let prev = null; try { prev = JSON.parse(SS.get(K_GUEST) || 'null'); } catch (x) {}
+    const id = guestId(name);
+    const joined = new Set(prev && prev.id === id ? prev.joined || [] : []);
+    if (!b.demo) joined.add(b.id);
+    enterGuest({ id, name, className, role: 'hs', guest: true, joined: [...joined] }, b.id);
+    toast('Chào ' + givenName(name) + '! Em đã vào ' + b.name + '.');
+  } finally { btn.disabled = false; btn.textContent = 'Vào lớp'; }
+}
+
 function wireAuth() {
   $$('.logo-slot').forEach((s) => (s.outerHTML = LOGO));
   $$('[data-ic]').forEach((s) => (s.innerHTML = ic(s.dataset.ic)));
+  $('#tab-hs').onclick = () => setTab('hs');
   $('#tab-login').onclick = () => setTab('login');
   $('#tab-reg').onclick = () => setTab('reg');
   $$('[data-go]').forEach((b) => (b.onclick = () => setTab(b.dataset.go)));
-  $$('.seg [data-role]').forEach((b) => (b.onclick = () => { regRole = b.dataset.role; updateRegHints(); }));
+  $('#hs-code').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+  $('#f-hs').addEventListener('submit', onGuest);
   $$('.pw-eye').forEach((b) => (b.onclick = () => {
     const i = b.previousElementSibling; const show = i.type === 'password';
     i.type = show ? 'text' : 'password'; b.textContent = show ? 'Ẩn' : 'Hiện'; b.setAttribute('aria-label', show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
@@ -860,7 +905,6 @@ function wireAuth() {
     m.style.width = (e.target.value ? 20 + s * 20 : 0) + '%';
     m.style.backgroundColor = s <= 1 ? 'var(--pen)' : s === 2 ? 'var(--warn)' : 'var(--ok)';
   });
-  $('#rg-code').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
   $('#rg-user').addEventListener('input', async (e) => { const ok = await isAdminUser(e.target.value); $('#rg-admin').hidden = !ok; });
   $('#f-login').addEventListener('submit', onLogin);
   $('#f-reg').addEventListener('submit', onRegister);
@@ -892,17 +936,11 @@ function quickProfileForm() {
   const m = openModal({
     title: 'Hoàn tất hồ sơ',
     body: `<form class="modal-b" id="qf" novalidate>
-      <p class="meta">Lần đầu đăng nhập nhanh, bạn cho Tường AI biết vài thông tin. Lần sau chỉ cần một chạm.</p>
-      <div class="seg" role="group" aria-label="Bạn là">
-        <button type="button" data-qrole="gv" aria-pressed="true"><span class="ri">${ic('users')}</span><span><b>Giáo viên</b><small>Tạo bảng, chụp và chấm bài</small></span></button>
-        <button type="button" data-qrole="hs" aria-pressed="false"><span class="ri">${ic('user')}</span><span><b>Học sinh</b><small>Vào lớp, nộp bài, xem lỗi</small></span></button>
-      </div>
+      <p class="meta">Lần đầu đăng nhập nhanh, thầy cô cho Tường AI biết vài thông tin. Lần sau chỉ cần một chạm.</p>
       <label class="fld"><span>Họ và tên</span><input id="qf-name" autocomplete="name" placeholder="Ví dụ: Nguyễn Thị Lan"></label>
-      <label class="fld"><span>Trường</span><input id="qf-school" autocomplete="organization" placeholder="Ví dụ: Trường THCS Yên Lạc"></label>
       <div class="grid2">
-        <label class="fld" data-qfor="gv"><span>Môn dạy <em>(không bắt buộc)</em></span><input id="qf-subject" placeholder="Toán, Tin học…"></label>
-        <label class="fld" data-qfor="hs" hidden><span>Lớp</span><input id="qf-class" placeholder="Ví dụ: 9A5"></label>
-        <label class="fld" data-qfor="hs" hidden><span>Mã lớp <em>(nếu có)</em></span><input id="qf-code" maxlength="6" autocapitalize="characters" spellcheck="false" placeholder="6 ký tự"></label>
+        <label class="fld"><span>Trường</span><input id="qf-school" autocomplete="organization" placeholder="Ví dụ: THCS Yên Lạc"></label>
+        <label class="fld"><span>Môn dạy <em>(không bắt buộc)</em></span><input id="qf-subject" placeholder="Toán, Tin học…"></label>
       </div>
       <label class="chk"><input type="checkbox" id="qf-agree"> <span id="qf-agree-t">Tôi chỉ dùng bài làm của học sinh cho mục đích dạy và học.</span></label>
       <p class="form-err" id="qf-err" role="alert"></p>
@@ -926,13 +964,12 @@ function quickProfileForm() {
     $('#qf-agree-t', el).textContent = role === 'hs' ? 'Em cam kết tự làm bài và chỉ nộp bài của chính mình.' : 'Tôi chỉ dùng bài làm của học sinh cho mục đích dạy và học.';
   };
   $$('[data-qrole]', el).forEach((b) => (b.onclick = () => { role = b.dataset.qrole; sync(); }));
-  $('#qf-code', el).addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
   $('#qf', el).addEventListener('submit', (e) => e.preventDefault());
   sync();
   $('#qf-go', el).onclick = async () => {
     const err = $('#qf-err', el); err.textContent = '';
     const v = (id) => $(id, el).value.trim();
-    const name = v('#qf-name').replace(/\s+/g, ' '), className = v('#qf-class').toUpperCase(), code = v('#qf-code');
+    const name = v('#qf-name').replace(/\s+/g, ' '), className = '', code = '';
     if (name.length < 2) { err.textContent = 'Hãy nhập họ và tên.'; $('#qf-name', el).focus(); return; }
     if (role === 'hs' && !className) { err.textContent = 'Hãy nhập lớp của em, ví dụ 9A5.'; $('#qf-class', el).focus(); return; }
     if (!$('#qf-agree', el).checked) { err.textContent = 'Hãy đánh dấu ô cam kết trước khi vào.'; return; }
@@ -1053,7 +1090,7 @@ async function onRegister(e) {
   const err = $('#rg-err'), btn = $('#rg-btn');
   err.textContent = '';
   const v = (id) => $(id).value.trim();
-  const name = v('#rg-name').replace(/\s+/g, ' '), school = v('#rg-school'), subject = v('#rg-subject'), className = v('#rg-class').toUpperCase(), code = v('#rg-code');
+  const name = v('#rg-name').replace(/\s+/g, ' '), school = v('#rg-school'), subject = v('#rg-subject'), className = '', code = '';
   const username = normUser($('#rg-user').value), pw = $('#rg-pass').value, pw2 = $('#rg-pass2').value;
   const fail = (msg, id) => { err.textContent = msg; if (id) $(id).focus(); };
   if (name.length < 2) return fail('Hãy nhập họ và tên.', '#rg-name');
@@ -1103,11 +1140,13 @@ function enterApp(id, fresh) {
   if (fresh) window.scrollTo(0, 0);
 }
 function logout() {
-  SS.del(K_SESSION); LS.del(K_SESSION);
+  const wasGuest = !!(S.guest && S.guest.id === S.meId);
+  SS.del(K_SESSION); LS.del(K_SESSION); SS.del(K_GUEST); S.guest = null;
+  if (wasGuest) { $('#f-hs').reset(); }
   S.meId = null; closeAllModals();
   $('#app').hidden = true; $('#auth').hidden = false;
-  setTab('login'); updateRegHints(); showQuick();
-  toast('Bạn đã đăng xuất.');
+  setTab(wasGuest ? 'hs' : 'login'); updateRegHints(); showQuick();
+  toast(wasGuest ? 'Em đã thoát lớp. Bạn khác có thể vào lớp trên máy này.' : 'Bạn đã đăng xuất.');
 }
 
 /* ================= bảng mẫu ================= */
@@ -1234,7 +1273,7 @@ function renderSide() {
   const navs = gv
     ? [['mine', 'grid', 'Bảng của tôi'], ['starred', 'star', 'Đã đánh dấu'], ['archived', 'archive', 'Đã lưu trữ'], ['trash', 'trash', 'Thùng rác']]
     : [['classes', 'grid', 'Lớp của em'], ['mywork', 'book', 'Bài em đã nộp']];
-  const roleLine = me.isAdmin ? 'Quản trị toàn hệ thống' : gv ? 'Giáo viên' + (me.subject ? ' · ' + me.subject : '') : 'Học sinh lớp ' + me.className;
+  const roleLine = me.isAdmin ? 'Quản trị toàn hệ thống' : gv ? 'Giáo viên' + (me.subject ? ' · ' + me.subject : '') : me.className ? 'Học sinh lớp ' + me.className : 'Học sinh';
   $('#side').innerHTML = `
     <div class="brand">${LOGO}<div><b>Tường AI</b><span>Không gian cùng học</span></div></div>
     ${gv ? `<button class="btn btn-brand btn-block" data-act="new-board">${ic('plus')}Tạo bảng mới</button>` : `<button class="btn btn-brand btn-block" data-act="join">${ic('door')}Vào lớp bằng mã</button>`}
@@ -1242,7 +1281,7 @@ function renderSide() {
     <div class="side-foot">
       <p class="side-note">${ic('lock', 'ic-sm')}<span>${gv ? 'Bảng mặc định riêng tư. Thầy cô quyết định nội dung nào được chia sẻ.' : 'Em chỉ thấy bài của mình. Thầy cô xem và duyệt điểm.'}</span></p>
       <div class="me">${avatar(me)}<div class="who"><b>${esc(me.name)}</b><span>${esc(roleLine)}</span></div><button class="icon-btn" data-act="me-menu" aria-label="Tùy chọn tài khoản" aria-expanded="false">${ic('gear')}</button></div>
-      <button class="btn btn-ghost btn-block" data-act="logout">${ic('logout')}Đăng xuất</button>
+      <button class="btn btn-ghost btn-block" data-act="logout">${ic('logout')}${me.guest ? 'Thoát lớp' : 'Đăng xuất'}</button>
     </div>`;
   $('#top-av').innerHTML = `<button class="icon-btn" data-act="me-menu-top" aria-label="Tài khoản">${avatar(me)}</button>`;
   updateNavCounts();
@@ -1623,7 +1662,7 @@ function submitForm(b, asTeacher) {
       const colSel = $('#sf-col', el);
       const p = {
         id: uid('p_'), boardId: b.id, columnId: colSel ? colSel.value : (cols[0]?.id || ''),
-        studentName: name, studentAcc: asTeacher ? (S.auth.accounts.find((a) => a.role === 'hs' && a.name === name && (a.joined || []).includes(b.id))?.id || null) : me.id,
+        studentName: name, studentAcc: asTeacher ? (S.auth.accounts.find((a) => a.role === 'hs' && a.name === name && (a.joined || []).includes(b.id))?.id || guestId(name)) : me.id,
         by: asTeacher ? 'gv' : 'hs', createdByAcc: me.id, images: refs, text, createdAt: now(),
       };
       btn.textContent = 'Đang lưu bài…';
@@ -1977,7 +2016,7 @@ function joinForm() {
     m.close();
     if (!b.demo) {
       const me = ME();
-      if (!(me.joined || []).includes(b.id)) { me.joined = [...(me.joined || []), b.id]; await saveAuth(); }
+      if (!(me.joined || []).includes(b.id)) { me.joined = [...(me.joined || []), b.id]; if (me.guest) saveGuest(); else await saveAuth(); }
     }
     S.view = { name: 'board', boardId: b.id, tab: 'classes', q: '' }; render();
     toast('Em đã vào ' + b.name + '.');
@@ -2017,7 +2056,7 @@ function accountsForm() {
 function meMenu(anchor) {
   const old = $('.pop'); if (old) { old.remove(); return; }
   const pop = document.createElement('div'); pop.className = 'pop'; pop.setAttribute('role', 'menu');
-  const canLink = CAP.me?.id && !linkedAcc();
+  const canLink = CAP.me?.id && !linkedAcc() && !ME()?.guest;
   pop.innerHTML = `${STANDALONE && isGV() ? `<button role="menuitem" data-act="ai-settings">${ic('spark')}Cài đặt AI chấm bài</button>` : ''}${canLink ? `<button role="menuitem" data-act="link-quick">${ic('key')}Bật đăng nhập nhanh</button>` : ''}${isAdmin() ? `<button role="menuitem" data-act="accounts">${ic('users')}Quản lý tài khoản</button>` : ''}<button role="menuitem" data-act="logout">${ic('logout')}Đăng xuất</button>`;
   if (anchor === 'top') { pop.style.cssText = 'position:fixed;z-index:70;top:calc(56px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));left:auto;bottom:auto;width:220px'; document.body.appendChild(pop); }
   else $('.me').appendChild(pop);

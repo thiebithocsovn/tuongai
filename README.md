@@ -6,7 +6,8 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/ (sau khi bật GitHub 
 
 ## Tính năng
 
-- Đăng ký, đăng nhập cho giáo viên và học sinh. Mật khẩu được mã hóa (PBKDF2) trước khi lưu.
+- Học sinh **không cần tài khoản**: chọn thẻ Học sinh, nhập mã lớp 6 ký tự và họ tên là vào nộp bài. Phiên học sinh tự kết thúc khi đóng tab hoặc bấm Thoát lớp, hợp với máy dùng chung trong lớp.
+- Giáo viên đăng ký, đăng nhập bằng mật khẩu. Mật khẩu được mã hóa (PBKDF2) trước khi lưu.
 - Tài khoản **Quản trị hệ thống** gắn với một email cố định (nhận ra qua mã băm, không ghi email trong mã nguồn). Lần đầu đăng nhập bằng email này, Tường AI mời đặt mật khẩu quản trị.
 - Bảng lớp kiểu cột hoặc tường, ghim, đánh dấu, lưu trữ, thùng rác, mã lớp 6 ký tự cho học sinh.
 - Chụp vở bằng camera điện thoại hoặc gõ bài trực tiếp.
