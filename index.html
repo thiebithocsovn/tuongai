@@ -3171,12 +3171,12 @@ function boardForm(b) {
     layout = button.dataset.ly;
     $$('[data-ly]', el).forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
   });
-  $('[data-board-symbol]', el).forEach((button) => button.onclick = () => {
+  $$('[data-board-symbol]', el).forEach((button) => button.onclick = () => {
     pickedSymbol = button.dataset.boardSymbol;
     savedSymbol = 'bi:' + pickedSymbol;
-    $('[data-board-symbol]', el).forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+    $$('[data-board-symbol]', el).forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
   });
-  $('[data-bgp]', el).forEach((button) => { button.onclick = () => {
+  $$('[data-bgp]', el).forEach((button) => { button.onclick = () => {
     bg = button.dataset.bgp; bgImage = ''; bgColor = '';
     $('#bf-color', el).value = wallBg(bg).color; updatePreview();
   }; });
