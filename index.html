@@ -24,9 +24,6 @@
 .ai-src{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:14px;color:var(--ink-2);background:var(--soft);border-radius:10px;padding:8px 12px}
 .ai-src .ic{color:var(--blue)}
 .ai-src .link{margin-left:auto}
-.sfoot{width:min(1240px,calc(100% - 96px));margin:24px auto 0;border-top:1px solid var(--line);padding:26px 0 18px;color:var(--ink-2)}
-.view>.sfoot{margin-top:24px}
-.sf-top{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,1fr));gap:24px}
 .sf-brand{display:flex;gap:12px;align-items:flex-start}
 .sf-brand .owl{width:44px;height:44px;flex:none}
 .sf-brand b{display:block;font-size:18px;color:var(--ink)}
@@ -38,17 +35,13 @@
 .sf-col span{font-size:14.5px;color:var(--muted)}
 .sf-bot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:22px;padding-top:14px;border-top:1px dashed var(--line-2);font-size:13.5px;color:var(--muted)}
 .sf-bot span{display:inline-flex;align-items:center;gap:6px}
-.auth .sfoot-pub,#join .sfoot-pub{width:min(1040px,100%);margin:34px 0 0;background:#ffffffb3;border:1px solid var(--line);border-radius:16px;padding:20px 22px 14px}
-.auth{grid-template-rows:1fr auto}
 .help{list-style:none;margin:0;padding:0;display:grid;gap:12px}
 .help li{display:grid;grid-template-columns:28px 38px minmax(0,1fr);gap:10px;align-items:start}
 .help-n{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;font-weight:700;font-size:14px}
 .help-ic{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:var(--active);color:var(--blue)}
 .help b{font-size:16.5px}
 .help p{font-size:15px;color:var(--ink-2);margin-top:2px}
-@media (max-width:1100px){.sfoot{width:calc(100% - 56px)}}
-@media (max-width:900px){.sf-top{grid-template-columns:1fr 1fr}.sf-brand{grid-column:1/-1}}
-@media (max-width:760px){.sfoot{width:calc(100% - 32px)}.prov-list{grid-template-columns:1fr}.sf-bot{flex-direction:column}}
+@media (max-width:760px){.prov-list{grid-template-columns:1fr}}
 </style>
 <title>Tường AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1145,6 +1138,64 @@ textarea.inp{min-height:64px;resize:vertical;line-height:1.45}
   .app.board-open .free-board,.app.board-open .place-board{padding:16px 14px 66px}
 }
 
+
+/* ---------- chân trang cố định chạy hết đáy + ô tài khoản góc phải ---------- */
+body.has-sbar{--sbh:calc(44px + env(safe-area-inset-bottom,0px));padding-bottom:var(--sbh)}
+.sbar{position:fixed;left:0;right:0;bottom:0;z-index:45;background:#fffffff0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-top:1px solid var(--line);box-shadow:0 -8px 22px -18px rgba(20,45,95,.45);padding-bottom:env(safe-area-inset-bottom,0px)}
+.sbar::before{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:var(--grad);opacity:.85}
+.sbar-in{height:44px;display:flex;align-items:center;gap:16px;padding:0 max(22px,env(safe-area-inset-right,0px)) 0 max(22px,env(safe-area-inset-left,0px));font-size:14px;color:var(--ink-2)}
+.sb-brand{display:inline-flex;align-items:center;gap:8px;flex:none;white-space:nowrap}
+.sb-brand .owl{width:26px;height:26px;flex:none}
+.sb-brand b{font-size:14.5px;font-weight:600;color:var(--ink)}
+.sb-c{color:var(--muted);font-size:13px}
+.sb-links{display:flex;gap:2px;align-items:center;min-width:0;flex:1;overflow-x:auto;scrollbar-width:none;border-left:1px solid var(--line);padding-left:10px}
+.sb-links::-webkit-scrollbar{display:none}
+.sb-links a,.sb-links button{white-space:nowrap;padding:5px 10px;border-radius:7px;color:var(--ink-2);text-decoration:none;font-size:14px;line-height:1.3}
+.sb-links a:hover,.sb-links button:hover{background:var(--soft);color:var(--blue)}
+.sb-note{display:inline-flex;gap:6px;align-items:center;color:var(--muted);font-size:13px;white-space:nowrap;flex:none}
+body.has-sbar .app,body.has-sbar .main,body.has-sbar .auth{min-height:calc(100dvh - var(--sbh))}
+body.has-sbar .side{height:calc(100dvh - var(--sbh))}
+body.has-sbar .fab,body.has-sbar .app.board-open .fab{bottom:calc(var(--sbh) + 22px)}
+body.has-sbar .toast{bottom:calc(var(--sbh) + 16px)}
+.about .sf-brand{margin-bottom:14px}
+.about-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.about-grid section{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.about-grid h4{font-size:15px;color:var(--ink);margin-bottom:4px}
+.about-grid p{font-size:14.5px;color:var(--ink-2);line-height:1.45}
+.crumbs-r{display:flex;align-items:center;gap:10px;flex:none;margin-left:auto}
+.acct.me{display:flex;align-items:center;gap:8px;position:relative;background:#fff;border:1px solid var(--line);border-radius:999px;padding:4px 5px 4px 4px;box-shadow:0 4px 14px -10px rgba(20,45,95,.45);max-width:420px}
+.acct .av{width:36px;height:36px}
+.acct .who{min-width:0;flex:1;max-width:190px;line-height:1.2}
+.acct .who b{font-size:14.5px}
+.acct .who>span{font-size:12.5px;color:var(--blue)}
+.acct .icon-btn{width:32px;height:32px;border-radius:50%}
+.acct .logout{border-radius:999px;padding:6px 12px;font-size:13.5px;white-space:nowrap}
+.acct .pop{top:calc(100% + 8px);bottom:auto;left:auto;right:0;width:250px;z-index:60}
+.acct.compact .who{max-width:150px}
+.acct.compact .logout span{display:none}
+.acct.compact .logout{padding:7px 9px}
+.btop .acct{margin-left:4px}
+.acct-m .av{width:34px;height:34px}
+.acct-mb{display:none;border:0;background:transparent;padding:0;border-radius:50%}
+@media (max-width:1100px){.acct .who{max-width:140px}.acct.compact .who{display:none}}
+@media (max-width:900px){.sb-note{display:none}}
+@media (max-width:760px){
+  .crumbs .acct{display:none}
+  .acct.compact{display:flex;padding:3px}
+  .acct.compact>*{display:none!important}
+  .acct.compact>.acct-mb,.acct.compact>.pop{display:grid!important}
+  body.has-sbar .side{height:auto}
+  body.has-sbar .main{min-height:70vh}
+  .side{grid-template-columns:minmax(0,1fr) auto auto}
+  .acct-m{grid-column:3;grid-row:1;align-self:center;width:42px;height:42px;border-radius:50%}
+  .btop .acct{margin-left:auto}
+  .sbar-in{gap:8px;padding-inline:max(10px,env(safe-area-inset-left,0px)) max(10px,env(safe-area-inset-right,0px))}
+  .sb-brand b,.sb-c{display:none}
+  .sb-links{padding-left:6px}
+  .sb-links a,.sb-links button{font-size:13.5px;padding:5px 8px}
+  body.has-sbar .fab,body.has-sbar .app.board-open .fab{bottom:calc(var(--sbh) + 14px)}
+  .about-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -1216,7 +1267,6 @@ textarea.inp{min-height:64px;resize:vertical;line-height:1.45}
       <p class="store-note" id="store-note"><span data-ic="shield"></span><span id="store-note-t">Đang kết nối kho dữ liệu…</span></p>
     </div>
   </div>
-  <div class="foot-slot"></div>
 </section>
 
 <section id="join" class="auth" aria-label="Vào lớp" hidden>
@@ -1224,7 +1274,6 @@ textarea.inp{min-height:64px;resize:vertical;line-height:1.45}
     <div class="brand"><span class="logo-slot"></span><div><b>Tường Học Tập AI</b><span>Không gian cùng học</span></div></div>
     <div id="join-body"></div>
   </div>
-  <div class="foot-slot"></div>
 </section>
 
 <div id="app" class="app" hidden>
@@ -1240,6 +1289,7 @@ textarea.inp{min-height:64px;resize:vertical;line-height:1.45}
   </div>
 </div>
 <input id="avatar-upload" type="file" accept="image/jpeg,image/png,image/webp" hidden aria-label="Chọn ảnh đại diện">
+<footer id="site-foot" class="sbar"></footer>
 <div id="modals"></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -1908,7 +1958,8 @@ function shareForm(b) {
 
 function wireAuth() {
   $$('.logo-slot').forEach((s) => (s.outerHTML = LOGO));
-  $$('.foot-slot').forEach((s) => (s.outerHTML = footerHtml('public')));
+  updateFoot();
+  ['#app', '#auth', '#join'].forEach((q) => { const n = $(q); if (n) new MutationObserver(updateFoot).observe(n, { attributes: true, attributeFilter: ['hidden'] }); });
   $$('[data-ic]').forEach((s) => (s.innerHTML = ic(s.dataset.ic)));
   $('#tab-login').onclick = () => setTab('login');
   $('#tab-reg').onclick = () => setTab('reg');
@@ -2240,12 +2291,13 @@ function renderSide() {
   const roleLine = me.isAdmin ? 'Quản trị toàn hệ thống' : gv ? 'Không gian giáo viên' : me.className ? 'Học sinh lớp ' + me.className : 'Học sinh';
   const av = gv ? myAvatar(me) : avatar(me);
   $('#side').innerHTML = `
-    <div class="side-head"><button class="brand" data-act="tab" data-tab="${gv ? 'mine' : 'classes'}" aria-label="Về trang chính">${OWL}<span><b>Tường Học Tập AI</b><small>Không gian cùng học</small></span></button><button class="icon-btn m-only" data-act="me-menu-top" aria-label="Tài khoản">${av}</button></div>
+    <div class="side-head"><button class="brand" data-act="tab" data-tab="${gv ? 'mine' : 'classes'}" aria-label="Về trang chính">${OWL}<span><b>Tường Học Tập AI</b><small>Không gian cùng học</small></span></button></div>
+    <button class="icon-btn m-only acct-m" data-act="me-menu-top" aria-label="Tài khoản" title="Tài khoản">${av}</button>
     ${gv ? `<button class="btn create" data-act="new-board">${ic('plus')}Tạo bảng mới</button>` : ''}
     <nav class="nav" aria-label="Danh mục bảng">${navs.map(([k, i, t]) => `<button data-act="tab" data-tab="${k}">${ic(i)}<span>${t}</span><span class="n" data-count="${k}"></span></button>`).join('')}</nav>
     <p class="side-note">${ic('lock')}<span>${gv ? 'Bảng mặc định riêng tư.<br>Thầy cô quyết định nội dung nào được chia sẻ.' : 'Em chỉ thấy bài của mình.<br>Thầy cô xem và duyệt điểm.'}</span></p>
-    <div class="me">${gv ? `<button type="button" class="avatar-action" data-act="change-avatar" aria-label="Đổi ảnh đại diện" title="Đổi ảnh đại diện">${av}</button>` : av}<div class="who"><b>${esc(me.name)}</b><span>${esc(roleLine)}</span></div><button class="icon-btn" data-act="me-menu" aria-label="Tùy chọn tài khoản" aria-expanded="false">${ic('gear')}</button></div>
-    <div class="side-end"><button class="logout" data-act="logout">${ic('logout', 'ic-sm')}${me.guest ? 'Thoát lớp' : 'Đăng xuất'}</button></div>`;
+`;
+  refreshAcct();
   updateNavCounts();
 }
 function updateNavCounts() {
@@ -2273,10 +2325,13 @@ function render() {
   }
   $('#app').classList.toggle('board-open', !!board);
   $('.main').style.cssText = board ? boardBgCss(board.assignment) : '';
+  const openPop = $('.acct .pop');
   if (board) renderBoard(board);
   else if (S.view.tab === 'mywork') renderMyWork();
   else if (S.view.tab === 'members') renderMembers();
   else renderHome();
+  if (openPop && !openPop.isConnected) $('.acct')?.appendChild(openPop);
+  updateFoot();
   if (keep) {
     const el = document.getElementById(keep.id);
     if (el && el !== document.activeElement) { el.focus(); try { if (keep.a != null) el.setSelectionRange(keep.a, keep.b); } catch (e) {} }
@@ -2296,7 +2351,7 @@ function renderHome() {
     const title = ow && tab === 'mine' ? 'Bảng của ' + (ow.full_name || ow.email) : gv && tab === 'mine' ? (me.isAdmin ? 'Bảng toàn hệ thống' : 'Bảng của tôi') : TAB_TITLE[tab];
     const lede = tab === 'trash' ? 'Bảng trong thùng rác có thể khôi phục hoặc xóa vĩnh viễn.' : tab === 'archived' ? 'Bảng đã lưu trữ không hiện ở trang chính nhưng vẫn giữ nguyên bài làm.' : gv ? 'Tập hợp ý tưởng. Chia sẻ bài làm. Cùng nhau khám phá.' : 'Chọn lớp để xem bài tập, nộp bài và xem AI chỉ lỗi.';
     v.innerHTML = `
-      <div class="crumbs"><nav><span>Không gian làm việc</span><span>/</span><span class="cur">${gv ? (me.isAdmin ? 'Toàn hệ thống' : 'Của tôi') : 'Lớp học'}</span></nav><span class="pill">${ic('lock', 'ic-sm')}Riêng tư</span></div>
+      <div class="crumbs"><nav><span>Không gian làm việc</span><span>/</span><span class="cur">${gv ? (me.isAdmin ? 'Toàn hệ thống' : 'Của tôi') : 'Lớp học'}</span></nav><div class="crumbs-r"><span class="pill">${ic('lock', 'ic-sm')}Riêng tư</span>${acctChip()}</div></div>
       ${me.mustChange ? `<div class="warnline row-between"><span>Tài khoản đang dùng mật khẩu mặc định. Hãy đổi để bảo vệ quyền quản trị.</span><button class="btn btn-sm btn-navy" data-act="change-pw">${ic('key', 'ic-sm')}Đổi mật khẩu</button></div>` : ''}
       <section class="hero">
         <div><p class="eyebrow">Mỗi ý tưởng đều có một chỗ</p><div class="hline"><h1>${esc(title)}</h1>${headingArt()}</div><p class="lede">${lede}</p></div>
@@ -2310,8 +2365,7 @@ function renderHome() {
         <span class="count" id="count"></span>
         ${gv && tab === 'trash' ? `<button class="btn btn-sm btn-danger" data-act="empty-trash">${ic('trash', 'ic-sm')}Xóa sạch thùng rác</button>` : ''}
       </div>
-      <div id="grid" class="grid"></div>
-      ${footerHtml()}`;
+      <div id="grid" class="grid"></div>`;
     $('#q').addEventListener('input', (e) => { S.view.q = e.target.value; renderGrid(); });
   }
   $$('.seg2 [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === S.layout)));
@@ -2381,10 +2435,9 @@ function renderMyWork() {
   const me = ME();
   const ps = allPosts().filter((p) => p.studentAcc === me.id).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   $('#view').innerHTML = `
-    <div class="crumbs"><nav><span>Không gian làm việc</span><span>/</span><span class="cur">Bài em đã nộp</span></nav></div>
+    <div class="crumbs"><nav><span>Không gian làm việc</span><span>/</span><span class="cur">Bài em đã nộp</span></nav><div class="crumbs-r">${acctChip()}</div></div>
     <section class="hero"><div><p class="eyebrow">Xem lại để tiến bộ</p><div class="hline"><h1>Bài em đã nộp</h1>${headingArt()}</div><p class="lede">Bấm vào một bài để xem điểm, lỗi sai và gợi ý luyện tập.</p></div></section>
-    ${ps.length ? `<div class="wall">${ps.map((p) => postCard(p, true)).join('')}</div>` : `<div class="empty">${ic('send')}<h3>Em chưa nộp bài nào</h3><p>Vào một lớp, đọc đề rồi bấm Nộp bài. Có thể chụp vở hoặc gõ bài trực tiếp.</p><button class="btn btn-brand" data-act="tab" data-tab="classes">Đến Lớp của em</button></div>`}
-    ${footerHtml()}`;
+    ${ps.length ? `<div class="wall">${ps.map((p) => postCard(p, true)).join('')}</div>` : `<div class="empty">${ic('send')}<h3>Em chưa nộp bài nào</h3><p>Vào một lớp, đọc đề rồi bấm Nộp bài. Có thể chụp vở hoặc gõ bài trực tiếp.</p><button class="btn btn-brand" data-act="tab" data-tab="classes">Đến Lớp của em</button></div>`}`;
 }
 
 /* ---------- trong một bảng ---------- */
@@ -2427,6 +2480,7 @@ function renderBoard(b) {
         ${gv ? `<button class="btn btn-soft" data-act="slideshow" data-id="${b.id}" ${ps.length ? '' : 'disabled'} aria-label="Trình chiếu" title="Trình chiếu từng bài">${ic('playo')}<span class="hide-m">Trình chiếu</span></button>` : ''}
         ${gv ? `<button class="btn btn-soft" data-act="share" data-id="${b.id}">${ic('share')}Chia sẻ</button>` : ''}
         ${manage ? `<button class="icon-btn" data-act="edit-board" data-id="${b.id}" aria-label="Cài đặt bảng" title="Cài đặt bảng">${ic('sliders')}</button>` : ''}
+        ${acctChip(true)}
       </div>
     </header>
     <section class="bhead2">
@@ -3384,23 +3438,43 @@ function aiConnectForm() {
 /* ---------- chân trang và hướng dẫn nhanh ---------- */
 const K_HIDE_DEMO = 'tuongai.hideDemo.';
 const demoHidden = () => LS.get(K_HIDE_DEMO + (S.meId || '')) === '1';
+/* Chân trang cố định: một dải chạy hết đáy màn hình */
 function footerHtml(mode) {
   const me = mode === 'public' ? null : ME();
   const gv = me?.role === 'gv';
   const home = esc(location.origin + location.pathname);
-  const col1 = !me ? `<a href="${home}">Đăng nhập giáo viên</a><a href="${home}?lop=MAU009">Xem bảng mẫu Toán 9</a><button data-act="help-public">Hướng dẫn nhanh</button>`
-    : gv ? `<button data-act="tab" data-tab="mine">Bảng của tôi</button>${demoHidden() ? '' : '<button data-act="open-board" data-id="demo">Bảng mẫu Toán 9</button>'}<button data-act="help">Hướng dẫn nhanh</button>`
-      : `<button data-act="tab" data-tab="classes">Lớp của em</button><button data-act="tab" data-tab="mywork">Bài em đã nộp</button><button data-act="help">Hướng dẫn nộp bài</button>`;
-  return `<footer class="sfoot${mode === 'public' ? ' sfoot-pub' : ''}">
-    <div class="sf-top">
-      <div class="sf-brand">${OWL}<div><b>Tường Học Tập AI</b><p>Không gian cùng học: chụp bài, nộp bài bằng điện thoại, AI chấm điểm, chỉ lỗi sai và gợi ý luyện tập cho từng em.</p></div></div>
-      <nav class="sf-col" aria-label="Sử dụng"><h4>Sử dụng</h4>${col1}</nav>
-      <div class="sf-col"><h4>AI chấm bài</h4>${gv ? '<button data-act="ai-connect">Kết nối Gemini, ChatGPT, Claude</button>' : '<span>Gemini · ChatGPT · Claude</span>'}<span>Theo Chương trình GDPT 2018</span><span>Thầy cô duyệt điểm cuối cùng</span></div>
-      <div class="sf-col"><h4>Riêng tư và hỗ trợ</h4><span>Mỗi giáo viên chỉ thấy bảng của mình</span><span>Học sinh chỉ thấy bài của em</span><span>Cần hỗ trợ: liên hệ Quản trị hệ thống</span></div>
-    </div>
-    <div class="sf-bot"><span>© ${new Date().getFullYear()} Tường Học Tập AI</span><span>${ic('lock', 'ic-sm')}AI có thể nhầm, thầy cô kiểm tra trước khi duyệt điểm.</span></div>
-  </footer>`;
+  const links = !me ? `<a href="${home}">Đăng nhập giáo viên</a><a href="${home}?lop=MAU009">Bảng mẫu</a><button data-act="help-public">Hướng dẫn</button><button data-act="about">Giới thiệu</button>`
+    : gv ? `<button data-act="tab" data-tab="mine">Bảng của tôi</button><button data-act="help">Hướng dẫn nhanh</button><button data-act="ai-connect">Kết nối AI</button><button data-act="about">Giới thiệu</button>`
+      : `<button data-act="tab" data-tab="classes">Lớp của em</button><button data-act="tab" data-tab="mywork">Bài em đã nộp</button><button data-act="help">Hướng dẫn</button><button data-act="about">Giới thiệu</button>`;
+  return `<div class="sbar-in"><span class="sb-brand">${OWL}<b>Tường Học Tập AI</b><span class="sb-c">© ${new Date().getFullYear()}</span></span><nav class="sb-links" aria-label="Chân trang">${links}</nav><span class="sb-note">${ic('lock', 'ic-sm')}AI có thể nhầm, thầy cô kiểm tra trước khi duyệt điểm.</span></div>`;
 }
+function updateFoot() {
+  const el = $('#site-foot'); if (!el) return;
+  const inApp = !$('#app')?.hidden && !!ME();
+  const mode = inApp ? 'app:' + ME().role : 'public';
+  document.body.classList.toggle('has-sbar', true);
+  if (el.dataset.mode === mode) return;
+  el.dataset.mode = mode;
+  el.innerHTML = footerHtml(inApp ? '' : 'public');
+}
+function aboutForm() {
+  openModal({ title: 'Giới thiệu Tường Học Tập AI', body: `<div class="modal-b about">
+    <div class="sf-brand">${OWL}<div><b>Tường Học Tập AI</b><p>Không gian cùng học: chụp bài, nộp bài bằng điện thoại, AI chấm điểm, chỉ lỗi sai và gợi ý luyện tập cho từng em.</p></div></div>
+    <div class="about-grid">
+      <section><h4>AI chấm bài</h4><p>Gemini · ChatGPT · Claude. Chấm theo đề, đáp án của thầy cô và Chương trình GDPT 2018. Thầy cô duyệt điểm cuối cùng.</p></section>
+      <section><h4>Riêng tư</h4><p>Mỗi giáo viên chỉ thấy bảng của mình. Học sinh nộp bài qua đường link, chỉ thấy bài của em. Khóa AI riêng của thầy cô không ai khác xem được.</p></section>
+      <section><h4>Hỗ trợ</h4><p>Cần tạo tài khoản, đặt lại mật khẩu hoặc mở khóa: liên hệ Quản trị hệ thống của trường.</p></section>
+    </div></div>`, foot: '<button class="btn btn-brand" data-close>Đóng</button>' });
+}
+/* Ô tài khoản ở góc trên bên phải: ảnh, tên, vai trò, menu, đăng xuất */
+function acctChip(compact) {
+  const me = ME(); if (!me) return '';
+  const gv = me.role === 'gv';
+  const roleLine = me.isAdmin ? 'Quản trị toàn hệ thống' : gv ? 'Không gian giáo viên' : me.className ? 'Học sinh lớp ' + me.className : 'Học sinh';
+  const av = gv ? myAvatar(me) : avatar(me);
+  return `<div class="acct me${compact ? ' compact' : ''}">${gv ? `<button type="button" class="avatar-action" data-act="change-avatar" aria-label="Đổi ảnh đại diện" title="Đổi ảnh đại diện">${av}</button>` : av}<div class="who"><b>${esc(me.name)}</b><span>${esc(roleLine)}</span></div><button class="icon-btn" data-act="me-menu" aria-label="Tùy chọn tài khoản" aria-expanded="false" title="Tùy chọn tài khoản">${ic('gear')}</button><button class="logout" data-act="logout" title="${me.guest ? 'Thoát lớp' : 'Đăng xuất'}">${ic('logout', 'ic-sm')}<span>${me.guest ? 'Thoát lớp' : 'Đăng xuất'}</span></button>${compact ? `<button class="acct-mb" data-act="me-menu" aria-label="Tài khoản" title="Tài khoản">${av}</button>` : ''}</div>`;
+}
+const refreshAcct = () => $$('.acct').forEach((el) => { if (!el.querySelector('.pop')) el.outerHTML = acctChip(el.classList.contains('compact')); });
 function helpForm(forTeacher = isGV()) {
   const steps = forTeacher ? [
     ['plus', 'Tạo bảng cho lớp', 'Bấm Tạo bảng mới, ghi đề bài và đáp án. Có đáp án thì AI chấm sát hơn.'],
@@ -4283,7 +4357,7 @@ function renderMembers() {
   const v = $('#view');
   if (!$('#mb-list')) {
     v.innerHTML = `
-      <div class="crumbs"><nav><span>Không gian làm việc</span><span>/</span><span class="cur">Thành viên</span></nav><span class="pill">${ic('shield', 'ic-sm')}Chỉ Quản trị</span></div>
+      <div class="crumbs"><nav><span>Không gian làm việc</span><span>/</span><span class="cur">Thành viên</span></nav><div class="crumbs-r"><span class="pill">${ic('shield', 'ic-sm')}Chỉ Quản trị</span>${acctChip()}</div></div>
       <section class="hero">
         <div><p class="eyebrow">Quản trị hệ thống</p><h1>Thành viên</h1><p class="lede">Duyệt giáo viên mới, khóa, đặt lại mật khẩu, tạo hoặc xóa tài khoản. Mỗi giáo viên chỉ thấy dữ liệu của mình; Quản trị thấy tất cả.</p></div>
         <div class="row-gap"><button class="btn btn-ghost" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button><button class="btn btn-navy" data-act="mb-create">${ic('plus')}Tạo tài khoản</button></div>
@@ -4293,8 +4367,7 @@ function renderMembers() {
         <label class="search">${ic('search')}<span class="sr">Tìm thành viên</span><input id="mb-q" type="search" placeholder="Tìm theo tên, email, trường..." value="${esc(S.memberQ)}"></label>
         <div class="seg2 seg-text" role="group" aria-label="Lọc theo trạng thái">${[['all', 'Tất cả'], ['pending', 'Chờ duyệt'], ['active', 'Hoạt động'], ['locked', 'Đã khóa']].map(([k, t]) => `<button data-act="mb-filter" data-v="${k}" aria-pressed="${S.memberFilter === k}">${t}</button>`).join('')}</div>
       </div>
-      <div id="mb-list" class="acc"></div>
-      ${footerHtml()}`;
+      <div id="mb-list" class="acc"></div>`;
     $('#mb-q').addEventListener('input', (e) => { S.memberQ = e.target.value; drawMembers(); });
   }
   drawMembers();
@@ -4484,6 +4557,7 @@ document.addEventListener('click', async (e) => {
     case 'ai-connect': $('.pop')?.remove(); aiConnectForm(); break;
     case 'help': $('.pop')?.remove(); helpForm(); break;
     case 'help-public': helpForm(true); break;
+    case 'about': aboutForm(); break;
     case 'post-menu': { const p = getPost(id); if (p) postMenu(t, p); break; }
     case 'p-pin': { $('.pmenu')?.remove(); const p = getPost(id); if (p) { const on = !tmeta(p).pinned; await patchTeacher(p, { pinned: on }); toast(on ? 'Đã ghim bài lên đầu.' : 'Đã bỏ ghim bài.'); } break; }
     case 'p-color': { $('.pmenu')?.remove(); const p = getPost(id); if (p) await patchTeacher(p, { color: t.dataset.c === '#ffffff' ? '' : t.dataset.c }); break; }
