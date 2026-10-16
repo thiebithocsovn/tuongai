@@ -1238,6 +1238,7 @@ function renderSide() {
     <div class="side-foot">
       <p class="side-note">${ic('lock', 'ic-sm')}<span>${gv ? 'Bảng mặc định riêng tư. Thầy cô quyết định nội dung nào được chia sẻ.' : 'Em chỉ thấy bài của mình. Thầy cô xem và duyệt điểm.'}</span></p>
       <div class="me">${avatar(me)}<div class="who"><b>${esc(me.name)}</b><span>${esc(roleLine)}</span></div><button class="icon-btn" data-act="me-menu" aria-label="Tùy chọn tài khoản" aria-expanded="false">${ic('gear')}</button></div>
+      <button class="btn btn-ghost btn-block" data-act="logout">${ic('logout')}Đăng xuất</button>
     </div>`;
   $('#top-av').innerHTML = `<button class="icon-btn" data-act="me-menu-top" aria-label="Tài khoản">${avatar(me)}</button>`;
   updateNavCounts();
