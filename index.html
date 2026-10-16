@@ -2101,13 +2101,13 @@ function trafficSessionId() {
   return value;
 }
 function paintSiteTraffic() {
-  $('[data-traffic-online]').forEach((el) => el.textContent = SITE_TRAFFIC.online == null ? '—' : Number(SITE_TRAFFIC.online).toLocaleString('vi-VN'));
-  $('[data-traffic-visits]').forEach((el) => el.textContent = SITE_TRAFFIC.visits == null ? '—' : Number(SITE_TRAFFIC.visits).toLocaleString('vi-VN'));
-  $('[data-traffic-live]').forEach((el) => {
+  $$('[data-traffic-online]').forEach((el) => el.textContent = SITE_TRAFFIC.online == null ? '—' : Number(SITE_TRAFFIC.online).toLocaleString('vi-VN'));
+  $$('[data-traffic-visits]').forEach((el) => el.textContent = SITE_TRAFFIC.visits == null ? '—' : Number(SITE_TRAFFIC.visits).toLocaleString('vi-VN'));
+  $$('[data-traffic-live]').forEach((el) => {
     el.classList.toggle('off', !SITE_TRAFFIC.connected);
     el.textContent = SITE_TRAFFIC.connected ? '● LIVE' : '● ĐANG KẾT NỐI';
   });
-  $('[data-traffic-description]').forEach((el) => {
+  $$('[data-traffic-description]').forEach((el) => {
     el.textContent = SITE_TRAFFIC.visitReady === false
       ? 'Lượt truy cập chưa kích hoạt trên Supabase'
       : 'Thống kê theo giờ Việt Nam (UTC+7)';
@@ -2143,7 +2143,11 @@ async function refreshDailyTraffic() {
     SITE_TRAFFIC.visits = null;
     SITE_TRAFFIC.visitReady = false;
     SITE_TRAFFIC.retryAfter = Date.now() + 5 * 60 * 1000;
-  } finally { SITE_TRAFFIC.inFlight = false; paintSiteTraffic(); }
+  } finally {
+    SITE_TRAFFIC.inFlight = false;
+    paintSiteTraffic();
+    if (SITE_TRAFFIC.visitReady === true) loadPublicMetrics();
+  }
 }
 function startSiteTraffic() {
   if (!CAP.sb || SITE_TRAFFIC.started) return;
@@ -2169,7 +2173,10 @@ function startSiteTraffic() {
   // Một phiên/tab được tính tối đa một lần mỗi ngày, tránh tăng số khi bấm tải lại.
   refreshDailyTraffic();
   SITE_TRAFFIC.timer = setInterval(() => {
-    if (!document.hidden) refreshDailyTraffic();
+    if (!document.hidden) {
+      refreshDailyTraffic();
+      loadPublicMetrics();
+    }
   }, 60000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) SITE_TRAFFIC.channel?.untrack().catch(() => {});
@@ -2193,7 +2200,7 @@ async function loadPublicMetrics() {
     for (const key of ['users','units','visits']) {
       const value = Number(data?.[key]);
       const label = data?.[key] != null && Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString('vi-VN') : '—';
-      $('[data-public-metric="'+key+'"]').forEach((el) => { el.textContent = label; });
+      $$('[data-public-metric="'+key+'"]').forEach((el) => { el.textContent = label; });
     }
   } catch (e) { /* Giữ dấu — nếu chưa kết nối hoặc RPC tạm thời lỗi. */ }
 }
