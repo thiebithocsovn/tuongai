@@ -212,9 +212,41 @@ a{color:inherit}
 .nav button[aria-current="page"] .ic{color:var(--blue)}
 .nav .ic{width:21px;height:21px;color:var(--ink-2)}
 .nav .n{margin-left:auto;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
-.side-note{display:flex;gap:9px;align-items:flex-start;margin-top:auto;border-top:1px solid var(--line);padding-top:16px;color:var(--ink-2);font-size:13.5px;line-height:1.4}
-.side-note .ic{width:18px;height:18px;margin-top:1px}
-.side-note>span{min-width:0}
+
+/* ---------- Bảng thống kê truy cập thực tế ---------- */
+.traffic-panel{margin-top:auto;border:1px solid #dbe4f1;border-radius:16px;background:linear-gradient(145deg,#ffffff 0%,#f3f7fd 100%);box-shadow:0 7px 22px -15px rgba(37,65,112,.25);padding:13px 12px 11px;color:#213249;min-width:0}
+.traffic-head{display:flex;gap:6px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.traffic-title{font-weight:800;letter-spacing:.045em;font-size:10px;white-space:nowrap;color:#586880}
+.traffic-live{display:flex;align-items:center;gap:5px;border:1px solid #c9ecdc;background:#ebf8f0;border-radius:20px;padding:4px 7px;color:#16784a;font-size:9px;font-weight:800;letter-spacing:.025em}
+.traffic-dot{display:block;width:7px;height:7px;border-radius:50%;background:#20aa67;box-shadow:0 0 0 3px #20aa671c}
+.traffic-live.off{background:#f2f4f7;border-color:#dde2e9;color:#8190a3}
+.traffic-live.off .traffic-dot{background:#8e9cae;box-shadow:none}
+.traffic-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px}
+.traffic-cell{background:#fff;border:1px solid #e7ecf5;border-radius:11px;min-width:0;padding:10px 8px 9px;box-shadow:0 3px 9px -8px #102342}
+.traffic-icon{width:27px;height:27px;border-radius:9px;display:grid;place-items:center;background:#e6f7ef;color:#108e59;margin-bottom:8px}
+.traffic-icon.visit{background:#ebf0ff;color:#4668c4}
+.traffic-icon .ic{width:15px;height:15px}
+.traffic-number{display:block;font-size:25px;letter-spacing:-1px;line-height:1.16;font-weight:800;font-variant-numeric:tabular-nums;color:#213249}
+.traffic-name{display:block;margin-top:5px;font-size:10px;color:#58677e;font-weight:650;line-height:1.3}
+.traffic-foot{font-size:9.5px;color:#718199;display:flex;align-items:center;gap:6px;margin-top:11px;line-height:1.35}
+.traffic-foot .ic{width:12px;height:12px;flex:none}
+@media(max-width:760px){
+  .traffic-panel{grid-column:1/-1;margin-top:0;padding:9px 12px;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px 12px}
+  .traffic-head{margin:0;flex-direction:column;align-items:flex-start;gap:6px;max-width:135px}
+  .traffic-grid{grid-template-columns:1fr 1fr;gap:7px}
+  .traffic-cell{padding:7px 9px;display:grid;grid-template-columns:auto 1fr;column-gap:6px;align-items:center}
+  .traffic-icon{width:21px;height:21px;margin:0;grid-row:span 2;border-radius:7px}
+  .traffic-icon .ic{width:13px;height:13px}
+  .traffic-number{font-size:18px;letter-spacing:-.5px}
+  .traffic-name{margin:0;font-size:9px}
+  .traffic-foot{grid-column:1/-1;margin:0;font-size:9px}
+}
+@media(max-width:360px){
+  .traffic-panel{grid-template-columns:1fr}
+  .traffic-head{max-width:none;flex-direction:row}
+  .traffic-foot{grid-column:1}
+}
+
 .me{display:flex;align-items:center;gap:10px;position:relative}
 .me .who{min-width:0;flex:1}
 .me b{display:block;font-size:15px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -557,7 +589,7 @@ a{color:inherit}
   .nav button{white-space:nowrap;font-size:15px;padding:8px 11px;gap:7px;flex:none}
   .nav .ic{width:18px;height:18px}
   .nav .n{margin-left:2px}
-  .side-note,.me{display:none}
+  .me{display:none}
   .side-end{grid-column:1/-1}
   .main{min-height:70vh}
   .view{gap:14px;padding-bottom:70px}
@@ -1999,6 +2031,107 @@ async function aiStatus() {
   renderSoon();
 }
 
+
+/* ---------- Số phiên đang kết nối và truy cập trong ngày (không dùng dữ liệu học sinh) ---------- */
+const SITE_TRAFFIC = { started:false, channel:null, online:null, visits:null, connected:false, visitReady:null, day:'', retryAfter:0, inFlight:false, timer:null, session:'' };
+const TRAFFIC_SESSION_KEY = 'tuongai.site.traffic_session_v1';
+function vnTrafficDay() {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone:'Asia/Ho_Chi_Minh', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(new Date());
+  const get = (t) => parts.find((x) => x.type === t)?.value || '00';
+  return get('year') + '-' + get('month') + '-' + get('day');
+}
+function trafficSessionId() {
+  let value = SS.get(TRAFFIC_SESSION_KEY);
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value || '')) {
+    value = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) => (+c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c/4)))).toString(16));
+    SS.set(TRAFFIC_SESSION_KEY, value);
+  }
+  return value;
+}
+function paintSiteTraffic() {
+  $('[data-traffic-online]').forEach((el) => el.textContent = SITE_TRAFFIC.online == null ? '—' : Number(SITE_TRAFFIC.online).toLocaleString('vi-VN'));
+  $('[data-traffic-visits]').forEach((el) => el.textContent = SITE_TRAFFIC.visits == null ? '—' : Number(SITE_TRAFFIC.visits).toLocaleString('vi-VN'));
+  $('[data-traffic-live]').forEach((el) => {
+    el.classList.toggle('off', !SITE_TRAFFIC.connected);
+    el.textContent = SITE_TRAFFIC.connected ? '● LIVE' : '● ĐANG KẾT NỐI';
+  });
+  $('[data-traffic-description]').forEach((el) => {
+    el.textContent = SITE_TRAFFIC.visitReady === false
+      ? 'Lượt truy cập chưa kích hoạt trên Supabase'
+      : 'Thống kê theo giờ Việt Nam (UTC+7)';
+  });
+}
+function updatePresenceCount() {
+  const channel = SITE_TRAFFIC.channel;
+  if (!channel || !SITE_TRAFFIC.connected) return;
+  try {
+    const online = Object.values(channel.presenceState() || {}).reduce((total, entries) => total + (Array.isArray(entries) ? entries.length : 0), 0);
+    SITE_TRAFFIC.online = online;
+  } catch (e) { SITE_TRAFFIC.online = null; }
+  paintSiteTraffic();
+}
+async function refreshDailyTraffic() {
+  if (!CAP.sb || SITE_TRAFFIC.inFlight || Date.now() < SITE_TRAFFIC.retryAfter) return;
+  SITE_TRAFFIC.inFlight = true;
+  const day = vnTrafficDay();
+  try {
+    const firstOfDay = day !== SITE_TRAFFIC.day;
+    const method = firstOfDay ? 'site_record_visit' : 'site_today_visits';
+    const args = firstOfDay ? { p_session_id: SITE_TRAFFIC.session } : {};
+    const { data, error } = await CAP.sb.rpc(method, args);
+    if (error) throw error;
+    if (typeof data !== 'number' && typeof data !== 'string') throw new Error('Invalid traffic count');
+    const count = Number(data);
+    if (!Number.isSafeInteger(count) || count < 0) throw new Error('Invalid traffic count');
+    SITE_TRAFFIC.day = day;
+    SITE_TRAFFIC.visits = count;
+    SITE_TRAFFIC.visitReady = true;
+    SITE_TRAFFIC.retryAfter = 0;
+  } catch (e) {
+    SITE_TRAFFIC.visits = null;
+    SITE_TRAFFIC.visitReady = false;
+    SITE_TRAFFIC.retryAfter = Date.now() + 5 * 60 * 1000;
+  } finally { SITE_TRAFFIC.inFlight = false; paintSiteTraffic(); }
+}
+function startSiteTraffic() {
+  if (!CAP.sb || SITE_TRAFFIC.started) return;
+  SITE_TRAFFIC.started = true;
+  SITE_TRAFFIC.session = trafficSessionId();
+  // Mã ngẫu nhiên cho mỗi phiên/tab, không gửi tên, email hay nội dung bài làm.
+  try {
+    SITE_TRAFFIC.channel = CAP.sb.channel('tuongai-site-presence-v1', {
+      config: { presence: { key: SITE_TRAFFIC.session } },
+    })
+      .on('presence', { event:'sync' }, updatePresenceCount)
+      .on('presence', { event:'join' }, updatePresenceCount)
+      .on('presence', { event:'leave' }, updatePresenceCount)
+      .subscribe((status) => {
+        SITE_TRAFFIC.connected = status === 'SUBSCRIBED';
+        if (!SITE_TRAFFIC.connected) SITE_TRAFFIC.online = null;
+        paintSiteTraffic();
+        if (status === 'SUBSCRIBED' && !document.hidden) {
+          SITE_TRAFFIC.channel.track({ active: true }).catch(() => {});
+        }
+      });
+  } catch (e) { SITE_TRAFFIC.connected = false; }
+  // Một phiên/tab được tính tối đa một lần mỗi ngày, tránh tăng số khi bấm tải lại.
+  refreshDailyTraffic();
+  SITE_TRAFFIC.timer = setInterval(() => {
+    if (!document.hidden) refreshDailyTraffic();
+  }, 60000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) SITE_TRAFFIC.channel?.untrack().catch(() => {});
+    else {
+      if (SITE_TRAFFIC.connected) SITE_TRAFFIC.channel?.track({ active: true }).catch(() => {});
+      refreshDailyTraffic();
+    }
+  });
+  window.addEventListener('pagehide', () => { SITE_TRAFFIC.channel?.untrack().catch(() => {}); });
+  window.addEventListener('pageshow', () => {
+    if (SITE_TRAFFIC.connected && !document.hidden) SITE_TRAFFIC.channel?.track({ active: true }).catch(() => {});
+  });
+}
+
 /* ================= khởi động ================= */
 let readyResolve; const ready = new Promise((r) => (readyResolve = r));
 async function init() {
@@ -2008,6 +2141,7 @@ async function init() {
     readyResolve(); return;
   }
   CAP.sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { storage: authStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+  startSiteTraffic();
   updateStoreNote();
   readyResolve();
   if (LINK_CODE) {
@@ -2540,10 +2674,18 @@ function renderSide() {
     <button class="icon-btn m-only acct-m" data-act="me-menu-top" aria-label="Tài khoản" title="Tài khoản">${av}</button>
     ${gv ? `<button class="btn create" data-act="new-board">${ic('plus')}Tạo bảng mới</button>` : ''}
     <nav class="nav" aria-label="Danh mục bảng">${navs.map(([k, i, t]) => `<button data-act="tab" data-tab="${k}">${ic(i)}<span>${t}</span><span class="n" data-count="${k}"></span></button>`).join('')}</nav>
-    <p class="side-note">${ic('lock')}<span>${gv ? 'Bảng mặc định riêng tư.<br>Thầy cô quyết định nội dung nào được chia sẻ.' : 'Em chỉ thấy bài của mình.<br>Thầy cô xem và duyệt điểm.'}</span></p>
+    <section class="traffic-panel" aria-label="Thống kê truy cập Tường AI">
+      <div class="traffic-head"><span class="traffic-title">HOẠT ĐỘNG HỆ THỐNG</span><span class="traffic-live off" data-traffic-live>● ĐANG KẾT NỐI</span></div>
+      <div class="traffic-grid">
+        <div class="traffic-cell"><span class="traffic-icon">${ic('users')}</span><strong class="traffic-number" data-traffic-online>—</strong><span class="traffic-name">Đang trực tuyến</span></div>
+        <div class="traffic-cell"><span class="traffic-icon visit">${ic('chart')}</span><strong class="traffic-number" data-traffic-visits>—</strong><span class="traffic-name">Truy cập hôm nay</span></div>
+      </div>
+      <div class="traffic-foot">${ic('clock')}<span data-traffic-description>Thống kê theo giờ Việt Nam (UTC+7)</span></div>
+    </section>
 `;
   refreshAcct();
   updateNavCounts();
+  paintSiteTraffic();
 }
 function updateNavCounts() {
   const me = ME(); if (!me) return;
