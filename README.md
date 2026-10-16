@@ -8,7 +8,8 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 
 - **Giáo viên** đăng ký bằng email. Tài khoản dùng được sau khi Quản trị hệ thống duyệt. Mỗi giáo viên chỉ thấy bảng và bài làm của mình.
 - **Học sinh** không cần tài khoản. Thầy cô mở **Chia sẻ** trên một bảng, bật "Cho học sinh nộp bài qua đường link", rồi gửi đường link hoặc mã QR. Học sinh mở link, nhập họ tên là nộp được bài. Em chỉ thấy bài của mình. Thầy cô tắt chia sẻ thì đường link ngừng hoạt động ngay.
-- **Ảnh đại diện:** Giáo viên và quản trị viên bấm ảnh tài khoản hoặc vào menu tài khoản → **Đổi ảnh đại diện**, chọn ảnh JPG/PNG/WebP (tối đa 8 MB). Ảnh tự căn vuông, lưu trong kho riêng tư Supabase, và được tải lại khi đăng nhập.\n- **Quản trị hệ thống** thấy dữ liệu của mọi giáo viên. Trang **Thành viên** dùng để duyệt, khóa hoặc mở khóa, đặt lại mật khẩu, tạo tài khoản, cấp hoặc bỏ quyền quản trị, xóa tài khoản và xem bảng của từng giáo viên. **Cài đặt hệ thống** dùng để đặt khóa Gemini chung cho AI chấm bài và bật hoặc tắt chế độ tự duyệt giáo viên mới.
+- **Ảnh đại diện:** Giáo viên và quản trị viên bấm ảnh tài khoản hoặc vào menu tài khoản → **Đổi ảnh đại diện**, chọn ảnh JPG/PNG/WebP (tối đa 8 MB). Ảnh tự căn vuông, lưu trong kho riêng tư Supabase, và được tải lại khi đăng nhập.
+- **Quản trị hệ thống** thấy dữ liệu của mọi giáo viên. Trang **Thành viên** dùng để duyệt, khóa hoặc mở khóa, đặt lại mật khẩu, tạo tài khoản, cấp hoặc bỏ quyền quản trị, xóa tài khoản và xem bảng của từng giáo viên. **Cài đặt hệ thống** dùng để đặt khóa Gemini chung cho AI chấm bài và bật hoặc tắt chế độ tự duyệt giáo viên mới.
 
 ## Tính năng chính
 
