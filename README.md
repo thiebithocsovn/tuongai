@@ -24,14 +24,15 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 - Chụp vở bằng camera điện thoại hoặc gõ bài trực tiếp. Ảnh lưu trong kho riêng tư.
 - AI chấm theo đề và đáp án của giáo viên, kết quả có 5 phần hiện trong mục Nhận xét của giáo viên khi mở bài: Đọc bài (nội dung AI đọc được, đánh dấu chỗ ảnh mờ hoặc chưa đọc chắc), Tìm lỗi (câu, bước làm sai, giải thích, cách sửa), Phân tích (nguyên nhân có thể để giáo viên kiểm chứng), Đánh giá (điểm đề xuất theo đáp án và thang điểm, điểm từng câu), Luyện tập (phần kiến thức còn yếu và bài tập phù hợp).
 - Kết nối AI không cần khóa API, giống Hệ sinh thái 4.0: thầy cô chấm bài và dùng Trợ lý AI bằng **Gemini · Google** (Firebase AI Logic) ngay trong trình duyệt. Đây là lựa chọn mặc định cho giáo viên; đổi ở ô "Chọn AI cho bài làm" trong Trợ lý AI. Nếu dự án Firebase bật App Check, Quản trị dán khóa trang reCAPTCHA (bắt đầu bằng 6L, lấy ở Firebase Console → App Check) vào Cài đặt hệ thống. Máy học sinh không gọi AI trực tiếp: khi chưa đặt khóa chung, bài học sinh được chấm lúc thầy cô mở bài hoặc bấm Chờ duyệt → Chấm bằng AI; khi có khóa chung, máy chủ vẫn tự chấm ngay lúc em nộp.
+- Kết nối thêm tài khoản AI của riêng giáo viên: **Gemini** (khóa của tôi), **ChatGPT · OpenAI**, **Claude · Anthropic**. Mở menu tài khoản → Kết nối AI chấm bài (hoặc nút "Kết nối ChatGPT, Claude, Gemini" trong Trợ lý AI), dán khóa API, bấm Kiểm tra kết nối rồi Lưu. Khóa lưu trong bảng `ai_keys` (chỉ chủ tài khoản đọc được, Quản trị cũng không xem); khi chấm, trình duyệt gửi thẳng tới AI đã chọn. Gói ChatGPT Plus hay Claude Pro không thay được khóa API.
 - Giáo viên duyệt điểm cuối và ghi lời phê. Bài học sinh mới nộp hiện ra ngay trên bảng của thầy cô.
 - Trợ lý AI cho bài làm, trong mục nhận xét khi mở một bài (chỉ giáo viên thấy): 1. Chat và đánh giá (hỏi AI về bài, đưa nhận xét đề xuất vào ô Viết nhận xét, đề bài và tiêu chí dùng cho AI), 2. Giáo viên duyệt (kiểm chứng từng lỗi và nguyên nhân, duyệt nhận xét và điểm), 3. Luyện tập (AI soạn bài theo lỗi đã xác nhận, tải phiếu cho học sinh), 4. Tiến bộ (ghi lần luyện tập, theo dõi kỹ năng đã khắc phục). Dữ liệu lưu ở `teacher.assist`; máy chủ không gửi phần này cho học sinh.
-- Bảng mẫu Toán 9 để thử (đường link `?lop=MAU009`).
+- Bảng mẫu Toán 9 để thử (đường link `?lop=MAU009`). Thầy cô xóa được bảng mẫu (nút Xóa trên thẻ) và hiện lại từ menu tài khoản.
 
 ## Cấu trúc
 
 - `index.html`: toàn bộ giao diện (HTML, CSS, JavaScript), chạy trên GitHub Pages.
 - `firebase-ai.js`: bản đóng gói Firebase JS SDK 12.11.0 (app, App Check, AI) cho kết nối Gemini · Google, chỉ tải khi thầy cô dùng AI.
-- `supabase/migrations/`: cơ sở dữ liệu, phân quyền (Row Level Security) và kho ảnh trên Supabase. Ảnh đại diện sử dụng thư mục `<user-id>/profile/avatar.jpg` của bucket riêng tư `work`; không cần migration mới.
+- `supabase/migrations/` (có `0003_ai_keys.sql` cho kết nối AI riêng): cơ sở dữ liệu, phân quyền (Row Level Security) và kho ảnh trên Supabase. Ảnh đại diện sử dụng thư mục `<user-id>/profile/avatar.jpg` của bucket riêng tư `work`; không cần migration mới.
 - `supabase/functions/tuongai/`: hàm máy chủ cho đăng ký, học sinh nộp bài, AI chấm bài và quản trị thành viên. Khóa AI và email quản trị chỉ lưu trên máy chủ, không nằm trong mã nguồn.
 - `.github/workflows/pages.yml`: tự xuất bản lên GitHub Pages mỗi khi nhánh `main` thay đổi.
