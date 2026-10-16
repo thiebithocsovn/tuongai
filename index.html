@@ -1108,6 +1108,10 @@ textarea.inp{min-height:64px;resize:vertical;line-height:1.45}
 .board-create .board-layouts button strong{display:block;font-size:13.5px;font-weight:750}
 .board-create .board-layouts button small{display:block;font-size:11px;color:#77767b;margin-top:4px;line-height:1.35}
 .board-create .board-layouts button[aria-pressed=true]{border-color:#95616c;background:#faf0f1;box-shadow:inset 0 0 0 1px #95616c}
+.board-create .board-directions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.board-create .board-directions button{display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;border:1px solid #e7e5e6;border-radius:9px;padding:10px;font-size:13px;color:#45424a;min-height:43px}
+.board-create .board-directions button .ic{width:18px;height:18px}
+.board-create .board-directions button[aria-pressed=true]{background:#faf0f1;border-color:#95616c;color:#713947;box-shadow:inset 0 0 0 1px #95616c}
 .board-create .board-layouts button:focus-visible,.board-create .board-presets button:focus-visible{outline:2px solid #95616c;outline-offset:2px}
 .board-create .board-bg-preview{min-height:130px;border-radius:12px;display:grid;place-items:center;padding:20px;border:1px solid #e6e6e6;background-position:center;background-repeat:no-repeat}
 .board-create .board-bg-note{background:rgba(255,255,255,.92);border-radius:9px;box-shadow:0 5px 18px #0000000d;padding:15px 17px;max-width:85%;min-width:210px}
@@ -2072,6 +2076,7 @@ async function logout() {
   }
   if (S.avatarUrl) URL.revokeObjectURL(S.avatarUrl);
   S.avatarUrl = ''; S.avatarOwner = null; S.avatarVersion++;
+  S.dirOverrides.clear();
   S.profile = null; S.meId = null; S.boards = new Map(); S.posts = new Map(); S.members = new Map(); S.memberList = null; SIGNED.clear();
   closeAllModals();
   $('#app').hidden = true;
@@ -2222,6 +2227,8 @@ ICONS.link = '<path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/
 ICONS.msg = '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/>';
 const K_BDIR = 'tuongai.bdir';
 S.bdir = ['h', 'v'].includes(LS.get(K_BDIR)) ? LS.get(K_BDIR) : '';
+S.dirOverrides = new Map();
+const boardDir = (b) => S.dirOverrides.get(b.id) || (['h', 'v'].includes(b.assignment?.direction) ? b.assignment.direction : (S.bdir || 'h'));
 S.psort = 'new';
 
 function renderSide() {
@@ -2410,7 +2417,7 @@ function renderBoard(b) {
   const a = b.assignment || {};
   const review = gv ? reviewPosts(b).length : 0;
   const backTab = gv ? (['mine', 'starred', 'archived', 'trash'].includes(S.view.tab) ? S.view.tab : 'mine') : 'classes';
-  const dir = S.bdir || 'h';
+  const dir = boardDir(b);
   const pill = b.demo ? 'Bảng mẫu' : gv ? (b.shared ? 'Đang chia sẻ' : 'Không gian riêng') : 'Bảng được chia sẻ';
   const eyebrow = gv ? ownerLabel(b) : 'CÙNG CHIA SẺ VÀ KHÁM PHÁ' + (b.teacherName ? ' · Thầy cô ' + b.teacherName : '');
   $('#view').innerHTML = `
@@ -2533,7 +2540,7 @@ function shownPosts(b) { const q = String(S.view.pq || '').trim().toLowerCase();
 
 function renderPosts(b, ps, gv, q) {
   const lay = layoutKey(b.layout);
-  const dir = S.bdir ? ' dir-' + S.bdir : '';
+  const dir = ' dir-' + boardDir(b);
   const manage = canManage(b);
   if (!ps.length && (q || lay !== 'cot' || !gv)) {
     return `<div class="empty pad">${ic(q ? 'search' : 'msg')}<h3>${q ? 'Chưa có bài phù hợp' : gv ? 'Bắt đầu bằng một bài làm' : 'Em chưa nộp bài ở lớp này'}</h3><p>${q ? 'Thử một từ khóa khác.' : gv ? 'Bấm Chụp bài học sinh hoặc nút + để chụp vở bằng điện thoại. Muốn học sinh tự nộp, bấm Chia sẻ để lấy đường link.' : 'Bấm Nộp bài vào lớp, chụp vở hoặc gõ câu trả lời. AI sẽ chỉ lỗi và gợi ý cách luyện.'}</p>${q ? '' : `<button class="btn" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}">${ic('plus')}${gv ? 'Thêm bài đầu tiên' : 'Nộp bài đầu tiên'}</button>`}</div>`;
@@ -2870,7 +2877,7 @@ function boardForm(b) {
   const me = ME();
   const d = b || { name: '', cover: COVER_KEYS[S.boards.size % COVER_KEYS.length], layout: 'tuong', columns: [], assignment: { maxScore: 10 }, autoGrade: true, private: true, pinned: false };
   const a = d.assignment || {};
-  let layout = layoutKey(d.layout), bg = WALL_BGS.some((w) => w.id === a.bg) ? a.bg : 'sage';
+  let layout = layoutKey(d.layout), direction = ['h', 'v'].includes(a.direction) ? a.direction : (S.bdir || 'h'), bg = WALL_BGS.some((w) => w.id === a.bg) ? a.bg : 'sage';
   let bgColor = /^#[0-9a-fA-F]{6}$/.test(a.bgColor || '') ? a.bgColor : '';
   let bgImage = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(a.bgImage || '') ? a.bgImage : '';
   const presets = ['sage', 'cream', 'blue', 'rose', 'lavender', 'minimal'].map((x) => wallBg(x));
@@ -2892,6 +2899,10 @@ function boardForm(b) {
       <label class="fld"><span>Biểu tượng</span><input class="board-symbol" id="bf-icon" maxlength="10" value="${esc(a.icon || '📚')}" aria-label="Biểu tượng bảng" placeholder="📚"></label>
       <div class="fld"><span>Bố cục bảng</span><div class="board-layouts" role="group" aria-label="Chọn bố cục bảng">
         ${modes.map(([k, label, hint]) => `<button type="button" data-ly="${k}" aria-pressed="${layout === k}"><strong>${label}</strong><small>${hint}</small></button>`).join('')}
+      </div></div>
+      <div class="fld"><span>Kiểu hiển thị</span><div class="board-directions" role="group" aria-label="Chọn chiều hiển thị bảng">
+        <button type="button" data-bf-dir="h" aria-pressed="${direction === 'h'}">${ic('cols')}Chiều ngang</button>
+        <button type="button" data-bf-dir="v" aria-pressed="${direction === 'v'}">${ic('rows')}Chiều dọc</button>
       </div></div>
       <div class="fld"><span>Hình nền</span><div class="board-bg-preview" id="bf-preview">
         <div class="board-bg-note"><strong id="bf-preview-name">${esc(d.name || 'Tên lớp của thầy')}</strong><small>Bài làm của học sinh sẽ hiển thị trên nền này.</small></div>
@@ -2921,7 +2932,11 @@ function boardForm(b) {
     layout = button.dataset.ly;
     $$('[data-ly]', el).forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
   });
-  $$('[data-bgp]', el).forEach((button) => button.onclick = () => {
+  $('[data-bf-dir]', el).forEach((button) => button.onclick = () => {
+    direction = button.dataset.bfDir;
+    $('[data-bf-dir]', el).forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+  });
+  $('[data-bgp]', el).forEach((button) => button.onclick = () => {
     bg = button.dataset.bgp; bgImage = ''; bgColor = '';
     $('#bf-color', el).value = wallBg(bg).color; updatePreview();
   });
@@ -2964,7 +2979,7 @@ function boardForm(b) {
       ...base, name, cover: d.cover, layout,
       school: d.school || me.school || '', subject: d.subject || '', grade: d.grade || '',
       columns: b ? (b.columns || []) : (layout === 'cot' ? [{ id: uid('c'), name: 'Bài nộp' }] : []),
-      assignment: { ...a, description: $('#bf-desc', el).value.trim(), icon: $('#bf-icon', el).value.trim() || '📚', bg, bgColor, bgImage, maxScore: a.maxScore || 10 },
+      assignment: { ...a, description: $('#bf-desc', el).value.trim(), icon: $('#bf-icon', el).value.trim() || '📚', direction, bg, bgColor, bgImage, maxScore: a.maxScore || 10 },
       autoGrade: d.autoGrade !== false, private: d.private !== false,
       pinned: !!d.pinned, starred: !!d.starred,
       archived: $('#bf-arch', el) ? $('#bf-arch', el).checked : !!d.archived
@@ -2973,6 +2988,7 @@ function boardForm(b) {
     const ok = await saveBoard(nb); button.disabled = false;
     if (!ok) return;
     m.close();
+    S.dirOverrides.delete(nb.id);
     if (isNew) { S.view = { name: 'board', boardId: nb.id, tab: S.view.tab, q: '' }; render(); toast('Đã tạo bảng. Mã lớp cho học sinh: ' + nb.code); }
     else toast('Đã lưu bảng.');
   };
@@ -4479,7 +4495,20 @@ document.addEventListener('click', async (e) => {
     case 'review': if (b) reviewForm(b); break;
     case 'export': if (b) exportForm(b); break;
     case 'fav': $('.menu')?.remove(); if (b) { const on = !(b.starred || b.pinned); await saveBoard({ ...b, starred: on, pinned: on }); toast(on ? 'Đã ghim bảng. Xem lại ở mục Đã đánh dấu.' : 'Đã bỏ ghim.'); } break;
-    case 'bdir': S.bdir = t.dataset.v; LS.set(K_BDIR, S.bdir); render(); break;
+    case 'bdir': {
+      const dir = t.dataset.v === 'v' ? 'v' : 'h';
+      const board = getBoard(S.view.boardId);
+      S.bdir = dir; LS.set(K_BDIR, dir);
+      if (board) {
+        S.dirOverrides.set(board.id, dir);
+        render();
+        if (isGV() && canManage(board)) {
+          const ok = await saveBoard({ ...board, assignment: { ...(board.assignment || {}), direction: dir } });
+          if (!ok) { S.dirOverrides.delete(board.id); render(); }
+        }
+      } else render();
+      break;
+    }
     case 'bg-pick': if (b) bgForm(b); break;
     case 'empty-trash': {
       const list = visibleBoards('trash').filter(canManage);
