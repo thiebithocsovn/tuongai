@@ -1095,16 +1095,27 @@ textarea.inp{min-height:64px;resize:vertical;line-height:1.45}
 .board-create .fld>span{font-size:13px;font-weight:650;color:#51525a}
 .board-create .fld input,.board-create .fld textarea{background:#fff;border:1px solid #e3e4e8;border-radius:9px;font-size:14px;padding:10px 12px}
 .board-create .fld textarea{resize:vertical;min-height:75px}
-.board-create .board-symbol{font-size:23px;max-width:100%;height:43px}
+.board-create .board-symbols{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.board-create .board-symbols button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:86px;padding:9px 4px 7px;background:#fff;border:1px solid #e5e7ec;border-radius:12px;color:#566074}
+.board-create .board-symbols button span.symbol-label{font-size:10.5px;line-height:1.2;color:#5e6675;text-align:center;white-space:normal}
+.board-create .board-symbols button[aria-pressed=true]{background:#f9f5f7;border-color:#9b6b75;box-shadow:0 0 0 1px #9b6b75,inset 0 0 0 1px #ffffff}
+.board-create .board-symbols button[aria-pressed=true]::after{content:"✓";display:grid;place-items:center;position:absolute;top:3px;right:3px;border-radius:50%;width:15px;height:15px;background:#87475b;color:white;font-size:10px;font-weight:800}
+.board-create .board-symbols button:hover{border-color:#a1b3cc;background:#f9fbff}
+.board-create .board-symbols button:focus-visible{outline:2px solid #9b6b75;outline-offset:2px}
+.board-mark{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;border-radius:10px;color:var(--bi-fg,#476aaf);background:var(--bi-bg,#eaf0ff)}
+.board-mark .ic{width:21px;height:21px;stroke-width:1.9}
+.board-mark.compact{width:26px;height:26px;border-radius:8px}
+.board-mark.compact .ic{width:16px;height:16px}
+.btitle{gap:8px;align-items:center}
+.btitle-symbol{display:inline-flex;flex:none;align-items:center;justify-content:center}
+.app.board-open .btop-icon .board-mark{width:42px;height:42px;border-radius:12px}
+.app.board-open .btop-icon .board-mark .ic{width:24px;height:24px}
+
 .board-create .board-layouts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .board-create .board-layouts button{padding:10px;border-radius:9px;border:1px solid #e7e5e6;background:#fff;text-align:left;color:#403f43;min-height:65px}
 .board-create .board-layouts button strong{display:block;font-size:13.5px;font-weight:750}
 .board-create .board-layouts button small{display:block;font-size:11px;color:#77767b;margin-top:4px;line-height:1.35}
 .board-create .board-layouts button[aria-pressed=true]{border-color:#95616c;background:#faf0f1;box-shadow:inset 0 0 0 1px #95616c}
-.board-create .board-directions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.board-create .board-directions button{display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;border:1px solid #e7e5e6;border-radius:9px;padding:10px;font-size:13px;color:#45424a;min-height:43px}
-.board-create .board-directions button .ic{width:18px;height:18px}
-.board-create .board-directions button[aria-pressed=true]{background:#faf0f1;border-color:#95616c;color:#713947;box-shadow:inset 0 0 0 1px #95616c}
 .board-create .board-layouts button:focus-visible,.board-create .board-presets button:focus-visible{outline:2px solid #95616c;outline-offset:2px}
 .board-create .board-bg-preview{min-height:130px;border-radius:12px;display:grid;place-items:center;padding:20px;border:1px solid #e6e6e6;background-position:center;background-repeat:no-repeat}
 .board-create .board-bg-note{background:rgba(255,255,255,.92);border-radius:9px;box-shadow:0 5px 18px #0000000d;padding:15px 17px;max-width:85%;min-width:210px}
@@ -1132,6 +1143,8 @@ textarea.inp{min-height:64px;resize:vertical;line-height:1.45}
 @media(max-width:560px){
   .modal.board-create{width:100%;max-height:96dvh}
   .board-create .modal-b{padding:14px 16px 18px}
+  .board-create .board-symbols{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+  .board-create .board-symbols button{min-height:77px;padding:8px 2px 6px}
   .board-create .board-layouts button{min-height:64px;padding:9px}
   .board-create .board-layouts button strong{font-size:13px}
   .board-create .board-presets .board-swatch{height:39px}
@@ -1374,6 +1387,176 @@ const ICONS = {
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
 };
 const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ''}</svg>`;
+
+/* Bộ biểu tượng bảng: nét vector nhất quán, không phụ thuộc thư viện ngoài. */
+Object.assign(ICONS, {
+  "bi-calc": "<rect x=\"5\" y=\"2.5\" width=\"14\" height=\"19\" rx=\"2\"/><path d=\"M8 7h8M8 11h2M14 11h2M8 15h2M14 15h2M8 19h2M14 19h2\"/>",
+  "bi-laptop": "<rect x=\"4\" y=\"4.5\" width=\"16\" height=\"12\" rx=\"1.5\"/><path d=\"M2 20h20l-2-3.5H4zM9 20h6\"/>",
+  "bi-flask": "<path d=\"M9 3h6M10 3v7l-6.4 9.1A1.7 1.7 0 0 0 5 21h14a1.7 1.7 0 0 0 1.4-1.9L14 10V3M7 16h10\"/>",
+  "bi-atom": "<ellipse cx=\"12\" cy=\"12\" rx=\"9\" ry=\"3.8\"/><ellipse cx=\"12\" cy=\"12\" rx=\"9\" ry=\"3.8\" transform=\"rotate(60 12 12)\"/><ellipse cx=\"12\" cy=\"12\" rx=\"9\" ry=\"3.8\" transform=\"rotate(120 12 12)\"/><circle cx=\"12\" cy=\"12\" r=\"1.5\" fill=\"currentColor\" stroke=\"none\"/>",
+  "bi-pen": "<path d=\"M15 4l5 5-11 11-6 1 1-6zM12.8 6.2l5 5M5 20l4-4\"/>",
+  "bi-globe": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3c3 3.1 4.5 6.1 4.5 9S15 17.9 12 21M12 3C9 6.1 7.5 9.1 7.5 12S9 17.9 12 21\"/>",
+  "bi-landmark": "<path d=\"M3 10h18M4 20h16M2 22h20M12 2L2 8h20zM6 10v10M10 10v10M14 10v10M18 10v10\"/>",
+  "bi-map": "<path d=\"M3 5l6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16\"/>",
+  "bi-palette": "<path d=\"M12 3a9 9 0 0 0 0 18h2a2 2 0 0 0 1.5-3.3 2.3 2.3 0 0 1 .9-3.9c1.9-.4 4.6.3 4.6-2.7A9 9 0 0 0 12 3z\"/><circle cx=\"8\" cy=\"8\" r=\"1\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"13\" cy=\"7\" r=\"1\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"6.5\" cy=\"13\" r=\"1\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"11\" cy=\"16\" r=\"1\" fill=\"currentColor\" stroke=\"none\"/>",
+  "bi-music": "<path d=\"M10 19V5l11-2v14M10 9l11-2\"/><ellipse cx=\"6.5\" cy=\"19\" rx=\"3.5\" ry=\"2.1\"/><ellipse cx=\"17.5\" cy=\"17\" rx=\"3.5\" ry=\"2.1\"/>",
+  "bi-trophy": "<path d=\"M8 4h8v7a4 4 0 0 1-8 0zM8 6H4v4a3 3 0 0 0 4 3M16 6h4v4a3 3 0 0 1-4 3M12 15v4M8 21h8M9 19h6\"/>",
+  "bi-cog": "<circle cx=\"12\" cy=\"12\" r=\"3.2\"/><path d=\"M10 3h4l.6 2.3 2.1.9 2-1.2 2.8 2.8-1.2 2 .9 2.2 2.3.5v4l-2.3.5-.9 2.2 1.2 2-2.8 2.8-2-1.2-2.1.9L14 23h-4l-.6-2.3-2.1-.9-2 1.2-2.8-2.8 1.2-2-.9-2.2L.5 13.5v-4l2.3-.5.9-2.2-1.2-2 2.8-2.8 2 1.2 2.1-.9z\" transform=\"translate(1 -1) scale(.92)\"/>",
+  "bi-bulb": "<path d=\"M9 18h6M10 21h4M8.5 15.5C6.8 14.2 6 12.2 6 10a6 6 0 0 1 12 0c0 2.2-.8 4.2-2.5 5.5L15 18H9z\"/>",
+  "bi-target": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><circle cx=\"12\" cy=\"12\" r=\"5.5\"/><circle cx=\"12\" cy=\"12\" r=\"1.8\"/>",
+  "bi-leaf": "<path d=\"M20 4C9 4 5 7 4 14a6 6 0 0 0 6 6c7-1 10-6 10-16zM5 19c3-4 7-7 12-10\"/>",
+  "bi-school": "<path d=\"M3 21V9l9-6 9 6v12M9 21v-7h6v7M6 10h2M16 10h2M6 13h2M16 13h2M2 21h20\"/>",
+  "bi-books": "<rect x=\"3\" y=\"4\" width=\"5\" height=\"17\" rx=\"1\"/><rect x=\"9\" y=\"6\" width=\"5\" height=\"15\" rx=\"1\"/><path d=\"M16 6l4-1 2 16-4 1zM3 8h5M9 10h5M17 10l4-1\"/>"
+});
+const BOARD_SYMBOLS = [
+  [
+    "book",
+    "Sách vở",
+    "book",
+    "#476aaf",
+    "#eaf0ff"
+  ],
+  [
+    "math",
+    "Toán học",
+    "bi-calc",
+    "#3563b7",
+    "#e8f1ff"
+  ],
+  [
+    "computer",
+    "Tin học",
+    "bi-laptop",
+    "#3669a3",
+    "#e8f4ff"
+  ],
+  [
+    "science",
+    "Khoa học",
+    "bi-flask",
+    "#348782",
+    "#e7f5f1"
+  ],
+  [
+    "atom",
+    "Vật lý",
+    "bi-atom",
+    "#5c61ae",
+    "#f0efff"
+  ],
+  [
+    "literature",
+    "Ngữ văn",
+    "bi-pen",
+    "#9a5267",
+    "#fff0f3"
+  ],
+  [
+    "language",
+    "Ngoại ngữ",
+    "bi-globe",
+    "#387e8d",
+    "#e8f7fa"
+  ],
+  [
+    "history",
+    "Lịch sử",
+    "bi-landmark",
+    "#8c673b",
+    "#fff4e5"
+  ],
+  [
+    "geography",
+    "Địa lí",
+    "bi-map",
+    "#50806a",
+    "#e9f5eb"
+  ],
+  [
+    "art",
+    "Mỹ thuật",
+    "bi-palette",
+    "#9a618e",
+    "#f9edfa"
+  ],
+  [
+    "music",
+    "Âm nhạc",
+    "bi-music",
+    "#8d55ab",
+    "#f4eafb"
+  ],
+  [
+    "sport",
+    "Thể chất",
+    "bi-trophy",
+    "#b16b36",
+    "#fff2e3"
+  ],
+  [
+    "stem",
+    "STEM",
+    "bi-cog",
+    "#3b779c",
+    "#eaf5fb"
+  ],
+  [
+    "idea",
+    "Sáng tạo",
+    "bi-bulb",
+    "#ac7a20",
+    "#fff7df"
+  ],
+  [
+    "team",
+    "Nhóm học",
+    "users",
+    "#547092",
+    "#edf2fa"
+  ],
+  [
+    "project",
+    "Dự án",
+    "bi-target",
+    "#9e5960",
+    "#fff0ec"
+  ],
+  [
+    "nature",
+    "Sinh học",
+    "bi-leaf",
+    "#4e8661",
+    "#e9f6eb"
+  ],
+  [
+    "school",
+    "Lớp học",
+    "bi-school",
+    "#536e93",
+    "#ecf2f8"
+  ],
+  [
+    "achievement",
+    "Thành tích",
+    "star",
+    "#bd8b27",
+    "#fff5db"
+  ],
+  [
+    "library",
+    "Thư viện",
+    "bi-books",
+    "#755da4",
+    "#f3eefb"
+  ]
+];
+const boardSymbolInfo = (id) => BOARD_SYMBOLS.find((s) => s[0] === id);
+function boardSymbol(id, compact = false) {
+  const item = boardSymbolInfo(id);
+  if (!item) return '';
+  return `<span class="board-mark${compact ? ' compact' : ''}" style="--bi-fg:${item[3]};--bi-bg:${item[4]}" aria-hidden="true">${ic(item[2])}</span>`;
+}
+
 /* ================= tranh minh họa (theo ảnh mẫu Tường Học Tập AI) ================= */
 /* Toàn bộ là hình vẽ vector, không tải ảnh ngoài. */
 const INK = '#3a2a22';
@@ -1508,6 +1691,7 @@ function boardGrade(b) {
 }
 function boardIcon(b) {
   const chosen = String(b.assignment?.icon || '').trim();
+  if (chosen.startsWith('bi:') && boardSymbolInfo(chosen.slice(3))) return boardSymbol(chosen.slice(3));
   if (chosen) return esc(chosen.slice(0, 10));
   const s = (String(b.subject || '') + ' ' + String(b.name || '')).toLowerCase().normalize('NFC');
   if (/toán|hình|đại số/.test(s)) return '📐';
@@ -2421,7 +2605,7 @@ function boardCard(b) {
     <div class="cbadges"><span>${left}</span><span class="chip2 status ${st[2]}">${ic(st[0])}${st[1]}</span></div>
     ${kebab ? `<button class="kebab" data-act="board-menu" data-id="${b.id}" aria-label="Tùy chọn bảng ${esc(b.name)}" aria-haspopup="true">${ic('dots')}</button>` : ''}
     <div class="bbody">
-      <div class="btitle"><button class="bname" data-act="open-board" data-id="${b.id}" ${b.trashed ? 'disabled' : ''}>${esc(b.name)}</button></div>
+      <div class="btitle">${b.assignment?.icon ? `<span class="btitle-symbol" aria-hidden="true">${boardIcon(b)}</span>` : ''}<button class="bname" data-act="open-board" data-id="${b.id}" ${b.trashed ? 'disabled' : ''}>${esc(b.name)}</button></div>
       <p class="bdesc">${desc}</p>
       <div class="bmeta"><span>${ic('user')}${esc(hs ? 'Thầy cô: ' + ownerLabel(b) : ownerLabel(b))}</span><span>${layoutName(b.layout)}</span></div>
       ${actions ? `<div class="bactions">${actions}</div>` : ''}
@@ -2931,7 +3115,10 @@ function boardForm(b) {
   const me = ME();
   const d = b || { name: '', cover: COVER_KEYS[S.boards.size % COVER_KEYS.length], layout: 'tuong', columns: [], assignment: { maxScore: 10 }, autoGrade: true, private: true, pinned: false };
   const a = d.assignment || {};
-  let layout = layoutKey(d.layout), direction = ['h', 'v'].includes(a.direction) ? a.direction : (S.bdir || 'h'), bg = WALL_BGS.some((w) => w.id === a.bg) ? a.bg : 'sage';
+  const legacySymbol = { '📚': 'book', '📐': 'math', '📖': 'literature', '💻': 'computer', '🌏': 'language', '🔬': 'science', '🗺️': 'geography', '🎵': 'music', '🎨': 'art' };
+  let pickedSymbol = a.icon?.startsWith('bi:') && boardSymbolInfo(a.icon.slice(3)) ? a.icon.slice(3) : (legacySymbol[a.icon] || 'book');
+  let savedSymbol = a.icon || 'bi:book';
+  let layout = layoutKey(d.layout), bg = WALL_BGS.some((w) => w.id === a.bg) ? a.bg : 'sage';
   let bgColor = /^#[0-9a-fA-F]{6}$/.test(a.bgColor || '') ? a.bgColor : '';
   let bgImage = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(a.bgImage || '') ? a.bgImage : '';
   const presets = ['sage', 'cream', 'blue', 'rose', 'lavender', 'minimal'].map((x) => wallBg(x));
@@ -2950,13 +3137,11 @@ function boardForm(b) {
     body: `<form class="modal-b" id="bf" novalidate>
       <label class="fld"><span>Tên bảng</span><input id="bf-name" maxlength="180" value="${esc(d.name)}" placeholder="Ví dụ: Góc sáng tạo lớp 8A" required></label>
       <label class="fld"><span>Mô tả</span><textarea id="bf-desc" rows="3" maxlength="2000" placeholder="Nhiệm vụ hoặc lời chào dành cho học sinh...">${esc(a.description || '')}</textarea></label>
-      <label class="fld"><span>Biểu tượng</span><input class="board-symbol" id="bf-icon" maxlength="10" value="${esc(a.icon || '📚')}" aria-label="Biểu tượng bảng" placeholder="📚"></label>
+      <div class="fld"><span>Biểu tượng bảng</span><div class="board-symbols" role="group" aria-label="Chọn biểu tượng cho bảng">
+        ${BOARD_SYMBOLS.map(([id, label]) => `<button type="button" data-board-symbol="${id}" aria-pressed="${pickedSymbol === id}" aria-label="Biểu tượng ${esc(label)}" title="${esc(label)}">${boardSymbol(id)}<span class="symbol-label">${esc(label)}</span></button>`).join('')}
+      </div></div>
       <div class="fld"><span>Bố cục bảng</span><div class="board-layouts" role="group" aria-label="Chọn bố cục bảng">
         ${modes.map(([k, label, hint]) => `<button type="button" data-ly="${k}" aria-pressed="${layout === k}"><strong>${label}</strong><small>${hint}</small></button>`).join('')}
-      </div></div>
-      <div class="fld"><span>Kiểu hiển thị</span><div class="board-directions" role="group" aria-label="Chọn chiều hiển thị bảng">
-        <button type="button" data-bf-dir="h" aria-pressed="${direction === 'h'}">${ic('cols')}Chiều ngang</button>
-        <button type="button" data-bf-dir="v" aria-pressed="${direction === 'v'}">${ic('rows')}Chiều dọc</button>
       </div></div>
       <div class="fld"><span>Hình nền</span><div class="board-bg-preview" id="bf-preview">
         <div class="board-bg-note"><strong id="bf-preview-name">${esc(d.name || 'Tên lớp của thầy')}</strong><small>Bài làm của học sinh sẽ hiển thị trên nền này.</small></div>
@@ -2986,14 +3171,15 @@ function boardForm(b) {
     layout = button.dataset.ly;
     $$('[data-ly]', el).forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
   });
-  $('[data-bf-dir]', el).forEach((button) => button.onclick = () => {
-    direction = button.dataset.bfDir;
-    $('[data-bf-dir]', el).forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+  $('[data-board-symbol]', el).forEach((button) => button.onclick = () => {
+    pickedSymbol = button.dataset.boardSymbol;
+    savedSymbol = 'bi:' + pickedSymbol;
+    $('[data-board-symbol]', el).forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
   });
-  $('[data-bgp]', el).forEach((button) => button.onclick = () => {
+  $('[data-bgp]', el).forEach((button) => { button.onclick = () => {
     bg = button.dataset.bgp; bgImage = ''; bgColor = '';
     $('#bf-color', el).value = wallBg(bg).color; updatePreview();
-  });
+  }; });
   $('#bf-color', el).addEventListener('input', (e) => { bgColor = e.target.value; bgImage = ''; updatePreview(); });
   $('#bf-reset', el).onclick = () => { bg = 'sage'; bgColor = ''; bgImage = ''; $('#bf-color', el).value = wallBg(bg).color; updatePreview(); };
   $('#bf-upload', el).onchange = async (e) => {
@@ -3033,7 +3219,7 @@ function boardForm(b) {
       ...base, name, cover: d.cover, layout,
       school: d.school || me.school || '', subject: d.subject || '', grade: d.grade || '',
       columns: b ? (b.columns || []) : (layout === 'cot' ? [{ id: uid('c'), name: 'Bài nộp' }] : []),
-      assignment: { ...a, description: $('#bf-desc', el).value.trim(), icon: $('#bf-icon', el).value.trim() || '📚', direction, bg, bgColor, bgImage, maxScore: a.maxScore || 10 },
+      assignment: { ...a, description: $('#bf-desc', el).value.trim(), icon: savedSymbol, bg, bgColor, bgImage, maxScore: a.maxScore || 10 },
       autoGrade: d.autoGrade !== false, private: d.private !== false,
       pinned: !!d.pinned, starred: !!d.starred,
       archived: $('#bf-arch', el) ? $('#bf-arch', el).checked : !!d.archived
