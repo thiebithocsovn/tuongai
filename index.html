@@ -365,6 +365,12 @@ a{color:inherit}
 .ptext{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap;font-size:15.5px;line-height:1.5;color:var(--ink-2)}
 .pthumb+.ptext{margin-top:8px}
 .ai-entry{width:100%;margin-top:10px;white-space:normal;text-align:center;font-size:15px}
+.pnote{display:block;width:100%;text-align:left;margin-top:10px;background:#f3f7fe;border:1px solid #d9e4f7;border-radius:10px;padding:9px 11px;cursor:pointer}
+.pnote:hover{background:#eaf1fc}
+.pnote-h{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#1d4fb8;margin-bottom:4px}
+.pnote-t{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap;font-size:14.5px;line-height:1.45;color:var(--ink-2)}
+.note-lbl{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#1d4fb8;margin-top:6px}
+.note-t{white-space:pre-wrap;margin-top:3px}
 .pfoot{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:10px;margin-top:10px;font-size:13.5px;flex-wrap:wrap}
 .score-pill{margin-left:auto;font-family:var(--hand);color:var(--pen);font-size:26px;line-height:.9;white-space:nowrap}
 .score-pill small{font-size:15px}
@@ -1839,8 +1845,7 @@ function postCard(p, studentView) {
   return `<article class="pcard">
     <div class="pmeta-row"><span class="pav" aria-hidden="true">${esc(String(who || '?').trim().slice(0, 1) || '?')}</span><div><strong>${esc(who || 'Chưa có tên')}</strong><small>${vnTime(p.createdAt)} · ${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}</small></div></div>
     ${media || text ? `<button class="pmedia" data-act="open-post" data-id="${p.id}" aria-label="Xem bài của ${esc(p.studentName)}">${media}${text}</button>` : ''}
-    <button class="btn btn-ai ai-entry" data-act="open-post" data-id="${p.id}" ${autoGrade ? 'data-grade="1"' : ''}>✨ ${aiLabel}</button>
-    ${skill ? `<p class="perr">Luyện tập: ${esc(skill)}</p>` : ''}
+    ${!grading && (p.ai || p.teacher?.note) ? `<button class="pnote" data-act="open-post" data-id="${p.id}"><span class="pnote-h">${ic('msg', 'ic-sm')}${p.teacher?.note ? 'Nhận xét của thầy cô' : 'Nhận xét · AI chấm'}${errs ? ' · ' + errs + ' lỗi cần sửa' : ''}</span><span class="pnote-t">${esc(p.teacher?.note || p.ai.nhan_xet || 'Bấm để xem lỗi sai và gợi ý luyện tập.')}</span></button>${skill && !p.teacher?.note ? `<p class="perr">Luyện tập: ${esc(skill)}</p>` : ''}` : `<button class="btn btn-ai ai-entry" data-act="open-post" data-id="${p.id}" ${autoGrade ? 'data-grade="1"' : ''}>✨ ${aiLabel}</button>`}
     <div class="pfoot">${chip(p)}${fs != null ? `<span class="score-pill" title="${p.teacher?.approvedAt ? 'Điểm thầy cô đã duyệt' : 'Điểm AI đề xuất'}">${fmt(fs)}<small>/${max}</small></span>` : ''}</div>
   </article>`;
 }
@@ -2238,7 +2243,7 @@ function drawSide() {
     main = `<div class="thinking" role="status"><div class="row"><span class="spin"></span><b>AI đang đọc bài làm…</b><span class="meta" id="pd-sec"></span><button class="btn btn-sm btn-ghost" data-pd="stop" style="margin-left:auto">${ic('stop', 'ic-sm')}Dừng</button></div><div class="sk" style="width:92%"></div><div class="sk" style="width:78%"></div><div class="sk" style="width:85%"></div><p class="meta">${CAP.sample ? 'Lần đầu, Claude sẽ hỏi bạn có cho phép trang dùng AI không. ' : ''}AI thường cần 20–60 giây để đọc chữ viết tay.</p></div>`;
   } else if (ai) {
     main = `
-      <div class="grade"><div class="stampbig">${fmt(fs)}<small>/${max}</small></div><div><p class="lbl">${p.teacher?.approvedAt ? 'Điểm thầy cô đã duyệt' : gv ? 'Điểm AI đề xuất' : 'Điểm AI · chờ thầy cô duyệt'}</p><p>${esc(ai.nhan_xet)}</p>${p.teacher?.note ? `<p style="margin-top:8px"><b>Lời phê:</b> <span class="hand" style="color:var(--pen);font-size:20px">${esc(p.teacher.note)}</span></p>` : ''}</div></div>
+      <div class="grade"><div class="stampbig">${fmt(fs)}<small>/${max}</small></div><div><p class="lbl">${p.teacher?.approvedAt ? 'Điểm thầy cô đã duyệt' : gv ? 'Điểm AI đề xuất' : 'Điểm AI · chờ thầy cô duyệt'}</p><p class="note-lbl">${ic('msg', 'ic-sm')}${p.teacher?.note ? 'Nhận xét của thầy cô' : 'Nhận xét của AI'}</p><p class="note-t">${esc(p.teacher?.note || ai.nhan_xet)}</p></div></div>
       ${ai.canh_bao ? `<p class="warnline">${esc(ai.canh_bao)}</p>` : ''}
       <section class="blk"><h4>Lỗi sai cần sửa <span class="n">${ai.loi_sai.length}</span></h4>${ai.loi_sai.length ? `<ol class="errs">${ai.loi_sai.map((e) => `<li class="err ${e.muc_do}"><span class="where">${esc(e.vi_tri || 'Trong bài')}<span class="sev">${e.muc_do === 'nang' ? 'Sai kiến thức' : e.muc_do === 'nhe' ? 'Trình bày' : 'Tính toán'}</span></span><p>${esc(e.loi)}</p>${e.sua ? `<p class="fix"><b>Sửa:</b> ${esc(e.sua)}</p>` : ''}</li>`).join('')}</ol>` : '<p class="meta">AI không thấy lỗi sai nào. Rất tốt!</p>'}</section>
       ${ai.diem_manh.length ? `<section class="blk"><h4>Em đã làm tốt</h4><ul class="goods">${ai.diem_manh.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
@@ -2251,7 +2256,7 @@ function drawSide() {
     <div class="pd-who"><div><h3>${esc(p.studentName)}</h3><p class="meta">${timeAgo(p.createdAt)} · ${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}${p.aiAt ? ' · AI chấm ' + timeAgo(p.aiAt) : ''}</p></div>${chip(p)}</div>
     ${detail.err ? `<p class="warnline">${esc(detail.err)}</p>` : ''}
     ${main}
-    ${gv && !grading ? `<section class="tbox"><h4 style="font-size:14px">Giáo viên duyệt</h4><div class="grid2"><label class="fld"><span>Điểm chốt (0–${max})</span><input id="td-score" type="number" inputmode="decimal" step="0.25" min="0" max="${max}" value="${esc(isNum(p.teacher?.score) ? p.teacher.score : ai ? ai.diem : '')}"></label></div><label class="fld"><span>Lời phê</span><textarea id="td-note" rows="2" placeholder="Ví dụ: Cẩn thận khi mở ngoặc nhé!">${esc(p.teacher?.note || '')}</textarea></label><p class="form-err" id="td-err"></p><div class="row-between"><button class="btn btn-sm btn-danger" data-pd="delete">${ic('trash', 'ic-sm')}Xóa bài</button><button class="btn btn-navy" data-pd="approve">${ic('check')}Duyệt điểm</button></div></section>` : ''}
+    ${gv && !grading ? `<section class="tbox"><h4 style="font-size:14px">Giáo viên duyệt</h4><div class="grid2"><label class="fld"><span>Điểm chốt (0–${max})</span><input id="td-score" type="number" inputmode="decimal" step="0.25" min="0" max="${max}" value="${esc(isNum(p.teacher?.score) ? p.teacher.score : ai ? ai.diem : '')}"></label></div><label class="fld"><span>Nhận xét${ai && p.teacher?.note == null ? ' <em>(AI đã viết sẵn, thầy cô sửa nếu cần)</em>' : ''}</span><textarea id="td-note" rows="${ai ? 7 : 3}" placeholder="Ví dụ: Cẩn thận khi mở ngoặc nhé!">${esc(p.teacher?.note ?? (ai ? aiComment(ai) : ''))}</textarea></label>${ai ? `<button type="button" class="btn btn-sm btn-ai" data-pd="ai-note" style="justify-self:start">✨ Lấy lại nhận xét của AI</button>` : ''}<p class="form-err" id="td-err"></p><div class="row-between"><button class="btn btn-sm btn-danger" data-pd="delete">${ic('trash', 'ic-sm')}Xóa bài</button><button class="btn btn-navy" data-pd="approve">${ic('check')}Duyệt điểm và nhận xét</button></div></section>` : ''}
     <div class="row-between">${canGrade ? `<button class="btn ${ai ? 'btn-ghost' : 'btn-brand'}" data-pd="grade">${ic('spark')}${ai ? 'Chấm lại bằng AI' : 'Chấm bằng AI'}</button>` : '<span></span>'}<button class="btn btn-ghost" data-pd="close">Đóng</button></div>`;
   if (dirty) { if (keepNote != null && $('#td-note', el)) $('#td-note', el).value = keepNote; if (keepScore != null && $('#td-score', el)) $('#td-score', el).value = keepScore; }
   $('#td-note', el)?.addEventListener('input', () => (detail.dirty = true));
@@ -2278,11 +2283,23 @@ async function runGrade(id) {
     if (detail?.id === id) drawSide();
   }
 }
+/* Nhận xét viết sẵn từ kết quả AI chấm, thầy cô sửa lại trước khi duyệt */
+function aiComment(ai) {
+  if (!ai) return '';
+  const out = [];
+  if (ai.nhan_xet) out.push(String(ai.nhan_xet).trim());
+  if (ai.diem_manh?.length) out.push('Em đã làm tốt: ' + ai.diem_manh.join(' '));
+  if (ai.loi_sai?.length) out.push('Cần sửa:\n' + ai.loi_sai.map((e, i) => (i + 1) + ') ' + (e.vi_tri ? e.vi_tri + ': ' : '') + e.loi + (e.sua ? ' → ' + e.sua : '')).join('\n'));
+  if (ai.luyen_tap?.length) out.push('Luyện tập: ' + ai.luyen_tap.map((x) => x.ky_nang + (x.goi_y ? ' (' + String(x.goi_y).trim().replace(/[.!]+$/, '') + ')' : '')).join('; ') + '.');
+  if (ai.bai_tap_goi_y?.length) out.push('Bài tập thêm: ' + ai.bai_tap_goi_y.join(' '));
+  return out.join('\n');
+}
 async function detailAct(a) {
   const id = detail.id; const p = getPost(id); const b = getBoard(p.boardId);
   if (a === 'close') return detail.m.close();
   if (a === 'stop') { ctlOf.get(id)?.abort(); return; }
   if (a === 'grade') return runGrade(id);
+  if (a === 'ai-note') { const t = $('#td-note', detail.m.el); if (t && p.ai) { t.value = aiComment(p.ai); detail.dirty = true; t.focus(); } return; }
   if (a === 'approve') {
     const max = b.assignment?.maxScore || 10;
     const raw = $('#td-score', detail.m.el).value.replace(',', '.');
@@ -2291,7 +2308,7 @@ async function detailAct(a) {
     const note = $('#td-note', detail.m.el).value.trim();
     detail.dirty = false;
     const ok = await savePost({ ...p, teacher: { score: Math.round(sc * 4) / 4, note, approvedAt: now(), by: S.meId } });
-    if (ok) toast('Đã duyệt điểm ' + fmt(Math.round(sc * 4) / 4) + ' cho ' + p.studentName + '.');
+    if (ok) toast('Đã duyệt điểm ' + fmt(Math.round(sc * 4) / 4) + ' và nhận xét cho ' + p.studentName + '.');
     return;
   }
   if (a === 'delete') {
