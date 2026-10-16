@@ -73,6 +73,7 @@ create table if not exists public.boards (
   tags jsonb not null default '[]'::jsonb,
   assignment jsonb not null default '{}'::jsonb,
   auto_grade boolean not null default true,
+  shared boolean not null default false,
   private boolean not null default true,
   pinned boolean not null default false,
   starred boolean not null default false,

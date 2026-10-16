@@ -1,34 +1,26 @@
 # Tường AI
 
-Không gian cùng học: giáo viên chụp bài làm của học sinh, học sinh nộp bài bằng điện thoại, AI chấm điểm, chỉ lỗi sai từng dòng và gợi ý luyện tập.
+Không gian cùng học: giáo viên chụp bài làm của học sinh hoặc học sinh nộp bài bằng điện thoại; AI chấm điểm, chỉ lỗi sai từng dòng và gợi ý luyện tập.
 
-Mở trên web: https://thiebithocsovn.github.io/tuongai/ (sau khi bật GitHub Pages).
+Mở trên web: https://thiebithocsovn.github.io/tuongai/
 
-## Tính năng
+## Ai dùng thế nào
 
-- Học sinh **không cần tài khoản**: chọn thẻ Học sinh, nhập mã lớp 6 ký tự và họ tên là vào nộp bài. Phiên học sinh tự kết thúc khi đóng tab hoặc bấm Thoát lớp, hợp với máy dùng chung trong lớp.
-- Giáo viên đăng ký, đăng nhập bằng mật khẩu. Mật khẩu được mã hóa (PBKDF2) trước khi lưu.
-- Tài khoản **Quản trị hệ thống** có sẵn, gắn với email của chủ phần mềm (nhận ra qua mã băm, không ghi email trong mã nguồn). Đăng nhập lần đầu bằng mật khẩu mặc định, sau đó đổi mật khẩu trong menu tài khoản (nút bánh răng → Đổi mật khẩu).
-- Bảng lớp kiểu cột hoặc tường, ghim, đánh dấu, lưu trữ, thùng rác, mã lớp 6 ký tự cho học sinh.
-- Chụp vở bằng camera điện thoại hoặc gõ bài trực tiếp.
+- **Giáo viên** đăng ký bằng email. Tài khoản dùng được sau khi Quản trị hệ thống duyệt. Mỗi giáo viên chỉ thấy bảng và bài làm của mình.
+- **Học sinh** không cần tài khoản. Thầy cô mở **Chia sẻ** trên một bảng, bật "Cho học sinh nộp bài qua đường link", rồi gửi đường link hoặc mã QR. Học sinh mở link, nhập họ tên là nộp được bài. Em chỉ thấy bài của mình. Thầy cô tắt chia sẻ thì đường link ngừng hoạt động ngay.
+- **Quản trị hệ thống** thấy dữ liệu của mọi giáo viên. Trang **Thành viên** dùng để duyệt, khóa hoặc mở khóa, đặt lại mật khẩu, tạo tài khoản, cấp hoặc bỏ quyền quản trị, xóa tài khoản và xem bảng của từng giáo viên. **Cài đặt hệ thống** dùng để đặt khóa Gemini chung cho AI chấm bài và bật hoặc tắt chế độ tự duyệt giáo viên mới.
+
+## Tính năng chính
+
+- Bảng lớp kiểu cột hoặc tường, ghim, đánh dấu, lưu trữ, thùng rác.
+- Chụp vở bằng camera điện thoại hoặc gõ bài trực tiếp. Ảnh lưu trong kho riêng tư.
 - AI chấm theo đề và đáp án của giáo viên: điểm (làm tròn 0,25), lỗi sai kèm cách sửa, điểm làm tốt, định hướng luyện tập, bài tập gợi ý.
-- Giáo viên duyệt điểm cuối và ghi lời phê.
-- Bảng mẫu Toán 9 (mã MAU009) để thử ngay.
-
-## Bật AI chấm bài
-
-Đăng nhập tài khoản giáo viên, bấm nút bánh răng, chọn **Cài đặt AI chấm bài**, rồi dán khóa API:
-
-- **Google Gemini** (có gói miễn phí): lấy khóa tại https://aistudio.google.com/apikey
-- **Anthropic Claude** (trả phí theo lượt): tạo khóa trong Claude Console.
-
-Khóa chỉ lưu trong trình duyệt của máy đó và chỉ được gửi tới dịch vụ AI đã chọn.
-
-## Lưu ý
-
-- Bản này là một trang web tĩnh, chưa có máy chủ. Tài khoản và bài làm lưu trên từng thiết bị (IndexedDB của trình duyệt), nên các máy khác nhau không thấy dữ liệu của nhau. Phù hợp khi giáo viên và học sinh dùng chung một máy trong lớp.
-- Muốn mọi giáo viên và học sinh dùng chung dữ liệu qua mạng, cần thêm máy chủ (ví dụ Firebase hoặc Supabase) để lưu tài khoản, bài làm và gọi AI.
+- Giáo viên duyệt điểm cuối và ghi lời phê. Bài học sinh mới nộp hiện ra ngay trên bảng của thầy cô.
+- Bảng mẫu Toán 9 để thử (đường link `?lop=MAU009`).
 
 ## Cấu trúc
 
-Toàn bộ ứng dụng nằm trong một tệp `index.html` (HTML, CSS, JavaScript), không cần cài đặt hay build.
+- `index.html`: toàn bộ giao diện (HTML, CSS, JavaScript), chạy trên GitHub Pages.
+- `supabase/migrations/`: cơ sở dữ liệu, phân quyền (Row Level Security) và kho ảnh trên Supabase.
+- `supabase/functions/tuongai/`: hàm máy chủ cho đăng ký, học sinh nộp bài, AI chấm bài và quản trị thành viên. Khóa AI và email quản trị chỉ lưu trên máy chủ, không nằm trong mã nguồn.
+- `.github/workflows/pages.yml`: tự xuất bản lên GitHub Pages mỗi khi nhánh `main` thay đổi.

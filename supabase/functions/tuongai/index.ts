@@ -157,13 +157,14 @@ async function boardByCode(code: string) {
   if (c.length !== 6) throw new Fail("not_found", "Mã lớp gồm 6 ký tự.", 404);
   const { data: b } = await db.from("boards").select("*").eq("code", c).eq("trashed", false).maybeSingle();
   if (!b) throw new Fail("not_found", "Không tìm thấy lớp có mã " + c + ".", 404);
-  const { data: o } = await db.from("profiles").select("status").eq("id", b.owner).maybeSingle();
+  const { data: o } = await db.from("profiles").select("status, full_name").eq("id", b.owner).maybeSingle();
   if (!o || o.status !== "active") throw new Fail("not_found", "Lớp này đang tạm dừng.", 404);
-  return b;
+  if (!b.shared) throw new Fail("not_shared", "Thầy cô chưa mở chia sẻ lớp này cho học sinh. Em hãy báo lại với thầy cô.", 403);
+  return { ...b, teacher_name: o.full_name || "" };
 }
 const publicBoard = (b: any) => ({
   id: b.id, name: b.name, school: b.school, subject: b.subject, grade: b.grade, cover: b.cover, layout: b.layout,
-  code: b.code, auto_grade: b.auto_grade, columns: b.columns,
+  code: b.code, auto_grade: b.auto_grade, columns: b.columns, teacher: b.teacher_name || "",
   assignment: { title: b.assignment?.title || "", prompt: b.assignment?.prompt || "", maxScore: Number(b.assignment?.maxScore) || 10 },
 });
 const publicPost = (p: any) => ({
