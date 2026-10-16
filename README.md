@@ -12,7 +12,7 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 
 ## Tính năng chính
 
-- Giao diện theo Tường học tập Ai của Hệ sinh thái 4.0: thẻ bảng có tranh minh họa, ghim bằng ngôi sao, xem theo chiều ngang hoặc chiều dọc.
+- Giao diện Tường Học Tập AI: thẻ bảng có tranh minh họa nhiều màu, nhãn Đã ghim, Lớp, Sôi nổi, Riêng tư, nút ⋯ để ghim, chia sẻ, lưu trữ; xem theo chiều ngang hoặc chiều dọc.
 - Bảng lớp kiểu cột hoặc tường, đổi nền, tìm và sắp xếp bài, thêm, đổi tên, xóa cột, lưu trữ, thùng rác.
 - Chụp vở bằng camera điện thoại hoặc gõ bài trực tiếp. Ảnh lưu trong kho riêng tư.
 - AI chấm theo đề và đáp án của giáo viên: điểm (làm tròn 0,25), lỗi sai kèm cách sửa, điểm làm tốt, định hướng luyện tập, bài tập gợi ý.
