@@ -23,6 +23,7 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 - Chụp vở bằng camera điện thoại hoặc gõ bài trực tiếp. Ảnh lưu trong kho riêng tư.
 - AI chấm theo đề và đáp án của giáo viên: điểm (làm tròn 0,25), lỗi sai kèm cách sửa, điểm làm tốt, định hướng luyện tập, bài tập gợi ý.
 - Giáo viên duyệt điểm cuối và ghi lời phê. Bài học sinh mới nộp hiện ra ngay trên bảng của thầy cô.
+- Trợ lý AI cho bài làm, trong mục nhận xét khi mở một bài (chỉ giáo viên thấy): 1. Chat và đánh giá (hỏi AI về bài, đưa nhận xét đề xuất vào ô Viết nhận xét, đề bài và tiêu chí dùng cho AI), 2. Giáo viên duyệt (kiểm chứng từng lỗi và nguyên nhân, duyệt nhận xét và điểm), 3. Luyện tập (AI soạn bài theo lỗi đã xác nhận, tải phiếu cho học sinh), 4. Tiến bộ (ghi lần luyện tập, theo dõi kỹ năng đã khắc phục). Dữ liệu lưu ở `teacher.assist`; máy chủ không gửi phần này cho học sinh.
 - Bảng mẫu Toán 9 để thử (đường link `?lop=MAU009`).
 
 ## Cấu trúc

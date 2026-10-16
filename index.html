@@ -873,6 +873,122 @@ textarea.inp{min-height:64px;resize:vertical;line-height:1.45}
   .app.board-open .fab{right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:56px;height:56px}
   .rv-list li{flex-wrap:wrap}
 }
+
+/* ================= Trợ lý AI cho bài làm (trong mục nhận xét, theo mẫu Tường học tập Ai) ================= */
+.pd-cmt .cmt-new{gap:10px}
+.pd-cmt .cmt-new .btn{justify-self:stretch}
+.as{--as-ink:#282a27;--as-plum:#753a43;--as-violet:#764785;font-family:Nunito,var(--font);color:var(--as-ink);display:flex;flex-direction:column;gap:18px;border:1px solid #ddd4e7;border-radius:14px;padding:22px;background:linear-gradient(145deg,#faf7fd,#fff 60%);min-width:0;margin:6px 0 14px;font-size:14px;line-height:1.5}
+.as h3{font-size:18px;font-weight:800;margin:0}
+.as h4{font-size:15px;font-weight:700;margin:0}
+.as p,.as dd,.as-hist article{overflow-wrap:anywhere;white-space:pre-wrap}
+.as .btn{font-family:inherit;font-size:14px;font-weight:600;border-radius:10px;min-height:42px;white-space:normal;text-align:center}
+.as .btn-sm{min-height:32px;font-size:12px;padding:6px 10px}
+.as-btn{background:#fff;border:1px solid #d9ddd4;color:var(--as-ink)}
+.as-btn:hover:not(:disabled){background:#f0f1eb}
+.as-primary{background:var(--as-plum);border:1px solid var(--as-plum);color:#fff;box-shadow:none}
+.as-primary:hover:not(:disabled){background:#63313a}
+.as .btn:disabled{opacity:.5;cursor:not-allowed}
+.as-block{width:100%}
+.as-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.as-head>div{flex:1;min-width:150px}
+.as-head p{font-size:12px;color:#6b6570;margin-top:4px}
+.as-head>.ic{width:21px;height:21px}
+.as-icon{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#eee2f9;color:#795297;flex:none}
+.as-icon .ic{width:24px;height:24px}
+.as-chip{display:inline-block;font-size:11px;padding:4px 8px;border-radius:16px;background:#eee7f5;color:#735287;white-space:normal}
+.as-chip.is-resolved{background:#e4f4e8;color:#316b42}
+.as-chip.is-remains{background:#fbe5e5;color:#8f4141}
+.as-chip.is-improving{background:#fff2d4;color:#856127}
+.as-chip.is-unassessed{background:#edeef1;color:#666b77}
+.as-prov{display:flex;flex-direction:column;gap:8px;padding-bottom:16px;border-bottom:1px solid #e6dfea}
+.as-field{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-height:42px;padding:9px 12px;border:1px solid #d8dcd4;border-radius:9px;background:#fff;font-size:15px}
+.as-field small{font-size:12px;color:#7a7480}
+.as-lbl{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#4f4a54}
+.as input:not([type=checkbox]),.as textarea,.as select{width:100%;font:inherit;font-size:14px;color:var(--as-ink);background:#fff;border:1px solid #d8dcd4;border-radius:9px;padding:10px 12px;min-height:42px}
+.as textarea{resize:vertical;line-height:1.55}
+.as input:focus,.as textarea:focus,.as select:focus{outline:2px solid #a9747d;outline-offset:1px;border-color:#a9747d}
+.as input:disabled,.as textarea:disabled,.as select:disabled{background:#f6f4f7;color:#6b6570}
+.as-chk{display:flex;align-items:center;gap:9px;font-size:13px}
+.as-chk input{width:16px;height:16px;accent-color:var(--as-violet)}
+.as-help{font-size:12px;color:#78816e;line-height:1.6}
+.as-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.as-steps button{display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #e0d9e7;background:#fff;border-radius:10px;padding:11px 6px;font-size:12.5px;min-height:45px;color:var(--as-ink);text-align:center}
+.as-steps button .ic{width:17px;height:17px}
+.as-steps button:hover:not(:disabled){background:#f7f3fb}
+.as-steps button[aria-current=step]{background:var(--as-violet);color:#fff;border-color:var(--as-violet)}
+.as-steps button:disabled{opacity:.6}
+.as-sec{display:flex;flex-direction:column;gap:16px;min-width:0}
+.as-chat{display:flex;flex-direction:column;gap:12px;border:1px solid #ded3eb;border-radius:12px;padding:16px;background:#fff;min-width:0}
+.as-conn{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.as-conn .as-ok{flex:1;margin:0}
+.as-log{display:flex;flex-direction:column;gap:12px;max-height:460px;min-height:120px;overflow-y:auto;padding:12px;border-radius:10px;background:#f7f5fa;overscroll-behavior:contain}
+.as-log:focus-visible{outline:2px solid #85559b;outline-offset:2px}
+.as-empty-chat{color:#786a84;font-size:13px;line-height:1.7;margin:8px}
+.as-msg{max-width:92%;border:1px solid #e6dfea;border-radius:12px;padding:12px 14px;font-size:13.5px;background:#fff;align-self:flex-start;min-width:0}
+.as-msg.me{align-self:flex-end;background:#eee5f6;border-color:#ddcdea}
+.as-msg>strong{font-size:11px;color:#76508e}
+.as-msg>strong small{font-weight:400}
+.as-msg p{margin-top:6px;line-height:1.65}
+.as-fb{border-top:1px solid #e6dfea;margin-top:12px;padding-top:10px}
+.as-fb small{font-weight:700;color:#5e486c}
+.as-fb .btn{margin-top:10px}
+.as-prompts{display:flex;flex-wrap:wrap;gap:7px}
+.as-prompts button{border:1px solid #e2d8eb;border-radius:16px;padding:7px 11px;background:#faf7fd;color:#694c7f;font-size:12px;text-align:left}
+.as-prompts button:hover:not(:disabled){background:#f1e9f8}
+.as-prompts button:disabled{opacity:.55}
+.as-end{display:flex;justify-content:flex-end}
+.as-row{display:flex;gap:10px;flex-wrap:wrap}
+.as-row .btn{flex:1 1 160px}
+.as-ctx{border:1px solid #e3dbe9;border-radius:10px;padding:12px;background:#fff}
+.as-ctx>.as-sec{padding-top:14px}
+.as summary{font-size:13px;font-weight:700;cursor:pointer}
+.as-sub summary{font-weight:600;color:#5e486c}
+.as-sub>.as-lbl{margin-top:12px}
+.as-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.as-card{border:1px solid #e4dfe9;background:#fff;border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.as-card ul{margin:0;padding-left:22px}
+.as-eyebrow{font-size:10.5px;letter-spacing:.6px;font-weight:700;color:#79816e}
+.as-card dl{margin:0;display:grid;grid-template-columns:140px minmax(0,1fr);gap:9px;font-size:13px}
+.as-card dt{font-weight:700;color:#65586c}
+.as-card dd{margin:0}
+.as-card dd small{color:#756f79}
+.as-warn{background:#fff7e3;border:1px solid #ebd9a6;border-radius:9px;padding:12px;font-size:13px;color:#715420}
+.as-warn ul{margin:6px 0 0;padding-left:20px}
+.as-ok{color:#316846;font-size:13px;background:#eef8f0;border-radius:8px;padding:10px}
+.as-err{color:#9d233c;background:#fff0f0;padding:10px;border-radius:7px;font-size:13px}
+.as-empty{padding:18px;border:1px dashed #d8cde1;border-radius:10px;background:#fff;color:#776582;font-size:14px}
+.as-busy{display:flex;align-items:center;gap:8px;color:#78508f;font-size:13px}
+.as-busy .spin{border-color:#e2d3ee;border-top-color:#78508f}
+.as-prog{display:flex;flex-direction:column;gap:14px}
+.as-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.as-stats>div{background:#f8f5fa;border:1px solid #e5dfeb;border-radius:10px;padding:14px}
+.as-stats strong{display:block;font-size:25px;color:#744887;line-height:1.2}
+.as-stats span{display:block;font-size:11px;color:#72677a}
+.as-tbl{overflow-x:auto;border:1px solid #e4dfe9;border-radius:10px}
+.as-tbl table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;text-align:left}
+.as-tbl th{background:#f6f3f8;font-weight:700;white-space:nowrap}
+.as-tbl th,.as-tbl td{padding:11px 12px;border-bottom:1px solid #eee8f2;vertical-align:top}
+.as-hist{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.as-hist article{border-left:3px solid #d8c5e4;background:#f8f5fb;padding:12px;font-size:13px}
+.as-hist small{display:block;color:#82718e;margin-top:5px}
+.as-hist p{margin-top:7px}
+@media (max-width:760px){
+  .as{padding:14px;gap:14px}
+  .as-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .as-grid{grid-template-columns:1fr}
+  .as-card{padding:13px}
+  .as-card dl{grid-template-columns:1fr;gap:5px}
+  .as-card dd{margin-bottom:8px}
+  .as-chat{padding:12px}
+  .as-log{max-height:380px;padding:8px}
+  .as-msg{max-width:96%;padding:10px}
+  .as-end .btn{width:100%}
+  .as-stats{gap:6px}
+  .as-stats>div{padding:10px}
+  .as-stats strong{font-size:22px}
+  .as-stats span{font-size:10px}
+  .as input:not([type=checkbox]),.as textarea,.as select{font-size:16px}
+}
 </style>
 </head>
 <body>
@@ -2786,7 +2902,7 @@ function openDetail(id, autoGrade, focus) {
     title: (gv ? p.studentName : b.name) + ' · ' + (b.assignment?.title || 'Bài làm'),
     wide: true,
     body: `<div class="pd"><div class="pd-media" id="pd-media"></div><div class="pd-side" id="pd-side"></div></div>`,
-    onClose: () => { const c = ctlOf.get(id); if (c) c.abort(); detail = null; },
+    onClose: () => { const c = ctlOf.get(id); if (c) c.abort(); detail?.as?.ctl?.abort(); detail = null; },
   });
   detail = { id, m, started: 0 };
   drawMedia(); drawSide();
@@ -2809,18 +2925,23 @@ function refreshDetail() {
   if (!detail) return;
   const p = getPost(detail.id);
   if (!p) { detail.m.close(); return; }
-  const key = JSON.stringify([p.ai, p.teacher, S.grading.has(p.id), detail.err || '']);
-  if (detail.key === key) return;
+  if (detail.as) asSync(detail.as, p);
+  if (detail.key === detailKey(p)) return;
   drawSide();
 }
 function drawSide() {
   const p = getPost(detail.id); const b = getBoard(p.boardId); const gv = isGV();
   const max = b.assignment?.maxScore || 10;
-  detail.key = JSON.stringify([p.ai, p.teacher, S.grading.has(p.id), detail.err || '']);
+  detail.key = detailKey(p);
   const el = $('#pd-side', detail.m.el);
+  const keepFocus = detail.as && detail.as.el.contains(document.activeElement) ? document.activeElement : null; const keepTop = el.scrollTop;
   const keepNote = $('#td-note', el)?.value; const keepScore = $('#td-score', el)?.value; const dirty = detail.dirty; const keepCm = $('#cm-text', el)?.value;
   const cms = tmeta(p).comments || [];
-  const cmtHtml = gv || cms.length ? `<section class="blk" id="pd-cmt"><h4>${ic('chat', 'ic-sm')}Trao đổi nhận xét <span class="n">${cms.length}</span></h4>${cms.length ? `<div class="cmts">${cms.map((c) => `<div class="cmt"><div class="cmt-h"><b>${esc(c.name || 'Giáo viên')}</b><span class="meta">${timeAgo(c.at)}</span>${gv && (c.by === S.meId || isAdmin()) ? `<button class="icon-btn" data-pd="cdel" data-cid="${esc(c.id)}" aria-label="Xóa nhận xét này">${ic('x', 'ic-sm')}</button>` : ''}</div><p>${esc(c.text)}</p></div>`).join('')}</div>` : `<p class="meta">${gv ? 'Chưa có lượt trao đổi nào. Thầy cô viết thêm lời động viên hoặc góp ý cho em.' : ''}</p>`}${gv ? `<div class="cmt-new"><textarea id="cm-text" class="inp" rows="2" maxlength="2000" placeholder="Viết nhận xét cho em…"></textarea><button class="btn btn-sm btn-brand" data-pd="cadd">${ic('send', 'ic-sm')}Gửi nhận xét</button></div>` : ''}</section>` : '';
+  const cmtList = `${cms.length ? `<div class="cmts">${cms.map((c) => `<div class="cmt"><div class="cmt-h"><b>${esc(c.name || 'Giáo viên')}</b><span class="meta">${timeAgo(c.at)}</span>${gv && (c.by === S.meId || isAdmin()) ? `<button class="icon-btn" data-pd="cdel" data-cid="${esc(c.id)}" aria-label="Xóa nhận xét này">${ic('x', 'ic-sm')}</button>` : ''}</div><p>${esc(c.text)}</p></div>`).join('')}</div>` : ''}`;
+  /* Thầy cô: mục nhận xét có Trợ lý AI cho bài làm (theo mẫu Tường học tập Ai), danh sách nhận xét và ô Viết nhận xét. */
+  const cmtHtml = gv
+    ? `<section class="blk pd-cmt" id="pd-cmt"><h4>${ic('chat', 'ic-sm')}Nhận xét của giáo viên <span class="n">${cms.length}</span></h4><p class="meta">Trợ lý AI chỉ thầy cô thấy. Nhận xét gửi ở ô Viết nhận xét hiện cho học sinh khi em mở bài.</p><div id="pd-assist-slot"></div>${cmtList}<div class="cmt-new"><label class="fld"><span>Viết nhận xét</span><textarea id="cm-text" class="inp" rows="3" maxlength="2000" placeholder="Viết nhận xét cho em…"></textarea></label><button class="btn btn-block" data-pd="cadd">${ic('send', 'ic-sm')}Gửi nhận xét</button></div></section>`
+    : cms.length ? `<section class="blk" id="pd-cmt"><h4>${ic('chat', 'ic-sm')}Trao đổi nhận xét <span class="n">${cms.length}</span></h4>${cmtList}</section>` : '';
   const ai = p.ai;
   const grading = S.grading.has(p.id);
   const fs = finalScore(p);
@@ -2847,6 +2968,13 @@ function drawSide() {
     <div class="row-between">${canGrade ? `<button class="btn ${ai ? 'btn-ghost' : 'btn-brand'}" data-pd="grade">${ic('spark')}${ai ? 'Chấm lại bằng AI' : 'Chấm bằng AI'}</button>` : '<span></span>'}<button class="btn btn-ghost" data-pd="close">Đóng</button></div>`;
   if (dirty) { if (keepNote != null && $('#td-note', el)) $('#td-note', el).value = keepNote; if (keepScore != null && $('#td-score', el)) $('#td-score', el).value = keepScore; }
   if (keepCm && $('#cm-text', el)) $('#cm-text', el).value = keepCm;
+  const slot = $('#pd-assist-slot', el);
+  if (slot) {
+    if (!detail.as || detail.as.id !== p.id) detail.as = assistMount(p); else asSync(detail.as, p);
+    slot.replaceWith(detail.as.el);
+    if (keepFocus && detail.as.el.contains(keepFocus)) keepFocus.focus({ preventScroll: true });
+  }
+  el.scrollTop = keepTop;
   $('#td-note', el)?.addEventListener('input', () => (detail.dirty = true));
   $('#td-score', el)?.addEventListener('input', () => (detail.dirty = true));
   $$('[data-pd]', el).forEach((x) => (x.onclick = () => detailAct(x.dataset.pd, x)));
@@ -2916,6 +3044,369 @@ async function detailAct(a, src) {
     await removePost(p);
     toast('Đã xóa bài.');
   }
+}
+
+/* ================= Trợ lý AI cho bài làm (chỉ giáo viên) =================
+   Theo mẫu Tường học tập Ai: 1. Chat và đánh giá, 2. Giáo viên duyệt, 3. Luyện tập, 4. Tiến bộ.
+   AI chạy trên máy chủ bằng khóa Gemini chung. Dữ liệu lưu ở teacher.assist của bài; máy chủ không gửi phần này cho học sinh.
+   Khung trợ lý giữ trạng thái riêng nên chữ đang gõ không mất khi bài được cập nhật. */
+ICONS.sparkles = '<path d="M9.9 15.5a2 2 0 0 0-1.4-1.4l-6.1-1.6a.5.5 0 0 1 0-1l6.1-1.6a2 2 0 0 0 1.4-1.4l1.6-6.1a.5.5 0 0 1 1 0l1.6 6.1a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1l-6.1 1.6a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/>';
+ICONS.clipck = '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 14l2 2 4-4"/>';
+ICONS.bookopen = '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>';
+ICONS.trend = '<path d="M22 7l-8.5 8.5-5-5L2 17M16 7h6v6"/>';
+ICONS.chatsq = '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>';
+ICONS.save = '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>';
+const AS_STEPS = [['sparkles', 'Chat và đánh giá'], ['clipck', 'Giáo viên duyệt'], ['bookopen', 'Luyện tập'], ['trend', 'Tiến bộ']];
+const AS_PROMPTS = ['Chỉ ra lỗi trong bài', 'Gợi ý nhận xét cho học sinh', 'Hỏi để xác minh nguyên nhân'];
+const AS_VERDICT = { remains: 'Còn mắc lỗi', improving: 'Đang cải thiện', resolved: 'Đã khắc phục' };
+const AS_LEVEL = { foundation: 'Củng cố', application: 'Vận dụng', transfer: 'Mở rộng' };
+const AS_CONF = { low: 'thấp', medium: 'vừa', high: 'cao' };
+/* JSON có khóa sắp xếp: so sánh được với bản máy chủ trả về (jsonb đổi thứ tự khóa). */
+const canon = (v) => JSON.stringify(v ?? null, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => ((o[key] = x[key]), o), {}) : x));
+const clone = (v) => (v == null ? null : JSON.parse(JSON.stringify(v)));
+const asSaved = (p) => { const x = p?.teacher?.assist; return x && typeof x === 'object' ? x : null; };
+const asLocal = (a) => (a ? { ...clone(a), review: { ...a.review, score: a.review.score == null ? '' : String(a.review.score) } } : null);
+function asNorm(a) {
+  const x = clone(a); if (!x) return null;
+  const raw = String(x.review.score ?? '').trim().replace(',', '.');
+  x.review.score = raw === '' || !isFinite(parseFloat(raw)) ? null : parseFloat(raw);
+  return x;
+}
+function asDefaults(b) {
+  const a = b.assignment || {};
+  return { subject: b.subject || '', grade: b.grade || '', task: [a.title, a.prompt].filter(Boolean).join('\n'), criteria: a.answerKey || '', transcript: '' };
+}
+const detailKey = (p) => JSON.stringify([p.ai, p.teacher ? { ...p.teacher, assist: undefined } : null, S.grading.has(p.id), detail?.err || '']);
+
+function assistMount(p) {
+  const b = getBoard(p.boardId);
+  const saved = asSaved(p);
+  const as = {
+    id: p.id, el: document.createElement('section'), step: 0,
+    ctx: { ...asDefaults(b), ...(saved?.ctx || {}) }, media: saved?.media !== false, draft: '',
+    a: asLocal(saved?.a || null), base: canon(saved), busy: '', pending: '', err: '', msg: '', conn: '',
+    ext: false, dirty: false, att: { ex: '', resp: '', ev: '', verdict: '' }, ctl: null, open: { ctx: !saved },
+  };
+  as.el.className = 'as';
+  as.el.setAttribute('aria-label', 'Trợ lý AI cho bài làm');
+  as.el.addEventListener('click', (e) => { const t = e.target.closest('[data-as]'); if (t && as.el.contains(t)) asAct(as, t.dataset.as, t); });
+  as.el.addEventListener('input', (e) => asField(as, e.target, false));
+  as.el.addEventListener('change', (e) => asField(as, e.target, true));
+  as.el.addEventListener('keydown', (e) => {
+    if (e.target.dataset?.asf === 'draft' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); asAct(as, 'send'); }
+  });
+  as.el.addEventListener('toggle', (e) => { const k = e.target.dataset?.asd; if (k) as.open[k] = e.target.open; }, true);
+  asRender(as);
+  return as;
+}
+function asField(as, el, commit) {
+  const f = el.dataset?.asf; if (!f) return;
+  const v = el.type === 'checkbox' ? el.checked : el.value;
+  const [k, id, prop] = f.split('.');
+  if (k === 'ctx') as.ctx[id] = v;
+  else if (k === 'media') as.media = v;
+  else if (k === 'draft') { as.draft = v; const s = $('[data-as="send"]', as.el); if (s) s.disabled = !!as.busy || as.ext || !aiOn() || !v.trim(); }
+  else if (k === 'att') { as.att[id] = v; if (commit && id === 'ex') asRender(as); }
+  else if (as.a) {
+    as.dirty = true;
+    if (k === 'err') { const e = as.a.analysis.errors.find((x) => x.id === id); if (e) e[prop] = v; if (commit && prop === 'decision') asRender(as); }
+    else if (k === 'review') as.a.review[id] = v;
+    else if (k === 'practice' && as.a.practice) as.a.practice[id] = v;
+    else if (k === 'ex' && as.a.practice) { const x = as.a.practice.exercises.find((y) => y.id === id); if (x) x[prop] = v; }
+  }
+}
+/* Bài vừa đổi ở nơi khác: nhận bản mới nếu thầy cô chưa sửa gì, nếu đang sửa thì báo để tự chọn. */
+function asSync(as, p) {
+  const saved = asSaved(p);
+  if (canon(saved) === as.base) return;
+  if (as.busy || as.dirty) { if (!as.ext) { as.ext = true; asRender(as); } return; }
+  asAdopt(as, saved);
+}
+function asAdopt(as, saved) {
+  as.base = canon(saved); as.a = asLocal(saved?.a || null); as.dirty = false; as.ext = false;
+  if (saved?.ctx) as.ctx = { ...as.ctx, ...saved.ctx };
+  if (typeof saved?.media === 'boolean') as.media = saved.media;
+  asRender(as);
+}
+async function asPersist(as, patch, teacherPatch = {}) {
+  const p = getPost(as.id); if (!p) return false;
+  const saved = asSaved(p) || { v: 1, chat: null, chats: [], a: null, history: [] };
+  const next = clone({ ...saved, ...patch, v: 1, ctx: as.ctx, media: as.media, at: now() });
+  if ('a' in patch && saved.a?.review?.status === 'approved' && saved.a.id !== next.a?.id) next.history = [...(saved.history || []), saved.a].slice(-10);
+  as.base = canon(next); as.ext = false;
+  return patchTeacher(p, { ...teacherPatch, assist: next });
+}
+async function asWork(p, b, withImages) {
+  if (!b.demo) return { post_id: p.id };
+  const blobs = withImages ? await Promise.all((p.images || []).slice(0, 4).map(blobFor)) : [];
+  const images = await Promise.all(blobs.filter(Boolean).map(async (x) => ({ mime: x.type || 'image/png', data: await blobB64(x) })));
+  return { demo: true, text: p.text || '', images };
+}
+async function asCall(as, kind, payload) {
+  const ctl = new AbortController(); as.ctl = ctl;
+  try { return await api('assist', { kind, ...payload }, ctl.signal); } finally { as.ctl = null; }
+}
+function asSheet(p, x) {
+  const pr = x.practice;
+  return '﻿' + ['PHIẾU LUYỆN TẬP CÁ NHÂN', 'Học sinh: ' + p.studentName, 'Môn: ' + (x.ctx?.subject || getBoard(p.boardId)?.subject || 'Theo nhiệm vụ') + (x.ctx?.grade ? ' · Lớp: ' + x.ctx.grade : ''), pr.instructions,
+    ...pr.exercises.map((e, i) => `Bài ${i + 1}: ${e.question}\nGợi ý: ${e.hint}\nBài làm: ................................................................\n..............................................................................`),
+    'Em ghi số bài khi nộp lại cho thầy cô. Thầy cô sẽ xem bài làm để xác nhận tiến bộ.'].filter(Boolean).join('\n\n');
+}
+async function asAct(as, a, t) {
+  if (as.busy) return;
+  const p = getPost(as.id); if (!p) return;
+  const b = getBoard(p.boardId);
+  const max = b.assignment?.maxScore || 10;
+  const run = async (busy, fn) => {
+    as.busy = busy; as.err = ''; as.msg = ''; asRender(as);
+    try { await fn(); } catch (e) { if (e?.code !== 'cancelled') as.err = aiMsg(e); } finally { as.busy = ''; as.pending = ''; asRender(as); }
+  };
+  const copy = async (text, ok) => { try { await navigator.clipboard.writeText(text); as.msg = ok; } catch (e) { as.err = 'Trình duyệt chưa cho sao chép. Hãy chọn chữ rồi sao chép tay.'; } asRender(as); };
+  switch (a) {
+    case 'step': as.step = +t.dataset.i; as.err = ''; as.msg = ''; asRender(as); return;
+    case 'reload': asAdopt(as, asSaved(p)); return;
+    case 'ping': return run('ping', async () => { const r = await asCall(as, 'ping', {}); as.conn = 'Đã nhận phản hồi từ ' + r.model + '. AI sẵn sàng cho chat và đánh giá tại đây.'; });
+    case 'prompt': as.draft = t.dataset.q; asRender(as); $('[data-asf="draft"]', as.el)?.focus(); return;
+    case 'send': {
+      const message = as.draft.trim(); if (!message || !aiOn()) return;
+      const chat = asSaved(p)?.chat || null;
+      if ((chat?.messages.length || 0) >= 40) { as.err = 'Đã đủ 20 lượt trao đổi. Hãy bắt đầu cuộc trao đổi mới.'; asRender(as); return; }
+      as.pending = message;
+      return run('chat', async () => {
+        const r = await asCall(as, 'chat', { ...(await asWork(p, b, as.media)), context: as.ctx, include_media: as.media, message, history: (chat?.messages || []).map((m) => ({ role: m.role, text: m.text })) });
+        const at = now();
+        const next = { id: chat?.id || uid('ch'), messages: [...(chat?.messages || []), { id: uid('m'), role: 'user', text: message, feedback: '', at }, { id: uid('m'), role: 'model', text: r.reply, feedback: r.feedback || '', at, model: r.model }] };
+        as.draft = '';
+        await asPersist(as, { chat: next });
+      });
+    }
+    case 'newchat': {
+      const saved = asSaved(p); if (!saved?.chat) return;
+      await asPersist(as, { chat: null, chats: [...(saved.chats || []), saved.chat].slice(-5) });
+      as.msg = 'Cuộc trao đổi mới sẽ dùng bài làm và tiêu chí hiện tại. Cuộc trước được giữ lại trong hồ sơ của bài.';
+      asRender(as); return;
+    }
+    case 'use-fb': {
+      const m = (asSaved(p)?.chat?.messages || []).find((x) => x.id === t.dataset.mid); if (!m) return;
+      const box = detail && $('#cm-text', detail.m.el);
+      if (box) { box.value = m.feedback; box.scrollIntoView({ block: 'center', behavior: 'smooth' }); box.focus({ preventScroll: true }); }
+      as.msg = 'Đã đưa gợi ý vào ô Viết nhận xét bên dưới. Kiểm tra, chỉnh sửa rồi bấm Gửi nhận xét.';
+      asRender(as); return;
+    }
+    case 'analyze': return run('analyze', async () => {
+      const r = await asCall(as, 'analyze', { ...(await asWork(p, b, as.media)), context: as.ctx, include_media: as.media });
+      const an = r.analysis;
+      const next = { id: uid('a'), at: now(), model: r.model, ctx: { ...as.ctx },
+        analysis: { ...an, errors: an.errors.map((e) => ({ ...e, decision: 'pending', teacherCause: '', verificationEvidence: '' })) },
+        review: { status: 'draft', feedback: an.feedback || '', score: null, by: '', byName: '', at: 0 }, practice: null };
+      as.a = asLocal(next); as.dirty = false; as.step = 1;
+      await asPersist(as, { a: next });
+      as.msg = 'AI đã phân tích xong. Thầy cô kiểm chứng từng lỗi rồi duyệt nhận xét.';
+    });
+    case 'save-a': return run('save', async () => { await asPersist(as, { a: asNorm(as.a) }); as.dirty = false; as.msg = 'Đã lưu bản nháp vào hồ sơ riêng của bài làm.'; });
+    case 'approve': return run('save', async () => {
+      const x = as.a;
+      for (const e of x.analysis.errors) {
+        if (!['confirmed', 'rejected'].includes(e.decision)) throw new Error('Hãy xác nhận hoặc loại bỏ từng lỗi trước khi duyệt.');
+        if (e.decision === 'confirmed' && (!String(e.teacherCause).trim() || !String(e.verificationEvidence).trim())) throw new Error('Lỗi được xác nhận cần nguyên nhân do thầy cô kết luận và căn cứ kiểm chứng.');
+      }
+      const fb = String(x.review.feedback || '').trim();
+      if (!fb) throw new Error('Hãy viết nhận xét trước khi duyệt.');
+      const raw = String(x.review.score ?? '').trim().replace(',', '.');
+      let sc = raw === '' ? finalScore(p) : parseFloat(raw);
+      if (sc == null) throw new Error('Bài chưa có điểm. Hãy nhập điểm do thầy cô quyết định.');
+      if (!(sc >= 0 && sc <= max)) throw new Error('Điểm cần từ 0 đến ' + max + '.');
+      sc = Math.round(sc * 4) / 4;
+      const at = now();
+      const next = { ...asNorm(x), review: { status: 'approved', feedback: fb, score: sc, by: S.meId, byName: ME()?.name || 'Giáo viên', at } };
+      as.a = asLocal(next); as.dirty = false;
+      if (detail) detail.dirty = false;
+      await asPersist(as, { a: next }, { score: sc, note: fb, approvedAt: at, by: S.meId });
+      as.msg = 'Đã duyệt nhận xét và lưu điểm ' + fmt(sc) + '/' + max + '. Học sinh thấy nhận xét này khi mở bài.';
+    });
+    case 'copy-fb': {
+      const x = as.a; if (!x) return;
+      return copy(['NHẬN XÉT CỦA GIÁO VIÊN', 'Học sinh: ' + p.studentName, 'Bài: ' + (b.assignment?.title || b.name), x.review.feedback, x.review.score !== '' ? 'Điểm: ' + fmt(+x.review.score) + '/' + max : '', 'Giáo viên: ' + x.review.byName].filter(Boolean).join('\n\n'), 'Đã sao chép nhận xét đã duyệt để gửi riêng cho học sinh.');
+    }
+    case 'redo': as.a = { ...clone(as.a), id: uid('a'), practice: null, review: { ...as.a.review, status: 'draft', by: '', byName: '', at: 0 } }; as.dirty = true; as.msg = 'Đã mở bản nhận xét mới. Bản đã duyệt trước được giữ trong lịch sử khi lưu.'; asRender(as); return;
+    case 'gen-prac': return run('practice', async () => {
+      if (as.dirty) throw new Error('Lưu các thay đổi trước khi tạo luyện tập.');
+      const x = as.a;
+      if (x?.review.status !== 'approved') throw new Error('Thầy cô cần duyệt nhận xét trước khi tạo luyện tập.');
+      const errs = x.analysis.errors.filter((e) => e.decision === 'confirmed');
+      if (!errs.length) throw new Error('Chưa có lỗi được xác nhận để tạo luyện tập.');
+      const r = await asCall(as, 'practice', { ...(b.demo ? { demo: true } : { post_id: p.id }), context: as.ctx, errors: errs.map((e) => ({ id: e.id, skill: e.skill, evidence: e.evidence, cause: e.teacherCause, verification: e.verificationEvidence, remediation: e.remediation })) });
+      const next = { ...asNorm(x), practice: { id: uid('pr'), instructions: r.practice.instructions, exercises: r.practice.exercises, model: r.model, at: now(), status: 'draft', assignedAt: 0, attempts: [] } };
+      as.a = asLocal(next); as.dirty = false;
+      await asPersist(as, { a: next });
+      as.msg = 'AI đã soạn bài luyện tập. Thầy cô sửa nếu cần rồi bấm Duyệt và giao luyện tập.';
+    });
+    case 'save-prac': return run('save', async () => { await asPersist(as, { a: asNorm(as.a) }); as.dirty = false; as.msg = 'Đã lưu luyện tập nháp.'; });
+    case 'assign': return run('save', async () => {
+      const pr = as.a?.practice; if (!pr?.exercises.length) throw new Error('Bài luyện tập đang trống.');
+      for (const e of pr.exercises) if (![e.question, e.hint, e.expectedAnswer, e.successCriteria].every((v) => String(v || '').trim())) throw new Error('Mỗi bài cần đủ đề, gợi ý, đáp án mẫu và tiêu chí.');
+      const next = { ...asNorm(as.a), practice: { ...clone(pr), status: 'assigned', assignedAt: now() } };
+      as.a = asLocal(next); as.dirty = false;
+      await asPersist(as, { a: next });
+      as.msg = 'Đã giao luyện tập. Tải hoặc sao chép phiếu để gửi riêng cho học sinh.';
+    });
+    case 'dl-sheet': {
+      const url = URL.createObjectURL(new Blob([asSheet(p, as.a)], { type: 'text/plain;charset=utf-8' }));
+      const link = document.createElement('a'); link.href = url; link.download = 'Luyen_tap_' + slug(p.studentName) + '.txt'; document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500); return;
+    }
+    case 'copy-sheet': return copy(asSheet(p, as.a).replace(/^﻿/, ''), 'Đã sao chép phiếu luyện tập, không kèm đáp án mẫu.');
+    case 'save-att': return run('save', async () => {
+      if (as.dirty) throw new Error('Lưu thay đổi trước khi ghi tiến bộ.');
+      const pr = as.a?.practice; const at = as.att;
+      if (!pr || pr.status !== 'assigned' || !pr.exercises.some((e) => e.id === at.ex)) throw new Error('Chọn bài luyện tập đã giao.');
+      if (!at.resp.trim() || !at.ev.trim()) throw new Error('Hãy ghi bài làm luyện tập và căn cứ đánh giá.');
+      if (!AS_VERDICT[at.verdict]) throw new Error('Chọn kết quả do thầy cô đánh giá.');
+      if (pr.attempts.length >= 100) throw new Error('Bài này đã đủ 100 lượt theo dõi.');
+      const next = asNorm(as.a);
+      next.practice.attempts.push({ id: uid('t'), exerciseId: at.ex, response: at.resp.trim().slice(0, 4000), evidence: at.ev.trim().slice(0, 2000), verdict: at.verdict, by: S.meId, at: now() });
+      as.a = asLocal(next);
+      await asPersist(as, { a: next });
+      as.att = { ex: '', resp: '', ev: '', verdict: '' };
+      as.msg = 'Đã lưu lần luyện tập.';
+    });
+  }
+}
+/* Theo dõi khắc phục lỗi: các bài của cùng học sinh (cùng họ tên) trong bảng này, theo từng kỹ năng đã xác nhận. */
+function asProgress(p) {
+  const key = (s) => String(s || '').trim().toLowerCase().normalize('NFC');
+  const rows = new Map();
+  for (const post of postsOf(p.boardId).filter((x) => key(x.studentName) === key(p.studentName))) {
+    const sv = asSaved(post);
+    for (const a of [...(sv?.history || []), ...(sv?.a ? [sv.a] : [])]) {
+      if (a.review?.status !== 'approved') continue;
+      const groups = new Map();
+      for (const e of a.analysis.errors.filter((x) => x.decision === 'confirmed')) { const k = key(e.skill); groups.set(k, [...(groups.get(k) || []), e]); }
+      for (const [k, errs] of groups) {
+        const ids = new Set(errs.map((e) => e.id));
+        const exIds = new Set((a.practice?.exercises || []).filter((x) => ids.has(x.errorId)).map((x) => x.id));
+        const atts = (a.practice?.attempts || []).filter((x) => exIds.has(x.exerciseId));
+        const latest = [...exIds].map((id) => atts.filter((x) => x.exerciseId === id).sort((u, v) => v.at - u.at)[0]);
+        const verdict = latest.length && latest.every((x) => x?.verdict === 'resolved') ? 'resolved' : latest.some((x) => x?.verdict === 'remains') ? 'remains' : latest.some(Boolean) ? 'improving' : 'unassessed';
+        const updated = Math.max(a.review.at || 0, ...atts.map((x) => x.at));
+        const prev = rows.get(k); const count = (prev?.attempts || 0) + atts.length;
+        if (!prev || updated >= prev.updated) rows.set(k, { skill: errs[0].skill, attempts: count, verdict, updated }); else prev.attempts = count;
+      }
+    }
+  }
+  return [...rows.values()].sort((u, v) => u.skill.localeCompare(v.skill, 'vi'));
+}
+function asRender(as) {
+  const ae = document.activeElement;
+  const fk = ae && as.el.contains(ae) ? ae.dataset?.asf || ae.dataset?.as : null;
+  const sel = fk && typeof ae.selectionStart === 'number' ? [ae.selectionStart, ae.selectionEnd] : null;
+  as.el.innerHTML = asHtml(as);
+  if (fk) {
+    const n = as.el.querySelector(`[data-asf="${fk}"]`) || as.el.querySelector(`[data-as="${fk}"]:not(:disabled)`);
+    if (n) { n.focus({ preventScroll: true }); try { if (sel) n.setSelectionRange(sel[0], sel[1]); } catch (e) {} }
+  }
+  const log = $('.as-log', as.el); if (log) log.scrollTop = log.scrollHeight;
+}
+function asHtml(as) {
+  const p = getPost(as.id); if (!p) return '';
+  const b = getBoard(p.boardId); const max = b.assignment?.maxScore || 10;
+  const saved = asSaved(p) || {};
+  const msgs = saved.chat?.messages || [];
+  const x = as.a; const approved = x?.review.status === 'approved';
+  const busy = !!as.busy; const lock = busy || as.ext; const off = lock || !aiOn();
+  const dis = (c) => (c ? 'disabled' : '');
+  const fs = finalScore(p);
+  const when = (t) => (t ? new Date(t).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
+  const busyLine = { analyze: 'AI đang đọc bài và phân tích…', practice: 'AI đang soạn bài luyện tập…', ping: 'Đang kiểm tra kết nối AI…', save: 'Đang lưu…' }[as.busy];
+  let body = '';
+  if (as.step === 0) {
+    body = `<section class="as-chat" aria-label="Chat AI trong phần nhận xét">
+      <div class="as-head">${ic('chatsq')}<div><h4>Chat AI về bài làm này</h4><p>Trao đổi và nhận gợi ý ngay trong phần nhận xét</p></div><span class="as-chip">Gemini · Google</span></div>
+      <div class="as-conn"><button type="button" class="btn btn-sm as-btn" data-as="ping" ${dis(off)}>Kiểm tra kết nối AI</button>${as.conn ? `<p class="as-ok" role="status">${esc(as.conn)}</p>` : ''}</div>
+      <div class="as-log" role="log" aria-label="Cuộc trao đổi AI" aria-live="polite" tabindex="0">${!msgs.length && !as.pending ? '<p class="as-empty-chat">Hỏi AI về lỗi, bằng chứng, cách xác minh nguyên nhân hoặc cách nhận xét bài làm. Giáo viên kiểm tra và quyết định nhận xét, điểm cuối cùng.</p>' : ''}${msgs.map((m) => `<article class="as-msg${m.role === 'user' ? ' me' : ''}"><strong>${m.role === 'user' ? 'Giáo viên' : 'AI hỗ trợ'}${m.role === 'model' && m.model ? `<small> · ${esc(m.model)}</small>` : ''}</strong><p>${esc(m.text)}</p>${m.role === 'model' && m.feedback ? `<div class="as-fb"><small>Nhận xét đề xuất</small><p>${esc(m.feedback)}</p><button type="button" class="btn btn-sm as-btn" data-as="use-fb" data-mid="${esc(m.id)}" ${dis(lock)}>${ic('clipck', 'ic-sm')}Đưa vào ô nhận xét</button></div>` : ''}</article>`).join('')}${as.pending ? `<article class="as-msg me"><strong>Giáo viên</strong><p>${esc(as.pending)}</p></article><p class="as-busy" role="status"><span class="spin"></span>AI đang đọc bài và trả lời…</p>` : ''}</div>
+      <div class="as-prompts">${AS_PROMPTS.map((q) => `<button type="button" data-as="prompt" data-q="${esc(q)}" ${dis(off)}>${q}</button>`).join('')}</div>
+      <label class="as-lbl">Nhắn AI về bài làm<textarea data-asf="draft" rows="3" maxlength="3000" ${dis(off)} placeholder="Ví dụ: Em sai ở bước nào? Hãy gợi ý nhận xét ngắn, có cách sửa…">${esc(as.draft)}</textarea></label>
+      <div class="as-end"><button type="button" class="btn as-primary" data-as="send" ${dis(off || !as.draft.trim())}>${ic('send')}Gửi cho AI</button></div>
+      ${msgs.length ? `<div class="as-row"><button type="button" class="btn btn-sm as-btn" data-as="newchat" ${dis(lock)}>${ic('restore', 'ic-sm')}Bắt đầu trao đổi mới</button></div>` : ''}
+      <p class="as-help">Enter để gửi, Shift+Enter để xuống dòng. Chat và gợi ý được giữ riêng theo bài; AI không tự gửi nhận xét hoặc đặt điểm.</p>
+    </section>
+    <details class="as-ctx" data-asd="ctx" ${as.open.ctx ? 'open' : ''}><summary>Đề bài và tiêu chí dùng cho AI</summary><div class="as-sec">
+      <div class="as-grid"><label class="as-lbl">Môn học<input data-asf="ctx.subject" maxlength="120" value="${esc(as.ctx.subject)}" placeholder="Ví dụ: Tin học" ${dis(lock)}></label><label class="as-lbl">Khối / lớp<input data-asf="ctx.grade" maxlength="80" value="${esc(as.ctx.grade)}" placeholder="Ví dụ: Lớp 8" ${dis(lock)}></label></div>
+      <label class="as-lbl">Đề bài / nhiệm vụ cần đánh giá<textarea data-asf="ctx.task" rows="3" maxlength="4000" placeholder="Nhập yêu cầu để AI đối chiếu đúng nhiệm vụ…" ${dis(lock)}>${esc(as.ctx.task)}</textarea></label>
+      <label class="as-lbl">Đáp án / tiêu chí đánh giá<textarea data-asf="ctx.criteria" rows="3" maxlength="4000" placeholder="Nội dung đúng, mức độ yêu cầu, tiêu chí của giáo viên…" ${dis(lock)}>${esc(as.ctx.criteria)}</textarea></label>
+      <details class="as-sub" data-asd="tr" ${as.open.tr ? 'open' : ''}><summary>Bổ sung nội dung đọc từ tài liệu</summary><label class="as-lbl">Nội dung bài làm bổ sung<textarea data-asf="ctx.transcript" rows="4" maxlength="12000" placeholder="Dán nội dung Word/PowerPoint/Excel hoặc phần chữ khó đọc trên ảnh…" ${dis(lock)}>${esc(as.ctx.transcript)}</textarea></label></details>
+      <label class="as-chk"><input type="checkbox" data-asf="media" ${as.media ? 'checked' : ''} ${dis(lock)}>Gửi kèm ảnh bài làm</label>
+      <p class="as-help">AI đọc phần chữ học sinh gõ, ảnh bài làm và nội dung thầy cô dán ở phần bổ sung. Word, Excel, PowerPoint và liên kết ngoài cần dán nội dung vào phần bổ sung để AI đọc đúng. Tên học sinh, điểm và nhận xét riêng không nằm trong yêu cầu; thầy cô kiểm tra thông tin có trong ảnh bài làm trước khi gửi.</p>
+    </div></details>
+    <button type="button" class="btn as-primary as-block" data-as="analyze" ${dis(off)}>${ic('sparkles')}${x ? 'Đánh giá lại bài làm tại đây' : 'AI đánh giá bài làm tại đây'}</button>
+    ${x ? '<p class="as-help">Đánh giá lại tạo bản nháp mới. Bản đã duyệt trước được giữ trong lịch sử khi bản mới được lưu.</p>' : ''}`;
+  } else if (as.step === 1) {
+    if (!x) body = '<p class="as-empty">Mở bước 1 để chat hoặc bấm AI đánh giá bài làm tại đây.</p>';
+    else {
+      const an = x.analysis; const ed = dis(lock || approved);
+      body = `<div class="as-card"><p class="as-eyebrow">Gemini · ${esc(x.model || '')} · ${when(x.at)}</p><h4>Nhận định từ bài làm</h4><p>${esc(an.summary)}</p>${an.strengths?.length ? `<strong>Điểm làm tốt</strong><ul>${an.strengths.map((v) => `<li>${esc(v)}</li>`).join('')}</ul>` : ''}${an.limitations?.length ? `<div class="as-warn"><strong>Phần AI chưa đủ căn cứ</strong><ul>${an.limitations.map((v) => `<li>${esc(v)}</li>`).join('')}</ul></div>` : ''}</div>
+        <p class="as-help">Thầy cô hỏi học sinh hoặc đối chiếu bài làm để xác minh giả thuyết. Xác nhận lỗi cần nguyên nhân do thầy cô kết luận và căn cứ cụ thể.</p>
+        ${!an.errors.length ? '<p>AI chưa chỉ ra lỗi có căn cứ. Thầy cô vẫn cần kiểm tra bài và nhận xét trước khi duyệt.</p>' : ''}
+        ${an.errors.map((e, i) => `<article class="as-card"><div class="as-head"><h4>${i + 1}. ${esc(e.title)}</h4><span class="as-chip">${esc(e.skill)}</span></div>
+          <dl><dt>Bằng chứng trong bài</dt><dd>${esc(e.evidence)}</dd><dt>Giả thuyết nguyên nhân</dt><dd>${esc(e.hypothesis)} <small>(AI tự ước lượng mức tin cậy: ${AS_CONF[e.confidence] || 'vừa'})</small></dd><dt>Câu hỏi kiểm chứng</dt><dd>${esc(e.verificationQuestion)}</dd><dt>Hướng khắc phục</dt><dd>${esc(e.remediation)}</dd></dl>
+          <label class="as-lbl">Kết luận của giáo viên<select data-asf="err.${esc(e.id)}.decision" ${ed}>${[['pending', 'Chưa kiểm chứng'], ['confirmed', 'Xác nhận lỗi và nguyên nhân'], ['rejected', 'Loại bỏ nhận định của AI']].map(([k, v]) => `<option value="${k}" ${e.decision === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+          ${e.decision === 'confirmed' ? `<label class="as-lbl">Nguyên nhân đã xác minh<textarea data-asf="err.${esc(e.id)}.teacherCause" rows="2" maxlength="1200" placeholder="Kết luận của thầy cô sau khi kiểm chứng…" ${ed}>${esc(e.teacherCause)}</textarea></label><label class="as-lbl">Căn cứ kiểm chứng / câu trả lời của học sinh<textarea data-asf="err.${esc(e.id)}.verificationEvidence" rows="2" maxlength="1200" placeholder="Học sinh giải thích gì? Bước nào trong bài xác nhận nguyên nhân?" ${ed}>${esc(e.verificationEvidence)}</textarea></label>` : ''}
+        </article>`).join('')}
+        <label class="as-lbl">Nhận xét giáo viên sẽ duyệt<textarea data-asf="review.feedback" rows="4" maxlength="2000" ${ed}>${esc(x.review.feedback)}</textarea></label>
+        <label class="as-lbl">Điểm do giáo viên quyết định / ${max}<input data-asf="review.score" type="number" inputmode="decimal" min="0" max="${max}" step="0.25" value="${esc(x.review.score)}" ${ed}></label>
+        <p class="as-help">Để trống sẽ giữ điểm hiện có${fs != null ? ' (' + fmt(fs) + '/' + max + ')' : ''}. AI không tự đặt điểm. Khi duyệt, nhận xét và điểm này được lưu vào phần Giáo viên duyệt; học sinh thấy khi mở bài.</p>
+        <div class="as-row">${!approved ? `<button type="button" class="btn as-btn" data-as="save-a" ${dis(lock)}>${ic('save')}Lưu bản nháp</button><button type="button" class="btn as-primary" data-as="approve" ${dis(lock)}>${ic('clipck')}Duyệt nhận xét và lưu điểm</button>` : `<button type="button" class="btn as-btn" data-as="copy-fb" ${dis(lock)}>${ic('copy')}Sao chép nhận xét đã duyệt</button><button type="button" class="btn as-btn" data-as="redo" ${dis(lock)}>Chỉnh nhận xét thành bản mới</button>`}</div>
+        ${approved ? `<p class="as-ok">${esc(x.review.byName)} đã duyệt lúc ${when(x.review.at)}. Điểm: ${x.review.score === '' ? 'chưa đặt' : fmt(+x.review.score) + '/' + max}.</p>` : ''}`;
+    }
+  } else if (as.step === 2) {
+    if (!x || !approved) body = '<p class="as-empty">Thầy cô cần kiểm chứng và duyệt nhận xét ở bước 2 trước khi tạo bài luyện tập.</p>';
+    else {
+      const conf = x.analysis.errors.filter((e) => e.decision === 'confirmed');
+      const pr = x.practice; const assigned = pr?.status === 'assigned'; const ed = dis(lock || assigned);
+      const skillOf = (id) => x.analysis.errors.find((e) => e.id === id)?.skill || '';
+      body = `<p>${conf.length} lỗi đã xác nhận. AI tạo nhiệm vụ theo nguyên nhân do thầy cô kết luận, kèm gợi ý và tiêu chí kiểm tra.</p>
+        ${!conf.length ? '<p class="as-warn">Chưa có lỗi được xác nhận. Không tạo bài luyện tập dựa vào lỗi bị loại hoặc chưa kiểm chứng.</p>' : ''}
+        ${!assigned ? `<button type="button" class="btn as-primary as-block" data-as="gen-prac" ${dis(off || !conf.length)}>${ic('sparkles')}${pr ? 'Tạo lại luyện tập AI' : 'Tạo luyện tập cá nhân hóa'}</button>` : ''}
+        ${pr ? `<label class="as-lbl">Hướng dẫn học sinh<textarea data-asf="practice.instructions" rows="2" maxlength="2000" ${ed}>${esc(pr.instructions)}</textarea></label>
+          ${pr.exercises.map((e, i) => `<article class="as-card"><h4>Bài ${i + 1} · ${esc(skillOf(e.errorId))} · ${AS_LEVEL[e.difficulty] || 'Củng cố'}</h4>
+            <label class="as-lbl">Đề luyện tập<textarea data-asf="ex.${esc(e.id)}.question" rows="3" maxlength="2000" ${ed}>${esc(e.question)}</textarea></label>
+            <label class="as-lbl">Gợi ý cho học sinh<textarea data-asf="ex.${esc(e.id)}.hint" rows="2" maxlength="1200" ${ed}>${esc(e.hint)}</textarea></label>
+            <details class="as-sub"><summary>Đáp án và tiêu chí riêng của giáo viên</summary><label class="as-lbl">Đáp án mẫu<textarea data-asf="ex.${esc(e.id)}.expectedAnswer" rows="3" maxlength="2000" ${ed}>${esc(e.expectedAnswer)}</textarea></label><label class="as-lbl">Tiêu chí khắc phục lỗi<textarea data-asf="ex.${esc(e.id)}.successCriteria" rows="2" maxlength="1200" ${ed}>${esc(e.successCriteria)}</textarea></label></details>
+          </article>`).join('')}
+          <div class="as-row">${!assigned ? `<button type="button" class="btn as-btn" data-as="save-prac" ${dis(lock)}>${ic('save')}Lưu luyện tập nháp</button><button type="button" class="btn as-primary" data-as="assign" ${dis(lock)}>${ic('check')}Duyệt và giao luyện tập</button>` : `<button type="button" class="btn as-primary" data-as="dl-sheet">${ic('download')}Tải phiếu cho học sinh</button><button type="button" class="btn as-btn" data-as="copy-sheet">${ic('copy')}Sao chép phiếu luyện tập</button><button type="button" class="btn as-btn" data-as="step" data-i="3">${ic('trend')}Ghi nhận tiến bộ</button>`}</div>
+          <p class="as-help">“Giao luyện tập” lưu phiên bản thầy cô đã duyệt. Tải hoặc sao chép phiếu rồi gửi riêng cho học sinh; em làm xong nộp lại trên bảng hoặc gửi thầy cô. Đáp án mẫu được giữ riêng.</p>` : ''}`;
+    }
+  } else {
+    const pr = x?.practice; const exSel = pr?.exercises.find((e) => e.id === as.att.ex);
+    const skillOf = (id) => x?.analysis.errors.find((e) => e.id === id)?.skill || '';
+    const rows = asProgress(p);
+    const hist = pr?.attempts || [];
+    body = `${pr?.status === 'assigned' ? `<div class="as-card"><h4>Giáo viên kiểm tra lần luyện tập</h4>
+        <label class="as-lbl">Bài luyện tập đã làm<select data-asf="att.ex" ${dis(lock)}><option value="">Chọn bài để đánh giá…</option>${pr.exercises.map((e, i) => `<option value="${esc(e.id)}" ${as.att.ex === e.id ? 'selected' : ''}>Bài ${i + 1} · ${esc(skillOf(e.errorId))}</option>`).join('')}</select></label>
+        ${exSel ? `<p class="as-help">Tiêu chí: ${esc(exSel.successCriteria)}</p>` : ''}
+        <label class="as-lbl">Bài làm luyện tập của học sinh<textarea data-asf="att.resp" rows="3" maxlength="4000" placeholder="Dán bài học sinh nộp lại hoặc mô tả bước em đã thực hiện…" ${dis(lock)}>${esc(as.att.resp)}</textarea></label>
+        <label class="as-lbl">Căn cứ đánh giá tiến bộ<textarea data-asf="att.ev" rows="2" maxlength="2000" placeholder="Đối chiếu tiêu chí: bước nào đã đúng, còn sai ở đâu?" ${dis(lock)}>${esc(as.att.ev)}</textarea></label>
+        <label class="as-lbl">Kết quả giáo viên đánh giá<select data-asf="att.verdict" ${dis(lock)}><option value="">Chọn kết quả…</option>${Object.entries(AS_VERDICT).map(([k, v]) => `<option value="${k}" ${as.att.verdict === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+        <div class="as-row"><button type="button" class="btn as-primary" data-as="save-att" ${dis(lock)}>${ic('save')}Lưu lần luyện tập</button></div></div>` : ''}
+      <section class="as-prog"><div class="as-head">${ic('trend')}<h4>Theo dõi khắc phục lỗi · ${esc(p.studentName)}</h4></div>
+        <p class="as-help">Số liệu từ nhận xét đã duyệt và bài luyện tập thầy cô đã đánh giá, gộp các bài cùng họ tên học sinh trong bảng này.</p>
+        <div class="as-stats"><div><strong>${rows.length}</strong><span>Kỹ năng cần theo dõi</span></div><div><strong>${rows.filter((r) => r.verdict === 'resolved').length}</strong><span>Đã khắc phục</span></div><div><strong>${rows.reduce((s, r) => s + r.attempts, 0)}</strong><span>Lượt luyện tập đã kiểm tra</span></div></div>
+        ${rows.length ? `<div class="as-tbl"><table><thead><tr><th>Kỹ năng</th><th>Lượt</th><th>Kết quả mới nhất</th><th>Cập nhật</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.skill)}</td><td>${r.attempts}</td><td><span class="as-chip is-${r.verdict}">${r.verdict === 'unassessed' ? 'Chưa đánh giá' : AS_VERDICT[r.verdict]}</span></td><td>${r.updated ? new Date(r.updated).toLocaleDateString('vi-VN') : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="as-empty">Chưa có dữ liệu đã duyệt. Phân tích bài làm, xác nhận lỗi, giao luyện tập và ghi kết quả để bắt đầu theo dõi.</p>'}
+        <p class="as-help">“Đã khắc phục” cần lượt đánh giá mới nhất của mọi bài luyện tập cho kỹ năng đó đều đạt.</p></section>
+      ${hist.length ? `<details class="as-sub" open><summary>Lịch sử bài luyện tập này (${hist.length} lượt)</summary><div class="as-hist">${[...hist].reverse().map((h) => `<article><strong>Bài ${pr.exercises.findIndex((e) => e.id === h.exerciseId) + 1} · ${AS_VERDICT[h.verdict]}</strong><small>${when(h.at)}</small><p>Bài làm: ${esc(h.response)}</p><p>Căn cứ: ${esc(h.evidence)}</p></article>`).join('')}</div></details>` : ''}
+      ${saved.history?.length ? `<details class="as-sub"><summary>Lịch sử nhận xét đã duyệt (${saved.history.length} phiên bản)</summary><div class="as-hist">${[...saved.history].reverse().map((h) => `<article><strong>${esc(h.review?.byName || '')} · ${when(h.review?.at)}</strong><p>${esc(h.review?.feedback || '')}</p><small>${h.practice?.attempts?.length || 0} lượt luyện tập đã kiểm tra</small></article>`).join('')}</div></details>` : ''}`;
+  }
+  return `<div class="as-head"><span class="as-icon">${ic('sparkles')}</span><div><h3>Trợ lý AI cho bài làm</h3><p>Phát hiện lỗi · Kiểm chứng nguyên nhân · Luyện tập · Tiến bộ</p></div><span class="as-chip${approved ? ' is-resolved' : ''}">${approved ? 'Giáo viên đã duyệt' : 'Giáo viên quyết định'}</span></div>
+    <div class="as-prov"><span class="as-lbl">AI cho bài làm</span><div class="as-field">Gemini · Google<small>khóa chung của hệ thống</small></div>
+      ${aiOn() ? '' : `<p class="as-warn">Quản trị hệ thống chưa bật AI nên trợ lý chưa trả lời được.${isAdmin() ? ' <button type="button" class="btn btn-sm as-btn" data-act="ai-settings">Bật AI chấm bài</button>' : ''}</p>`}
+      <p class="as-help">Thầy cô không cần đăng nhập thêm: AI chạy trên máy chủ Tường AI bằng khóa chung do Quản trị hệ thống cài đặt.</p>
+      <p class="as-help">Khi bấm gửi, nội dung bài, ảnh bài làm (nếu chọn gửi kèm) và lịch sử trao đổi của bài này được gửi tới AI. Giáo viên kiểm tra nhận xét và quyết định điểm.</p></div>
+    <nav class="as-steps" aria-label="Các bước nhận xét AI">${AS_STEPS.map(([i, t], k) => `<button type="button" data-as="step" data-i="${k}" ${as.step === k ? 'aria-current="step"' : ''} ${dis(busy)}>${ic(i)}<span>${k + 1}. ${t}</span></button>`).join('')}</nav>
+    ${as.ext ? `<div class="as-warn" role="alert">Trợ lý của bài này vừa được cập nhật ở cửa sổ khác. <button type="button" class="btn btn-sm as-btn" data-as="reload">Tải bản đã lưu</button></div>` : ''}
+    ${as.err ? `<p class="as-err" role="alert">${esc(as.err)}</p>` : ''}
+    ${as.msg ? `<p class="as-ok" role="status">${esc(as.msg)}</p>` : ''}
+    ${busyLine ? `<p class="as-busy" role="status"><span class="spin"></span>${busyLine}</p>` : ''}
+    <div class="as-sec">${body}</div>`;
 }
 
 /* ---------- vào lớp, tài khoản ---------- */
