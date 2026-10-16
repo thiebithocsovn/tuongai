@@ -188,6 +188,10 @@ a{color:inherit}
 .av{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;color:#fff;font-weight:700;font-size:13px;flex:none;overflow:hidden}
 .av-art{background:#dfe6f0}
 .av-art svg{width:100%;height:100%;display:block}
+.av-custom{background:#dfe6f0}
+.av-custom img{display:block;width:100%;height:100%;object-fit:cover}
+.avatar-action{display:grid;place-items:center;border:0;background:transparent;padding:0;border-radius:50%;flex:none}
+.avatar-action:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
 .side-end{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .back{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);text-decoration:none}
 .back:hover{color:var(--ink)}
@@ -1139,6 +1143,7 @@ textarea.inp{min-height:64px;resize:vertical;line-height:1.45}
     <main id="view" class="view"></main>
   </div>
 </div>
+<input id="avatar-upload" type="file" accept="image/jpeg,image/png,image/webp" hidden aria-label="Chọn ảnh đại diện">
 <div id="modals"></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -1367,6 +1372,7 @@ const CAP = { mode: 'cloud', sb: null, aiReady: false, aiModel: '', channel: nul
 const S = {
   auth: { accounts: [] },
   profile: null,
+  avatarUrl: '', avatarOwner: null, avatarVersion: 0, avatarBusy: false,
   members: new Map(),
   boards: new Map(), posts: new Map(),
   demoPosts: new Map(),
@@ -1384,6 +1390,63 @@ function meAcc() {
 const ME = () => (S.guest && S.guest.id === S.meId ? S.guest : S.profile && S.profile.id === S.meId ? meAcc() : null);
 const isGV = () => ME()?.role === 'gv';
 const isAdmin = () => !!ME()?.isAdmin;
+
+/* Ảnh đại diện giáo viên: lưu trong kho ảnh riêng tư đang có, không công khai ảnh học sinh. */
+const avatarPath = (id) => id + '/profile/avatar.jpg';
+function myAvatar(me) {
+  return S.avatarUrl && S.avatarOwner === me.id
+    ? `<span class="av av-custom"><img src="${esc(S.avatarUrl)}" alt="Ảnh đại diện của bạn"></span>`
+    : `<span class="av av-art">${teacherAvatar()}</span>`;
+}
+function setMyAvatar(url, id) {
+  if (S.avatarUrl && S.avatarUrl !== url) URL.revokeObjectURL(S.avatarUrl);
+  S.avatarUrl = url; S.avatarOwner = id; S.avatarVersion++;
+  if (S.meId === id) renderSide();
+}
+async function loadMyAvatar(id) {
+  const version = S.avatarVersion;
+  try {
+    const { data, error } = await CAP.sb.storage.from('work').download(avatarPath(id));
+    if (error || !data) return; // Tài khoản chưa có ảnh: dùng hình mặc định.
+    const url = URL.createObjectURL(data);
+    if (S.meId !== id || S.avatarVersion !== version) { URL.revokeObjectURL(url); return; }
+    setMyAvatar(url, id);
+  } catch (e) { /* Không cản đăng nhập nếu ảnh chưa tải được. */ }
+}
+async function cropAvatar(file) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error('Chỉ nhận ảnh JPG, PNG hoặc WebP.');
+  if (file.size > 8 * 1024 * 1024) throw new Error('Ảnh cần nhỏ hơn 8 MB.');
+  const temp = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve; img.onerror = () => reject(new Error('Không đọc được tệp ảnh.'));
+      img.src = temp;
+    });
+    const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 320;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Trình duyệt không xử lý được ảnh.');
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, 320, 320);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.84));
+    if (!blob) throw new Error('Không thể lưu ảnh đã chọn.');
+    return blob;
+  } finally { URL.revokeObjectURL(temp); }
+}
+async function changeMyAvatar(file) {
+  const me = ME();
+  if (!me || me.guest || !CAP.sb || S.avatarBusy) return;
+  S.avatarBusy = true;
+  try {
+    const blob = await cropAvatar(file);
+    const { error } = await CAP.sb.storage.from('work').upload(avatarPath(me.id), blob, {
+      contentType: 'image/jpeg', upsert: true, cacheControl: '0',
+    });
+    if (error) throw error;
+    if (S.meId === me.id) { setMyAvatar(URL.createObjectURL(blob), me.id); toast('Đã cập nhật ảnh đại diện.'); }
+  } catch (e) { toast('Không đổi được ảnh: ' + (e.message || 'Lỗi lưu ảnh') + '.'); }
+  finally { S.avatarBusy = false; }
+}
 
 /* Phiên đăng nhập: "Ghi nhớ đăng nhập" lưu lâu dài, bỏ chọn thì chỉ giữ trong tab. */
 const authStorage = {
@@ -1771,6 +1834,7 @@ async function afterSignIn(fresh) {
   subscribeCloud();
   aiStatus();
   enterApp(prof.id, fresh);
+  loadMyAvatar(prof.id);
   if (prof.role === 'admin') refreshMembers(false);
   return true;
 }
@@ -1896,6 +1960,8 @@ async function logout() {
     if (CAP.channel) { CAP.sb.removeChannel(CAP.channel); CAP.channel = null; }
     try { await CAP.sb.auth.signOut(); } catch (x) {}
   }
+  if (S.avatarUrl) URL.revokeObjectURL(S.avatarUrl);
+  S.avatarUrl = ''; S.avatarOwner = null; S.avatarVersion++;
   S.profile = null; S.meId = null; S.boards = new Map(); S.posts = new Map(); S.members = new Map(); S.memberList = null; SIGNED.clear();
   closeAllModals();
   $('#app').hidden = true;
@@ -2044,7 +2110,6 @@ function renderSoon() { if (rq) return; rq = requestAnimationFrame(() => { rq = 
 ICONS['star-f'] = '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="currentColor"/>';
 ICONS.link = '<path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/>';
 ICONS.msg = '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/>';
-const ECO_URL = 'https://thiebithocsovn.github.io/hesinhthai4.0/';
 const K_BDIR = 'tuongai.bdir';
 S.bdir = ['h', 'v'].includes(LS.get(K_BDIR)) ? LS.get(K_BDIR) : '';
 S.psort = 'new';
@@ -2056,14 +2121,14 @@ function renderSide() {
     ? [['mine', 'grid', me.isAdmin ? 'Bảng toàn hệ thống' : 'Bảng của tôi'], ['starred', 'star', 'Đã đánh dấu'], ['archived', 'archive', 'Đã lưu trữ'], ['trash', 'trash', 'Thùng rác'], ...(me.isAdmin ? [['members', 'users', 'Thành viên']] : [])]
     : [['classes', 'grid', 'Lớp của em'], ['mywork', 'book', 'Bài em đã nộp']];
   const roleLine = me.isAdmin ? 'Quản trị toàn hệ thống' : gv ? 'Không gian giáo viên' : me.className ? 'Học sinh lớp ' + me.className : 'Học sinh';
-  const av = gv ? `<span class="av av-art">${teacherAvatar()}</span>` : avatar(me);
+  const av = gv ? myAvatar(me) : avatar(me);
   $('#side').innerHTML = `
     <div class="side-head"><button class="brand" data-act="tab" data-tab="${gv ? 'mine' : 'classes'}" aria-label="Về trang chính">${OWL}<span><b>Tường Học Tập AI</b><small>Không gian cùng học</small></span></button><button class="icon-btn m-only" data-act="me-menu-top" aria-label="Tài khoản">${av}</button></div>
     ${gv ? `<button class="btn create" data-act="new-board">${ic('plus')}Tạo bảng mới</button>` : ''}
     <nav class="nav" aria-label="Danh mục bảng">${navs.map(([k, i, t]) => `<button data-act="tab" data-tab="${k}">${ic(i)}<span>${t}</span><span class="n" data-count="${k}"></span></button>`).join('')}</nav>
     <p class="side-note">${ic('lock')}<span>${gv ? 'Bảng mặc định riêng tư.<br>Thầy cô quyết định nội dung nào được chia sẻ.' : 'Em chỉ thấy bài của mình.<br>Thầy cô xem và duyệt điểm.'}</span></p>
-    <div class="me">${av}<div class="who"><b>${esc(me.name)}</b><span>${esc(roleLine)}</span></div><button class="icon-btn" data-act="me-menu" aria-label="Tùy chọn tài khoản" aria-expanded="false">${ic('gear')}</button></div>
-    <div class="side-end">${me.guest ? '<span></span>' : `<a class="back" href="${ECO_URL}">${ic('back', 'ic-sm')}Về hệ sinh thái</a>`}<button class="logout" data-act="logout">${ic('logout', 'ic-sm')}${me.guest ? 'Thoát lớp' : 'Đăng xuất'}</button></div>`;
+    <div class="me">${gv ? `<button type="button" class="avatar-action" data-act="change-avatar" aria-label="Đổi ảnh đại diện" title="Đổi ảnh đại diện">${av}</button>` : av}<div class="who"><b>${esc(me.name)}</b><span>${esc(roleLine)}</span></div><button class="icon-btn" data-act="me-menu" aria-label="Tùy chọn tài khoản" aria-expanded="false">${ic('gear')}</button></div>
+    <div class="side-end"><button class="logout" data-act="logout">${ic('logout', 'ic-sm')}${me.guest ? 'Thoát lớp' : 'Đăng xuất'}</button></div>`;
   updateNavCounts();
 }
 function updateNavCounts() {
@@ -3970,7 +4035,7 @@ function meMenu(anchor) {
   const old = $('.pop'); if (old) { old.remove(); return; }
   const me = ME(); if (!me) return;
   const pop = document.createElement('div'); pop.className = 'pop'; pop.setAttribute('role', 'menu');
-  pop.innerHTML = `${!me.guest ? `<button role="menuitem" data-act="change-pw">${ic('key')}Đổi mật khẩu</button>` : ''}${isAdmin() ? `<button role="menuitem" data-act="tab" data-tab="members">${ic('users')}Thành viên</button><button role="menuitem" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button>` : ''}<button role="menuitem" data-act="logout">${ic('logout')}${me.guest ? 'Thoát lớp' : 'Đăng xuất'}</button>`;
+  pop.innerHTML = `${!me.guest ? `<button role="menuitem" data-act="change-avatar">${ic('camera')}Đổi ảnh đại diện</button><button role="menuitem" data-act="change-pw">${ic('key')}Đổi mật khẩu</button>` : ''}${isAdmin() ? `<button role="menuitem" data-act="tab" data-tab="members">${ic('users')}Thành viên</button><button role="menuitem" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button>` : ''}<button role="menuitem" data-act="logout">${ic('logout')}${me.guest ? 'Thoát lớp' : 'Đăng xuất'}</button>`;
   if (anchor === 'top') { pop.style.cssText = 'position:fixed;z-index:70;top:calc(56px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));left:auto;bottom:auto;width:230px'; document.body.appendChild(pop); }
   else $('.me').appendChild(pop);
 }
@@ -4070,6 +4135,7 @@ document.addEventListener('click', async (e) => {
     case 'me-menu': meMenu('side'); break;
     case 'me-menu-top': meMenu('top'); break;
     case 'ai-settings': $('.pop')?.remove(); closeDrawer(); aiSettingsForm(); break;
+    case 'change-avatar': $('.pop')?.remove(); closeDrawer(); if (!ME()?.guest) { const input = $('#avatar-upload'); input.value = ''; input.click(); } break;
     case 'change-pw': $('.pop')?.remove(); closeDrawer(); changePwForm(); break;
     case 'logout': $('.pop')?.remove(); closeDrawer(); logout(); break;
   }
@@ -4079,6 +4145,11 @@ document.addEventListener('change', async (e) => {
   const t = e.target.closest('[data-chg]'); if (!t) return;
   if (t.dataset.chg === 'psort') { S.psort = t.value; const b = getBoard(S.view.boardId); const box = $('#posts'); if (b && box) box.innerHTML = boardPostsHtml(b); }
   else if (t.dataset.chg === 'blayout') { const b = getBoard(t.dataset.id); if (b && canManage(b)) { await saveBoard({ ...b, layout: layoutKey(t.value) }); toast('Đã đổi sang bố cục ' + layoutName(t.value) + '.'); } }
+});
+$('#avatar-upload').addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (file) await changeMyAvatar(file);
+  e.target.value = '';
 });
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
