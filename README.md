@@ -14,10 +14,12 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 
 - Giao diện Tường Học Tập AI: thẻ bảng có tranh minh họa nhiều màu, nhãn Đã ghim, Lớp, Sôi nổi, Riêng tư, nút ⋯ để ghim, chia sẻ, lưu trữ; xem theo chiều ngang hoặc chiều dọc.
 - Bảng lớp với 5 bố cục: Cột, Tường, Lưới, Dòng bài, Dòng thời gian; đổi nền, tìm và sắp xếp bài, thêm, đổi tên, xóa cột, lưu trữ, thùng rác.
+- Giao diện trong lớp theo Tường học tập Ai: thanh trên có Trình chiếu, Chia sẻ, cài đặt; thanh công cụ có Đổi nền, Chiều ngang/Chiều dọc, sắp xếp, Tiến bộ học sinh, bố cục, Chờ duyệt; thẻ bài có nút ✨ Phân tích AI, lượt thích và nhận xét; nền mặc định Hồng phấn.
+- Chờ duyệt: danh sách bài chưa chấm hoặc AI đã chấm nhưng thầy cô chưa duyệt điểm, kèm nút chấm cả loạt bằng AI.
 - Mỗi bài: ghim lên đầu, đổi màu thẻ, chuyển cột, thả tim, trao đổi nhiều lượt nhận xét, đính kèm liên kết YouTube/Drive.
 - Trình chiếu từng bài lên màn hình lớp; xem ảnh vở phóng to, xoay, toàn màn hình.
 - Tiến bộ học sinh: điểm trung bình, xu hướng, xếp loại và kỹ năng cả lớp cần luyện.
-- Xuất bảng điểm và nhận xét ra Excel, in hoặc lưu PDF.
+- Xuất bảng điểm và nhận xét ra Excel, in hoặc lưu PDF (nút ở cuối hộp Tiến bộ học sinh).
 - Chụp vở bằng camera điện thoại hoặc gõ bài trực tiếp. Ảnh lưu trong kho riêng tư.
 - AI chấm theo đề và đáp án của giáo viên: điểm (làm tròn 0,25), lỗi sai kèm cách sửa, điểm làm tốt, định hướng luyện tập, bài tập gợi ý.
 - Giáo viên duyệt điểm cuối và ghi lời phê. Bài học sinh mới nộp hiện ra ngay trên bảng của thầy cô.
