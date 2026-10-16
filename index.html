@@ -989,6 +989,64 @@ textarea.inp{min-height:64px;resize:vertical;line-height:1.45}
   .as-stats span{font-size:10px}
   .as input:not([type=checkbox]),.as textarea,.as select{font-size:16px}
 }
+
+/* ================= Kết quả AI chấm bài (5 phần) trong mục nhận xét ================= */
+.air{font-family:Nunito,var(--font);color:#282a27;display:flex;flex-direction:column;gap:14px;border:1px solid #ddd4e7;border-radius:14px;padding:20px;background:linear-gradient(145deg,#faf7fd,#fff 60%);min-width:0;margin:6px 0 4px;font-size:14px;line-height:1.55}
+.air h3{font-size:18px;font-weight:800;margin:0}
+.air p{overflow-wrap:anywhere;white-space:pre-wrap}
+.air .btn{font-family:inherit;font-weight:600;border-radius:10px;white-space:normal;text-align:center}
+.air .btn-sm{min-height:34px;font-size:12.5px;padding:6px 10px}
+.air-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.air-tabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1px solid #e0d9e7;background:#fff;border-radius:10px;padding:8px 4px;min-height:52px;color:#282a27;text-align:center;font-size:12.5px;line-height:1.25}
+.air-tabs button b{font-weight:700}
+.air-tabs button small{font-size:11px;color:#7a7480}
+.air-tabs button:hover{background:#f7f3fb}
+.air-tabs button[aria-selected=true]{background:#764785;border-color:#764785;color:#fff}
+.air-tabs button[aria-selected=true] small{color:#eadff3}
+.air-tabs button small.air-warn-t{color:#9a6400;font-weight:700}
+.air-tabs button[aria-selected=true] small.air-warn-t{color:#ffe3a3}
+.air-panel{display:flex;flex-direction:column;gap:12px;min-width:0}
+.air-panel[hidden]{display:none}
+.air-sum{font-size:13.5px}
+.air-warn-t{color:#9a6400}
+.air-read,.air-errs,.air-causes,.air-ex{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.air-read li{border:1px solid #e6e1ea;border-radius:10px;background:#fff;padding:9px 12px}
+.air-read li.unsure{background:#fff7e0;border-color:#efd58f;box-shadow:inset 3px 0 0 #e0a92b}
+.air-pos{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;font-weight:700;color:#6b5f78}
+.air-tag{font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;background:#f6d77f;color:#6b4700}
+.air-tag.lv{background:#eee7f5;color:#735287}
+.air-read p{margin-top:4px;font-family:var(--hand),Nunito,sans-serif;font-size:17px;line-height:1.45;color:#1f2a52}
+.air-read .air-note{display:flex;gap:6px;align-items:flex-start;font-family:Nunito,var(--font);font-size:12.5px;color:#7a5200;margin-top:6px}
+.air-read .air-note .ic{margin-top:2px;flex:none}
+.air-err{border:1px solid #e6e1ea;border-left:3px solid #e0a92b;border-radius:0 10px 10px 0;background:#fff;padding:10px 12px;display:flex;flex-direction:column;gap:5px;font-size:13.5px}
+.air-err.nang{border-left-color:#d1302a}
+.air-err.nhe{border-left-color:#b9b2c2}
+.air-err-h{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.air-sev{font-size:11px;padding:2px 8px;border-radius:999px;background:#f3eff6;color:#5e486c;font-weight:700}
+.air-err.nang .air-sev{background:#fde6e4;color:#b42520}
+.air-step{background:#f7f5fa;border-radius:8px;padding:6px 9px;font-family:var(--hand),Nunito,sans-serif;font-size:16px;color:#1f2a52}
+.air-step span{display:block;font-family:Nunito,var(--font);font-size:11px;font-weight:700;color:#7a7480}
+.air-k{font-weight:700;color:#5e486c}
+.air-fix{color:#1f6b3d}
+.air-fix .air-k{color:#1f6b3d}
+.air-causes li{border:1px solid #e6e1ea;border-radius:10px;background:#fff;padding:10px 12px;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.air-mini{font-size:12.5px;color:#6b6570}
+.air-score{display:flex;align-items:center;gap:16px;padding:12px;border-radius:12px;background:#fdf4f3;border:1px solid #f4cdca}
+.air-score .stampbig{width:76px;height:76px;font-size:34px;flex:none}
+.air-lbl{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#c12d27}
+.air-h{font-size:13px;font-weight:800;color:#4f4a54;margin-bottom:6px}
+.air .as-tbl td.air-num{white-space:nowrap;font-weight:700}
+.air .air-total td{background:#faf7fd;font-weight:800}
+.air-ex li{border:1px solid #e6e1ea;border-radius:10px;background:#fff;padding:9px 12px;display:flex;flex-direction:column;gap:4px}
+.air .goods{font-size:13.5px}
+.air .prac li{font-size:13.5px;background:#f4effb}
+.air .prac b{color:#5e3f78}
+.air-jump{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:1px dashed #cdbfdc;background:#faf7fd;color:#5e3f78;border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600}
+.air-jump:hover{background:#f3ecfa}
+@media (max-width:760px){
+  .air{padding:14px}
+  .air-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
 </style>
 </head>
 <body>
@@ -1866,18 +1924,34 @@ const DEMO_WORK = {
 };
 const DEMO_AI_A = {
   diem: 6.5, diem_toi_da: 10,
+  doc_bai: [
+    { vi_tri: 'Câu 1 · dòng 1–3', noi_dung: 'Từ x + 2y = 5  ⇒  x = 5 − 2y\nThay vào 3x − y = 1:', chac_chan: true, ghi_chu: '' },
+    { vi_tri: 'Câu 1 · dòng 4–5', noi_dung: '3(5 − 2y) − y = 1\n15 − 2y − y = 1', chac_chan: true, ghi_chu: '' },
+    { vi_tri: 'Câu 1 · dòng 6–8', noi_dung: '−3y = −14  ⇒  y = 14/3\nx = 5 − 28/3 = −13/3\nVậy (x; y) = (−13/3; 14/3)', chac_chan: true, ghi_chu: '' },
+    { vi_tri: 'Câu 2', noi_dung: 'A = √12 + √27 − √48\n   = 2√3 + 3√3 − 4√3\n   = √3', chac_chan: true, ghi_chu: '' },
+  ],
+  bang_diem: [
+    { cau: 'Câu 1', diem: 1.5, toi_da: 5, ly_do: 'Biểu diễn x = 5 − 2y và thay vào phương trình thứ hai đúng. Bỏ ngoặc sai nên lập luận chỉ đạt một phần (1,5/3) và nghiệm sai (0/2).' },
+    { cau: 'Câu 2', diem: 5, toi_da: 5, ly_do: 'Tách đúng cả ba căn (3/3) và ra kết quả √3 (2/2).' },
+  ],
   nhan_xet: 'Em chọn đúng phương pháp thế và làm Câu 2 rất gọn. Ở Câu 1 em nhân phân phối còn thiếu nên các bước sau sai theo. Nhớ nhân số ngoài ngoặc với từng hạng tử bên trong nhé.',
   diem_manh: ['Biểu diễn x theo y đúng: x = 5 − 2y.', 'Câu 2 tách căn chính xác: √12 = 2√3, √27 = 3√3, √48 = 4√3.', 'Trình bày từng bước rõ ràng, dễ theo dõi.'],
   loi_sai: [
-    { vi_tri: 'Câu 1 · dòng 4', loi: 'Viết 3(5 − 2y) thành 15 − 2y: quên nhân 3 với 2y.', sua: '3(5 − 2y) = 15 − 6y, nên 15 − 6y − y = 1.', muc_do: 'nang' },
-    { vi_tri: 'Câu 1 · dòng 5–7', loi: 'Do sai ở dòng 4 nên ra y = 14/3, x = −13/3, không thỏa mãn hệ.', sua: '−7y = −14 ⇒ y = 2; x = 5 − 2·2 = 1. Nghiệm (x; y) = (1; 2).', muc_do: 'vua' },
-    { vi_tri: 'Câu 1 · kết luận', loi: 'Chưa thử lại nghiệm vào hệ phương trình.', sua: 'Thay x, y vào cả hai phương trình để kiểm tra trước khi kết luận.', muc_do: 'nhe' },
+    { vi_tri: 'Câu 1 · dòng 5', cau: 'Câu 1', buoc: '15 − 2y − y = 1', loi: 'Viết 3(5 − 2y) thành 15 − 2y: quên nhân 3 với 2y.', giai_thich: 'Nhân một số với một hiệu trong ngoặc phải nhân với từng số hạng: 3·5 = 15 và 3·2y = 6y.', sua: '3(5 − 2y) = 15 − 6y, nên 15 − 6y − y = 1.', muc_do: 'nang', nguyen_nhan: 'Có thể em chỉ nhân 3 với số hạng đầu: chưa chắc quy tắc nhân đơn thức với đa thức, hoặc làm vội khi bỏ ngoặc.' },
+    { vi_tri: 'Câu 1 · dòng 6–8', cau: 'Câu 1', buoc: '−3y = −14 ⇒ y = 14/3; x = −13/3', loi: 'Do sai ở dòng 5 nên ra y = 14/3, x = −13/3, không thỏa mãn hệ.', giai_thich: 'Cách giải các bước sau đúng nhưng dùng kết quả sai từ bước bỏ ngoặc.', sua: '−7y = −14 ⇒ y = 2; x = 5 − 2·2 = 1. Nghiệm (x; y) = (1; 2).', muc_do: 'vua', nguyen_nhan: 'Hệ quả của lỗi 1; em chưa thử lại nên không phát hiện nghiệm sai.' },
+    { vi_tri: 'Câu 1 · kết luận', cau: 'Câu 1', buoc: 'Vậy (x; y) = (−13/3; 14/3)', loi: 'Chưa thử lại nghiệm vào hệ phương trình.', giai_thich: 'Thay vào 3x − y: 3·(−13/3) − 14/3 = −53/3 ≠ 1, thử lại sẽ thấy ngay nghiệm sai.', sua: 'Thay x, y vào cả hai phương trình để kiểm tra trước khi kết luận.', muc_do: 'nhe', nguyen_nhan: 'Có thể em chưa có thói quen kiểm tra lại kết quả sau khi giải.' },
   ],
   luyen_tap: [
     { ky_nang: 'Nhân đơn thức với đa thức', goi_y: 'Luyện mở ngoặc có hệ số và dấu trừ, ví dụ −2(3 − 4y), 5(2x − y).' },
     { ky_nang: 'Thử lại nghiệm', goi_y: 'Tập thói quen thay nghiệm vào cả hai phương trình sau mỗi bài.' },
   ],
-  bai_tap_goi_y: ['Giải hệ: 2x + y = 7 và x − 3y = −7.', 'Mở ngoặc và rút gọn: 4(3 − 2y) − 3y.', 'Giải hệ bằng phương pháp thế: x − y = 1 và 2x + 3y = 12.'],
+  bai_tap: [
+    { kien_thuc: 'Nhân đơn thức với đa thức', de: 'Mở ngoặc và rút gọn: 4(3 − 2y) − 3y.', muc_do: 'co_ban' },
+    { kien_thuc: 'Nhân đơn thức với đa thức', de: 'Rút gọn: −2(3 − 4y) + 5(2y − 1).', muc_do: 'co_ban' },
+    { kien_thuc: 'Giải hệ bằng phương pháp thế', de: 'Giải hệ: 2x + y = 7 và x − 3y = −7, rồi thử lại nghiệm.', muc_do: 'co_ban' },
+    { kien_thuc: 'Giải hệ bằng phương pháp thế', de: 'Giải hệ: 2(x + 1) − 3(y − 2) = 5 và x + y = 6.', muc_do: 'nang_cao' },
+  ],
+  bai_tap_goi_y: ['Mở ngoặc và rút gọn: 4(3 − 2y) − 3y.', 'Rút gọn: −2(3 − 4y) + 5(2y − 1).', 'Giải hệ: 2x + y = 7 và x − 3y = −7, rồi thử lại nghiệm.', 'Giải hệ: 2(x + 1) − 3(y − 2) = 5 và x + y = 6.'],
   canh_bao: '',
 };
 function makeDemo() {
@@ -2483,7 +2557,10 @@ function exportRows(b) {
       'Điểm AI': p.ai && isNum(p.ai.diem) ? p.ai.diem : '', 'Điểm duyệt': isNum(tm.score) ? tm.score : '', 'Điểm cuối': finalScore(p) ?? '', 'Thang điểm': max,
       'Trạng thái': status(p) === 'duyet' ? 'Đã duyệt' : status(p) === 'ai' ? 'AI đã chấm' : 'Chờ chấm', 'Số lỗi': p.ai?.loi_sai?.length || 0,
       'Nhận xét': tm.note || p.ai?.nhan_xet || '',
-      'Lỗi cần sửa': (p.ai?.loi_sai || []).map((e, i) => (i + 1) + ') ' + (e.vi_tri ? e.vi_tri + ': ' : '') + e.loi + (e.sua ? ' → ' + e.sua : '')).join('\n'),
+      'Điểm từng câu': (p.ai?.bang_diem || []).map((x) => x.cau + ': ' + fmt(x.diem) + (x.toi_da != null ? '/' + fmt(x.toi_da) : '')).join('; '),
+      'Lỗi cần sửa': (p.ai?.loi_sai || []).map((e, i) => (i + 1) + ') ' + (e.vi_tri ? e.vi_tri + ': ' : '') + e.loi + (e.giai_thich ? ' (' + e.giai_thich + ')' : '') + (e.sua ? ' → ' + e.sua : '')).join('\n'),
+      'Nguyên nhân có thể': (p.ai?.loi_sai || []).map((e, i) => (e.nguyen_nhan ? (i + 1) + ') ' + e.nguyen_nhan : '')).filter(Boolean).join('\n'),
+      'Chỗ AI chưa đọc chắc': (p.ai?.doc_bai || []).filter((d) => d.chac_chan === false).map((d) => (d.vi_tri ? d.vi_tri + ': ' : '') + (d.ghi_chu || d.noi_dung)).join('\n'),
       'Luyện tập': (p.ai?.luyen_tap || []).map((x) => x.ky_nang + (x.goi_y ? ': ' + x.goi_y : '')).join('\n'),
       'Trao đổi': (tm.comments || []).map((c) => c.name + ': ' + c.text).join('\n'),
     };
@@ -2495,7 +2572,8 @@ async function exportExcel(b) {
   const name = 'Tuong_AI_' + slug(b.name);
   if (await loadXLSX()) {
     const ws = window.XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [5, 24, 7, 14, 18, 15, 8, 10, 9, 9, 12, 7, 50, 50, 40, 30].map((w) => ({ wch: w }));
+    const wide = { 'Nhận xét': 50, 'Lỗi cần sửa': 50, 'Nguyên nhân có thể': 45, 'Luyện tập': 40, 'Trao đổi': 30, 'Điểm từng câu': 26, 'Chỗ AI chưa đọc chắc': 30, 'Họ và tên': 24, 'Thời gian nộp': 18 };
+    ws['!cols'] = Object.keys(rows[0]).map((k) => ({ wch: wide[k] || Math.max(7, k.length + 2) }));
     const wb = window.XLSX.utils.book_new();
     window.XLSX.utils.book_append_sheet(wb, ws, 'Bảng điểm');
     window.XLSX.writeFile(wb, name + '.xlsx');
@@ -2929,6 +3007,61 @@ function refreshDetail() {
   if (detail.key === detailKey(p)) return;
   drawSide();
 }
+/* ================= Kết quả AI chấm bài trong mục nhận xét (chỉ giáo viên) =================
+   1. Đọc bài: nội dung AI đọc được, đánh dấu chỗ ảnh mờ hoặc chưa chắc.
+   2. Tìm lỗi: câu, bước làm sai, giải thích, cách sửa.
+   3. Phân tích: nguyên nhân có thể khiến em mắc lỗi (để thầy cô kiểm chứng).
+   4. Đánh giá: điểm đề xuất theo đáp án, thang điểm của thầy cô; điểm từng câu.
+   5. Luyện tập: phần kiến thức còn yếu và bài tập phù hợp. */
+const AIR_TABS = ['Đọc bài', 'Tìm lỗi', 'Phân tích', 'Đánh giá', 'Luyện tập'];
+const airExercises = (ai) => (ai.bai_tap?.length ? ai.bai_tap : (ai.bai_tap_goi_y || []).map((de) => ({ kien_thuc: '', de, muc_do: 'co_ban' })));
+function aiPartsHtml(p, b) {
+  const ai = p.ai; const max = b.assignment?.maxScore || 10;
+  const doc = ai.doc_bai || []; const unsure = doc.filter((d) => d.chac_chan === false).length;
+  const errs = ai.loi_sai || []; const causes = errs.filter((e) => e.nguyen_nhan);
+  const bd = ai.bang_diem || []; const ex = airExercises(ai);
+  const fresh = Array.isArray(ai.doc_bai);
+  const tab = Math.min(4, Math.max(0, detail?.airTab ?? 0));
+  const sev = (e) => (e.muc_do === 'nang' ? 'Sai kiến thức' : e.muc_do === 'nhe' ? 'Trình bày' : 'Tính toán');
+  const sub = [doc.length ? (unsure ? unsure + ' chỗ chưa chắc' : 'Đọc rõ') : '', errs.length ? errs.length + ' lỗi' : 'Không lỗi', causes.length ? causes.length + ' gợi ý' : '', fmt(ai.diem) + '/' + max, ex.length ? ex.length + ' bài' : ''];
+  const panels = [
+    // 1. Đọc bài
+    fresh ? `<p class="air-sum">AI đọc được ${doc.length} đoạn · ${unsure ? `<b class="air-warn-t">${unsure} chỗ ảnh mờ hoặc chưa đọc chắc</b>` : 'không có chỗ nào chưa chắc'}.</p>
+      ${ai.canh_bao ? `<p class="as-warn">${esc(ai.canh_bao)}</p>` : ''}
+      ${doc.length ? `<ol class="air-read">${doc.map((d, i) => `<li class="${d.chac_chan === false ? 'unsure' : ''}"><span class="air-pos">${esc(d.vi_tri || 'Đoạn ' + (i + 1))}${d.chac_chan === false ? '<span class="air-tag">Chưa chắc</span>' : ''}</span>${d.noi_dung ? `<p>${esc(d.noi_dung)}</p>` : ''}${d.ghi_chu ? `<p class="air-note">${ic('eye', 'ic-sm')}${esc(d.ghi_chu)}</p>` : ''}</li>`).join('')}</ol>` : '<p class="as-empty">AI không đọc được nội dung nào từ bài này.</p>'}
+      <p class="as-help">Đối chiếu với ảnh bài làm. Chỗ tô vàng là AI chưa đọc chắc: thầy cô xem lại ảnh hoặc hỏi em trước khi chốt điểm.</p>`
+      : '<p class="as-empty">Lần chấm này chưa có phần đọc bài. Bấm Chấm lại bằng AI ở cuối khung để AI chép lại bài và đánh dấu chỗ ảnh mờ.</p>',
+    // 2. Tìm lỗi
+    errs.length ? `<ol class="air-errs">${errs.map((e, i) => `<li class="air-err ${esc(e.muc_do)}"><div class="air-err-h"><b>${i + 1}. ${esc(e.cau || e.vi_tri || 'Trong bài')}</b><span class="air-sev">${sev(e)}</span></div>
+        ${e.buoc ? `<p class="air-step"><span>Bước sai</span>${esc(e.buoc)}</p>` : ''}
+        <p><span class="air-k">Sai:</span> ${esc(e.loi)}</p>
+        ${e.giai_thich ? `<p><span class="air-k">Giải thích:</span> ${esc(e.giai_thich)}</p>` : ''}
+        ${e.sua ? `<p class="air-fix"><span class="air-k">Sửa:</span> ${esc(e.sua)}</p>` : ''}</li>`).join('')}</ol>`
+      : '<p class="as-empty">AI không thấy lỗi sai nào trong bài.</p>',
+    // 3. Phân tích
+    causes.length ? `<ol class="air-causes">${errs.map((e, i) => (e.nguyen_nhan ? `<li><b>Lỗi ${i + 1} · ${esc(e.cau || e.vi_tri || 'Trong bài')}</b><p class="air-mini">${esc(e.loi)}</p><p><span class="air-k">Nguyên nhân có thể:</span> ${esc(e.nguyen_nhan)}</p></li>` : '')).join('')}</ol>
+      <p class="as-help">Đây là gợi ý để thầy cô kiểm chứng, ví dụ hỏi lại em đã làm bước đó thế nào; không phải kết luận về em. Muốn trao đổi sâu hơn, dùng Trợ lý AI bên dưới.</p>`
+      : errs.length ? '<p class="as-empty">Lần chấm này chưa có phần nguyên nhân. Bấm Chấm lại bằng AI để AI gợi ý nguyên nhân cho từng lỗi.</p>'
+      : '<p class="as-empty">Bài không có lỗi nên không cần phân tích nguyên nhân.</p>',
+    // 4. Đánh giá
+    `<div class="air-score"><div class="stampbig">${fmt(ai.diem)}<small>/${max}</small></div><div><p class="air-lbl">Điểm AI đề xuất</p><p class="air-mini">${b.assignment?.answerKey ? 'Chấm theo đáp án và thang điểm ' + max + ' thầy cô đã nhập.' : 'Thầy cô chưa nhập đáp án nên AI tự giải để đối chiếu, thang điểm ' + max + '.'}</p>${p.teacher?.approvedAt && isNum(p.teacher?.score) ? `<p class="air-mini">Điểm thầy cô đã duyệt: <b>${fmt(p.teacher.score)}/${max}</b></p>` : ''}</div></div>
+      ${bd.length ? `<div class="as-tbl"><table><thead><tr><th>Câu</th><th>Điểm</th><th>Lý do</th></tr></thead><tbody>${bd.map((x) => `<tr><td>${esc(x.cau)}</td><td class="air-num">${fmt(x.diem)}${x.toi_da != null ? '/' + fmt(x.toi_da) : ''}</td><td>${esc(x.ly_do)}</td></tr>`).join('')}<tr class="air-total"><td>Tổng</td><td class="air-num">${fmt(ai.diem)}/${max}</td><td></td></tr></tbody></table></div>` : fresh ? '' : '<p class="as-empty">Lần chấm này chưa có điểm từng câu. Bấm Chấm lại bằng AI để xem.</p>'}
+      ${ai.diem_manh?.length ? `<div><p class="air-h">Em đã làm tốt</p><ul class="goods">${ai.diem_manh.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+      ${ai.nhan_xet ? `<div><p class="air-h">Nhận xét chung</p><p>${esc(ai.nhan_xet)}</p></div>` : ''}
+      <div class="as-row"><button type="button" class="btn btn-sm as-btn" data-pd="ai-use-score">${ic('check', 'ic-sm')}Điền điểm đề xuất vào ô Giáo viên duyệt</button></div>`,
+    // 5. Luyện tập
+    `${ai.luyen_tap?.length ? `<div><p class="air-h">Phần kiến thức còn yếu</p><ul class="prac">${ai.luyen_tap.map((x) => `<li><b>${esc(x.ky_nang)}</b>${x.goi_y ? ' — ' + esc(x.goi_y) : ''}</li>`).join('')}</ul></div>` : ''}
+      ${ex.length ? `<div><p class="air-h">Bài tập phù hợp</p><ol class="air-ex">${ex.map((x) => `<li>${x.kien_thuc || x.muc_do === 'nang_cao' ? `<span class="air-pos">${esc(x.kien_thuc || 'Luyện thêm')}<span class="air-tag lv">${x.muc_do === 'nang_cao' ? 'Nâng cao' : 'Cơ bản'}</span></span>` : ''}<p>${esc(x.de)}</p></li>`).join('')}</ol></div>
+        <div class="as-row"><button type="button" class="btn btn-sm as-btn" data-pd="ai-ex-note">${ic('send', 'ic-sm')}Đưa bài tập vào ô nhận xét</button></div>` : ''}
+      ${!ai.luyen_tap?.length && !ex.length ? '<p class="as-empty">AI chưa đưa bài luyện tập cho bài này.</p>' : ''}`,
+  ];
+  return `<section class="air" id="pd-air" aria-label="Kết quả AI chấm bài">
+    <div class="as-head"><span class="as-icon">${ic('sparkles')}</span><div><h3>Kết quả AI chấm bài</h3><p>Đọc bài · Tìm lỗi · Phân tích · Đánh giá · Luyện tập</p></div><span class="as-chip${p.teacher?.approvedAt ? ' is-resolved' : ''}">${p.teacher?.approvedAt ? 'Thầy cô đã duyệt' : 'AI đề xuất, thầy cô quyết định'}</span></div>
+    ${fresh ? '' : '<p class="as-warn">Bài này được chấm bằng phiên bản cũ nên còn thiếu phần đọc bài, giải thích lỗi, nguyên nhân và điểm từng câu. Bấm Chấm lại bằng AI ở cuối khung để xem đủ 5 phần.</p>'}
+    <div class="air-tabs" role="tablist" aria-label="Các phần kết quả AI">${AIR_TABS.map((t, i) => `<button type="button" role="tab" id="air-t${i}" aria-controls="air-p${i}" aria-selected="${i === tab}" data-pd="airtab" data-i="${i}"><b>${i + 1}. ${t}</b>${sub[i] ? `<small class="${i === 0 && unsure ? 'air-warn-t' : ''}">${sub[i]}</small>` : ''}</button>`).join('')}</div>
+    ${panels.map((h, i) => `<div class="air-panel" role="tabpanel" id="air-p${i}" aria-labelledby="air-t${i}" ${i === tab ? '' : 'hidden'}>${h}</div>`).join('')}
+  </section>`;
+}
 function drawSide() {
   const p = getPost(detail.id); const b = getBoard(p.boardId); const gv = isGV();
   const max = b.assignment?.maxScore || 10;
@@ -2940,7 +3073,7 @@ function drawSide() {
   const cmtList = `${cms.length ? `<div class="cmts">${cms.map((c) => `<div class="cmt"><div class="cmt-h"><b>${esc(c.name || 'Giáo viên')}</b><span class="meta">${timeAgo(c.at)}</span>${gv && (c.by === S.meId || isAdmin()) ? `<button class="icon-btn" data-pd="cdel" data-cid="${esc(c.id)}" aria-label="Xóa nhận xét này">${ic('x', 'ic-sm')}</button>` : ''}</div><p>${esc(c.text)}</p></div>`).join('')}</div>` : ''}`;
   /* Thầy cô: mục nhận xét có Trợ lý AI cho bài làm (theo mẫu Tường học tập Ai), danh sách nhận xét và ô Viết nhận xét. */
   const cmtHtml = gv
-    ? `<section class="blk pd-cmt" id="pd-cmt"><h4>${ic('chat', 'ic-sm')}Nhận xét của giáo viên <span class="n">${cms.length}</span></h4><p class="meta">Trợ lý AI chỉ thầy cô thấy. Nhận xét gửi ở ô Viết nhận xét hiện cho học sinh khi em mở bài.</p><div id="pd-assist-slot"></div>${cmtList}<div class="cmt-new"><label class="fld"><span>Viết nhận xét</span><textarea id="cm-text" class="inp" rows="3" maxlength="2000" placeholder="Viết nhận xét cho em…"></textarea></label><button class="btn btn-block" data-pd="cadd">${ic('send', 'ic-sm')}Gửi nhận xét</button></div></section>`
+    ? `<section class="blk pd-cmt" id="pd-cmt"><h4>${ic('chat', 'ic-sm')}Nhận xét của giáo viên <span class="n">${cms.length}</span></h4><p class="meta">Học sinh thấy điểm, lỗi cần sửa, bài luyện tập và nhận xét thầy cô gửi ở ô Viết nhận xét. Phần đọc bài, nguyên nhân và Trợ lý AI chỉ thầy cô thấy.</p>${p.ai && !S.grading.has(p.id) ? aiPartsHtml(p, b) : ''}<div id="pd-assist-slot"></div>${cmtList}<div class="cmt-new"><label class="fld"><span>Viết nhận xét</span><textarea id="cm-text" class="inp" rows="3" maxlength="2000" placeholder="Viết nhận xét cho em…"></textarea></label><button class="btn btn-block" data-pd="cadd">${ic('send', 'ic-sm')}Gửi nhận xét</button></div></section>`
     : cms.length ? `<section class="blk" id="pd-cmt"><h4>${ic('chat', 'ic-sm')}Trao đổi nhận xét <span class="n">${cms.length}</span></h4>${cmtList}</section>` : '';
   const ai = p.ai;
   const grading = S.grading.has(p.id);
@@ -2949,12 +3082,14 @@ function drawSide() {
   if (grading) {
     main = `<div class="thinking" role="status"><div class="row"><span class="spin"></span><b>AI đang đọc bài làm…</b><span class="meta" id="pd-sec"></span><button class="btn btn-sm btn-ghost" data-pd="stop" style="margin-left:auto">${ic('stop', 'ic-sm')}Dừng</button></div><div class="sk" style="width:92%"></div><div class="sk" style="width:78%"></div><div class="sk" style="width:85%"></div><p class="meta">${CAP.sample ? 'Lần đầu, Claude sẽ hỏi bạn có cho phép trang dùng AI không. ' : ''}AI thường cần 20–60 giây để đọc chữ viết tay.</p></div>`;
   } else if (ai) {
+    const sev = (e) => (e.muc_do === 'nang' ? 'Sai kiến thức' : e.muc_do === 'nhe' ? 'Trình bày' : 'Tính toán');
     main = `
       <div class="grade"><div class="stampbig">${fmt(fs)}<small>/${max}</small></div><div><p class="lbl">${p.teacher?.approvedAt ? 'Điểm thầy cô đã duyệt' : gv ? 'Điểm AI đề xuất' : 'Điểm AI · chờ thầy cô duyệt'}</p><p class="note-lbl">${ic('msg', 'ic-sm')}${p.teacher?.note ? 'Nhận xét của thầy cô' : 'Nhận xét của AI'}</p><p class="note-t">${esc(p.teacher?.note || ai.nhan_xet)}</p></div></div>
       ${ai.canh_bao ? `<p class="warnline">${esc(ai.canh_bao)}</p>` : ''}
-      <section class="blk"><h4>Lỗi sai cần sửa <span class="n">${ai.loi_sai.length}</span></h4>${ai.loi_sai.length ? `<ol class="errs">${ai.loi_sai.map((e) => `<li class="err ${e.muc_do}"><span class="where">${esc(e.vi_tri || 'Trong bài')}<span class="sev">${e.muc_do === 'nang' ? 'Sai kiến thức' : e.muc_do === 'nhe' ? 'Trình bày' : 'Tính toán'}</span></span><p>${esc(e.loi)}</p>${e.sua ? `<p class="fix"><b>Sửa:</b> ${esc(e.sua)}</p>` : ''}</li>`).join('')}</ol>` : '<p class="meta">AI không thấy lỗi sai nào. Rất tốt!</p>'}</section>
+      ${gv ? `<button type="button" class="air-jump" data-pd="go-air">${ic('sparkles', 'ic-sm')}Đọc bài, lỗi sai, nguyên nhân, điểm từng câu và bài tập ở mục Nhận xét của giáo viên bên dưới</button>`
+      : `<section class="blk"><h4>Lỗi sai cần sửa <span class="n">${ai.loi_sai.length}</span></h4>${ai.loi_sai.length ? `<ol class="errs">${ai.loi_sai.map((e) => `<li class="err ${e.muc_do}"><span class="where">${esc(e.vi_tri || e.cau || 'Trong bài')}<span class="sev">${sev(e)}</span></span><p>${esc(e.loi)}</p>${e.giai_thich ? `<p>${esc(e.giai_thich)}</p>` : ''}${e.sua ? `<p class="fix"><b>Sửa:</b> ${esc(e.sua)}</p>` : ''}</li>`).join('')}</ol>` : '<p class="meta">AI không thấy lỗi sai nào. Rất tốt!</p>'}</section>
       ${ai.diem_manh.length ? `<section class="blk"><h4>Em đã làm tốt</h4><ul class="goods">${ai.diem_manh.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
-      ${ai.luyen_tap.length || ai.bai_tap_goi_y.length ? `<section class="blk"><h4>Định hướng luyện tập</h4><ul class="prac">${ai.luyen_tap.map((x) => `<li><b>${esc(x.ky_nang)}</b>${x.goi_y ? ' — ' + esc(x.goi_y) : ''}</li>`).join('')}</ul>${ai.bai_tap_goi_y.length ? `<div class="drills"><p class="eyebrow" style="margin-bottom:6px">Bài tập gợi ý</p><ol class="drills" style="margin-top:0">${ai.bai_tap_goi_y.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}</section>` : ''}`;
+      ${ai.luyen_tap.length || ai.bai_tap_goi_y.length ? `<section class="blk"><h4>Định hướng luyện tập</h4><ul class="prac">${ai.luyen_tap.map((x) => `<li><b>${esc(x.ky_nang)}</b>${x.goi_y ? ' — ' + esc(x.goi_y) : ''}</li>`).join('')}</ul>${ai.bai_tap_goi_y.length ? `<div class="drills"><p class="eyebrow" style="margin-bottom:6px">Bài tập gợi ý</p><ol class="drills" style="margin-top:0">${ai.bai_tap_goi_y.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}</section>` : ''}`}`;
   } else {
     main = `<div class="empty">${ic('spark')}<h3>Bài chưa được chấm</h3><p>${gv ? (aiOn() ? 'Bấm Chấm bằng AI để AI đọc bài, cho điểm và chỉ lỗi sai.' : 'Quản trị hệ thống chưa bật AI chấm bài. Thầy cô có thể chấm tay ở bên dưới.') : 'Thầy cô sẽ chấm sớm. Em quay lại sau nhé.'}</p></div>`;
   }
@@ -3013,6 +3148,10 @@ function aiComment(ai) {
 async function detailAct(a, src) {
   const id = detail.id; const p = getPost(id); const b = getBoard(p.boardId);
   if (a === 'close') return detail.m.close();
+  if (a === 'airtab') { const i = +src.dataset.i; detail.airTab = i; const box = $('#pd-air', detail.m.el); $$('[role=tab]', box).forEach((t, k) => t.setAttribute('aria-selected', String(k === i))); $$('.air-panel', box).forEach((x, k) => (x.hidden = k !== i)); return; }
+  if (a === 'go-air') { $('#pd-air', detail.m.el)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+  if (a === 'ai-use-score') { const inp = $('#td-score', detail.m.el); if (inp && p.ai) { inp.value = p.ai.diem; detail.dirty = true; inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); inp.focus({ preventScroll: true }); toast('Đã điền điểm AI đề xuất. Bấm Duyệt điểm và nhận xét để lưu.'); } return; }
+  if (a === 'ai-ex-note') { const box = $('#cm-text', detail.m.el); if (box && p.ai) { const t = 'Bài tập luyện thêm cho em:\n' + airExercises(p.ai).map((x, i) => (i + 1) + ') ' + x.de).join('\n'); box.value = box.value.trim() ? box.value.trim() + '\n\n' + t : t; box.scrollIntoView({ behavior: 'smooth', block: 'center' }); box.focus({ preventScroll: true }); } return; }
   if (a === 'stop') { ctlOf.get(id)?.abort(); return; }
   if (a === 'grade') return runGrade(id);
   if (a === 'like') { const likes = tmeta(p).likes || []; await patchTeacher(p, { likes: likes.includes(S.meId) ? likes.filter((x) => x !== S.meId) : [...likes, S.meId] }); return; }
