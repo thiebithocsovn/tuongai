@@ -1302,6 +1302,50 @@ body.has-sbar .toast{bottom:calc(var(--sbh) + 16px)}
   body.has-sbar .fab,body.has-sbar .app.board-open .fab{bottom:calc(var(--sbh) + 14px)}
   .about-grid{grid-template-columns:1fr}
 }
+
+/* Public landing: aggregate metrics + minimal dark footer */
+#auth{display:block;min-height:calc(100dvh - var(--sbh,52px));padding-top:clamp(38px,7vh,82px);padding-bottom:34px}
+#auth .auth-wrap{margin:0 auto}
+.auth-metrics-wrap{width:min(1090px,100%);margin:34px auto 10px;min-width:0}
+.auth-metrics-top{display:flex;justify-content:space-between;align-items:end;gap:14px;margin-bottom:14px}
+.auth-metrics-kicker{font-size:11px;color:#167f87;font-weight:800;letter-spacing:.13em;text-transform:uppercase}
+.auth-metrics-heading{font-size:clamp(19px,2.4vw,27px);font-weight:800;letter-spacing:-.35px;color:#14233c;margin-top:5px}
+.auth-metrics-note{font-size:12px;color:#66758d;text-align:right}
+.auth-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.auth-metric{border:1px solid #e4eaf4;background:linear-gradient(145deg,#fff,#f8fbff);box-shadow:0 12px 35px -25px #2e5d9e80;border-radius:18px;padding:18px;display:grid;gap:8px;min-width:0;transition:transform .18s,box-shadow .18s}
+.auth-metric:hover{transform:translateY(-2px);box-shadow:0 18px 38px -24px #2e5d9e7a}
+.auth-metric-top{display:flex;align-items:center;justify-content:space-between}
+.auth-metric-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:#e8f0ff;color:#315fca}
+.auth-metric-icon .ic{width:22px;height:22px}
+.auth-metric.green .auth-metric-icon{background:#e4f6ed;color:#18845a}
+.auth-metric.orange .auth-metric-icon{background:#fff2e3;color:#b76b25}
+.auth-metric-trend{font-size:10px;font-weight:750;color:#6d7a90;letter-spacing:.05em}
+.auth-metric-num{font-size:clamp(27px,3.4vw,38px);font-weight:850;letter-spacing:-1.1px;line-height:1.05;color:#162740;font-variant-numeric:tabular-nums}
+.auth-metric-label{font-weight:750;font-size:14px;color:#273b57}
+.auth-metric-caption{font-size:12px;line-height:1.4;color:#718099}
+body.has-sbar{--sbh:calc(54px + env(safe-area-inset-bottom,0px))}
+#site-foot.sbar{background:linear-gradient(110deg,#101c31,#203955);border-top:1px solid #304765;box-shadow:0 -10px 30px -19px #13294366;backdrop-filter:none}
+#site-foot.sbar::before{display:none}
+#site-foot .sbar-in{height:54px;display:flex;align-items:center;justify-content:center;color:#f0f6ff;font-size:14px;font-weight:700;text-align:center;letter-spacing:.025em}
+@media(max-width:900px){
+ #auth{padding-top:35px;padding-bottom:36px}
+ .auth-metrics-wrap{margin-top:24px}
+}
+@media(max-width:620px){
+ #auth{padding:24px 14px 30px}
+ .auth-metrics-wrap{width:100%;margin-top:26px}
+ .auth-metrics-top{align-items:start;flex-direction:column;gap:4px}
+ .auth-metrics-note{text-align:left}
+ .auth-metrics{grid-template-columns:1fr;gap:10px}
+ .auth-metric{grid-template-columns:52px 1fr;align-items:center;gap:3px 12px;padding:13px 15px}
+ .auth-metric-top{grid-column:1;grid-row:1 / span 3}
+ .auth-metric-num{grid-column:2;grid-row:1;font-size:29px}
+ .auth-metric-label{grid-column:2;grid-row:2}
+ .auth-metric-caption{grid-column:2;grid-row:3}
+ .auth-metric-trend{display:none}
+ #site-foot .sbar-in{font-size:13px}
+}
+
 </style>
 </head>
 <body>
@@ -1373,6 +1417,14 @@ body.has-sbar .toast{bottom:calc(var(--sbh) + 16px)}
       <p class="store-note" id="store-note"><span data-ic="shield"></span><span id="store-note-t">Đang kết nối kho dữ liệu…</span></p>
     </div>
   </div>
+  <section class="auth-metrics-wrap" aria-labelledby="landing-metrics-title">
+    <div class="auth-metrics-top"><div><p class="auth-metrics-kicker">Tường Học Tập AI · Dữ liệu thực tế</p><h2 class="auth-metrics-heading" id="landing-metrics-title">Cộng đồng học tập đang phát triển</h2></div><p class="auth-metrics-note">Thống kê tổng hợp từ hệ thống, tự động cập nhật</p></div>
+    <div class="auth-metrics">
+      <article class="auth-metric"><div class="auth-metric-top"><span class="auth-metric-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2.2.6 3.5 2.6 3.5 6"/></svg></span><span class="auth-metric-trend">TÀI KHOẢN</span></div><strong class="auth-metric-num" data-public-metric="users">—</strong><span class="auth-metric-label">Người đăng ký</span><p class="auth-metric-caption">Tài khoản đã đăng ký trên nền tảng</p></article>
+      <article class="auth-metric green"><div class="auth-metric-top"><span class="auth-metric-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3 21V9l9-6 9 6v12M9 21v-7h6v7M6 10h2M16 10h2M6 13h2M16 13h2M2 21h20"/></svg></span><span class="auth-metric-trend">ĐƠN VỊ</span></div><strong class="auth-metric-num" data-public-metric="units">—</strong><span class="auth-metric-label">Đơn vị đăng ký</span><p class="auth-metric-caption">Số tên đơn vị công tác khác nhau đã khai báo</p></article>
+      <article class="auth-metric orange"><div class="auth-metric-top"><span class="auth-metric-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 20V12M10 20V6M16 20v-9M22 20H2"/></svg></span><span class="auth-metric-trend">TÍCH LŨY</span></div><strong class="auth-metric-num" data-public-metric="visits">—</strong><span class="auth-metric-label">Lượt truy cập</span><p class="auth-metric-caption">Tổng phiên truy cập kể từ khi bật thống kê</p></article>
+    </div>
+  </section>
 </section>
 
 <section id="join" class="auth" aria-label="Vào lớp" hidden>
@@ -2132,6 +2184,20 @@ function startSiteTraffic() {
   });
 }
 
+/* Thống kê công khai: chỉ truy xuất JSON tổng hợp, không lấy danh sách hồ sơ. */
+async function loadPublicMetrics() {
+  if (!CAP.sb) return;
+  try {
+    const { data, error } = await CAP.sb.rpc('site_public_metrics');
+    if (error) throw error;
+    for (const key of ['users','units','visits']) {
+      const value = Number(data?.[key]);
+      const label = data?.[key] != null && Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString('vi-VN') : '—';
+      $('[data-public-metric="'+key+'"]').forEach((el) => { el.textContent = label; });
+    }
+  } catch (e) { /* Giữ dấu — nếu chưa kết nối hoặc RPC tạm thời lỗi. */ }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#auth')?.hidden) loadPublicMetrics(); });
 /* ================= khởi động ================= */
 let readyResolve; const ready = new Promise((r) => (readyResolve = r));
 async function init() {
@@ -2142,6 +2208,7 @@ async function init() {
   }
   CAP.sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { storage: authStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
   startSiteTraffic();
+  loadPublicMetrics();
   updateStoreNote();
   readyResolve();
   if (LINK_CODE) {
@@ -3828,14 +3895,8 @@ function aiConnectForm() {
 const K_HIDE_DEMO = 'tuongai.hideDemo.';
 const demoHidden = () => LS.get(K_HIDE_DEMO + (S.meId || '')) === '1';
 /* Chân trang cố định: một dải chạy hết đáy màn hình */
-function footerHtml(mode) {
-  const me = mode === 'public' ? null : ME();
-  const gv = me?.role === 'gv';
-  const home = esc(location.origin + location.pathname);
-  const links = !me ? `<a href="${home}">Đăng nhập giáo viên</a><a href="${home}?lop=MAU009">Bảng mẫu</a><button data-act="help-public">Hướng dẫn</button><button data-act="about">Giới thiệu</button>`
-    : gv ? `<button data-act="tab" data-tab="mine">Bảng của tôi</button><button data-act="help">Hướng dẫn nhanh</button><button data-act="ai-connect">Kết nối AI</button><button data-act="about">Giới thiệu</button>`
-      : `<button data-act="tab" data-tab="classes">Lớp của em</button><button data-act="tab" data-tab="mywork">Bài em đã nộp</button><button data-act="help">Hướng dẫn</button><button data-act="about">Giới thiệu</button>`;
-  return `<div class="sbar-in"><span class="sb-brand">${OWL}<b>Tường Học Tập AI</b><span class="sb-c">© ${new Date().getFullYear()}</span></span><nav class="sb-links" aria-label="Chân trang">${links}</nav><span class="sb-note">${ic('lock', 'ic-sm')}AI có thể nhầm, thầy cô kiểm tra trước khi duyệt điểm.</span></div>`;
+function footerHtml() {
+  return '<div class="sbar-in"><span>Học Tập AI © 2026</span></div>';
 }
 function updateFoot() {
   const el = $('#site-foot'); if (!el) return;
