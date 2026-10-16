@@ -29,6 +29,15 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 - Trợ lý AI cho bài làm, trong mục nhận xét khi mở một bài (chỉ giáo viên thấy): 1. Chat và đánh giá (hỏi AI về bài, đưa nhận xét đề xuất vào ô Viết nhận xét, đề bài và tiêu chí dùng cho AI), 2. Giáo viên duyệt (kiểm chứng từng lỗi và nguyên nhân, duyệt nhận xét và điểm), 3. Luyện tập (AI soạn bài theo lỗi đã xác nhận, tải phiếu cho học sinh), 4. Tiến bộ (ghi lần luyện tập, theo dõi kỹ năng đã khắc phục). Dữ liệu lưu ở `teacher.assist`; máy chủ không gửi phần này cho học sinh.
 - Bảng mẫu Toán 9 để thử (đường link `?lop=MAU009`). Thầy cô xóa được bảng mẫu (nút Xóa trên thẻ) và hiện lại từ menu tài khoản.
 
+## Thống kê trực tuyến và lượt truy cập
+
+- Ở dưới menu bên trái, thay thông báo quyền riêng tư bằng **Hoạt động hệ thống** gồm **Đang trực tuyến** và **Truy cập hôm nay**.
+- **Đang trực tuyến**: số phiên kết nối đang mở qua Supabase Realtime Presence, cập nhật trực tiếp. Số liệu là số phiên hoạt động, không nhất thiết là số người duy nhất. Không thu thập tên, email hay dữ liệu học sinh để tính chỉ số này.
+- **Truy cập hôm nay**: số phiên trình duyệt ghi nhận trong ngày theo múi giờ `Asia/Ho_Chi_Minh`, mỗi phiên chỉ tính một lần/ngày; mở tab mới có thể được tính như một phiên khác. Đây không phải số người dùng duy nhất.
+- **Bước bắt buộc để bật số lượt truy cập:** Mở [Supabase SQL Editor](https://supabase.com/dashboard/project/vnxffqpszykkjueawtfr/sql/new) bằng tài khoản chủ dự án, mở `supabase/migrations/0004_site_traffic.sql` trong repo, dán toàn bộ SQL vào editor rồi bấm **Run**. GitHub Pages không thể tự áp dụng cấu trúc dữ liệu trong Supabase. Không cần sửa web sau khi chạy SQL; tải lại trang là xong.
+- Nếu chưa chạy SQL hoặc mạng lỗi, giao diện hiển thị dấu **—** và ghi rõ tình trạng, **không bịa số 0**. Số liệu cũ không được hồi tố từ trước khi bật tính năng.
+- Hai bảng thống kê có RLS, không cấp quyền đọc trực tiếp mã phiên. Chỉ hàm RPC được phép tăng/đọc số tổng. Khi vận hành quy mô lớn cần thêm cơ chế chống bot hoặc giới hạn tốc độ để giảm truy cập giả.
+
 ## Cấu trúc
 
 - `index.html`: toàn bộ giao diện (HTML, CSS, JavaScript), chạy trên GitHub Pages.
