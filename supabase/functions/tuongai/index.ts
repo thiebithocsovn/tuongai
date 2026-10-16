@@ -270,7 +270,7 @@ async function handle(req: Request) {
 
     case "ai_status": {
       needActive(me);
-      return { ready: !!(await config("gemini_key")), model: (await config("gemini_model")) || "gemini-flash-latest" };
+      return { ready: !!(await config("gemini_key")), model: (await config("gemini_model")) || "gemini-flash-latest", appcheck_key: await config("appcheck_key") };
     }
 
     case "student_board": {
@@ -456,6 +456,12 @@ difficulty là foundation, application hoặc transfer. Mỗi lỗi 1–3 bài, 
     case "admin_settings": {
       needAdmin(me);
       if (typeof body.auto_approve === "boolean") await setConfig("auto_approve", body.auto_approve ? "1" : "0");
+      // Khóa trang reCAPTCHA Enterprise (công khai) cho Firebase App Check của kết nối Gemini · Google trong trình duyệt.
+      if (typeof body.appcheck_key === "string") {
+        const k = body.appcheck_key.trim();
+        if (k && !/^6L[0-9A-Za-z_-]{30,}$/.test(k)) throw new Fail("bad_appcheck", "Khóa trang reCAPTCHA chưa đúng dạng (bắt đầu bằng 6L).");
+        if (k) await setConfig("appcheck_key", k); else await db.from("app_config").delete().eq("key", "appcheck_key");
+      }
       if (typeof body.gemini_key === "string") {
         const key = body.gemini_key.trim();
         const model = str(body.gemini_model, 80) || "gemini-flash-latest";
@@ -467,7 +473,7 @@ difficulty là foundation, application hoặc transfer. Mỗi lỗi 1–3 bài, 
           await db.from("app_config").delete().eq("key", "gemini_key");
         }
       }
-      return { ok: true, ai: !!(await config("gemini_key")), model: (await config("gemini_model")) || "gemini-flash-latest", auto_approve: (await config("auto_approve")) === "1" };
+      return { ok: true, ai: !!(await config("gemini_key")), model: (await config("gemini_model")) || "gemini-flash-latest", auto_approve: (await config("auto_approve")) === "1", appcheck_key: await config("appcheck_key") };
     }
   }
   throw new Fail("bad_action", "Yêu cầu không hợp lệ.");
