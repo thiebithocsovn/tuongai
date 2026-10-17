@@ -1326,7 +1326,8 @@ body.has-sbar .toast{bottom:calc(var(--sbh) + 16px)}
 body.has-sbar{--sbh:calc(54px + env(safe-area-inset-bottom,0px))}
 #site-foot.sbar{background:linear-gradient(110deg,#101c31,#203955);border-top:1px solid #304765;box-shadow:0 -10px 30px -19px #13294366;backdrop-filter:none}
 #site-foot.sbar::before{display:none}
-#site-foot .sbar-in{height:54px;display:flex;align-items:center;justify-content:center;color:#f0f6ff;font-size:14px;font-weight:700;text-align:center;letter-spacing:.025em}
+#site-foot .sbar-in{height:54px;display:flex;align-items:center;justify-content:center;color:#f0f6ff;font-size:14px;font-weight:500;text-align:center;letter-spacing:.025em}
+#site-foot .sbar-in strong{font-weight:800}
 @media(max-width:900px){
  #auth{padding-top:35px;padding-bottom:36px}
  .auth-metrics-wrap{margin-top:24px}
@@ -3903,7 +3904,7 @@ const K_HIDE_DEMO = 'tuongai.hideDemo.';
 const demoHidden = () => LS.get(K_HIDE_DEMO + (S.meId || '')) === '1';
 /* Chân trang cố định: một dải chạy hết đáy màn hình */
 function footerHtml() {
-  return '<div class="sbar-in"><span>Học Tập AI © 2026</span></div>';
+  return '<div class="sbar-in"><span>Học tập AI <strong>© 2026</strong></span></div>';
 }
 function updateFoot() {
   const el = $('#site-foot'); if (!el) return;
