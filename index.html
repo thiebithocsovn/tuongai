@@ -2240,7 +2240,7 @@ function updateStoreNote() {
 const wrapPw = (pw) => 'tuongai·' + pw;
 const normUser = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, '');
 /* Tài khoản Quản trị hệ thống: nhận ra qua mã băm của email, không ghi email trong mã nguồn. */
-const ADMIN_SHA = 'a07c6833a2efe0fb6de9bc613c161a849e9a7af16d72db52c27410ab29cc86e5';
+const ADMIN_SHA = 'dd282e18cb9560b45548c47030bb8c8d97f3d668eed96a153be0ff36b18512d7';
 async function isAdminUser(u) {
   try {
     const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(normUser(u)));
