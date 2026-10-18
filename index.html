@@ -1469,6 +1469,44 @@ body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
  .pd-review-modal .as .as-grid{grid-template-columns:1fr}
 }
 
+
+/* Bộ tạo bài tương tự: ba cách bám bài, kết quả nháp, rà soát và xuất phiếu */
+.as-similar{display:flex;flex-direction:column;gap:16px;padding:18px;border-radius:14px;border:1px solid #dbd3ef;background:linear-gradient(145deg,#f8f6ff 0%,#fff 55%);min-width:0}
+.as-similar-head{display:flex;align-items:center;gap:12px}
+.as-similar-head .as-icon{width:42px;height:42px;border-radius:12px;background:#e9e5fc;color:#7444a5}
+.as-similar-head>div{min-width:0;flex:1}
+.as-similar-head h4{font-size:16px;font-weight:800;color:#4d386e}
+.as-similar-head p{font-size:12px;color:#7b688c;margin-top:5px;line-height:1.5}
+.as-similar-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.as-similar-modes button{min-height:69px;padding:10px 8px;border:1px solid #ddd7e8;border-radius:11px;background:#fff;color:#53485d;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;text-align:left;overflow-wrap:anywhere}
+.as-similar-modes button strong{font-size:12.8px;line-height:1.2}
+.as-similar-modes button small{font-size:10.5px;line-height:1.35;color:#86798d}
+.as-similar-modes button.sel{border-color:#754a91;background:#f2ecfa;box-shadow:inset 0 0 0 1px #754a91;color:#673f81}
+.as-similar-fields,.as-similar-result{display:flex;flex-direction:column;gap:13px;min-width:0}
+.as-similar-fields>.as-row .btn{min-height:36px}
+.as-similar-selects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.as-similar-generate{font-weight:800!important}
+.as-similar-result{border-top:1px solid #e6dfea;padding-top:16px}
+.as-similar-result-head,.as-similar-exhead{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px}
+.as-similar-result-head h4{font-size:15px;font-weight:800}
+.as-similar-ex{display:flex;flex-direction:column;gap:10px;background:#fff;border:1px solid #e6e1ec;border-radius:12px;padding:15px}
+.as-similar-exhead strong{color:#634181}
+.as-similar-ex details{padding:11px 12px;border:1px dashed #d8c9e3;border-radius:9px;background:#fcf9ff}
+.as-similar-ex details>.as-lbl{margin-top:12px}
+.as-similar-check{align-items:flex-start;font-size:13px;font-weight:700;line-height:1.5;color:#4f4960}
+.as-similar-check input{margin-top:4px;flex:none}
+.as-similar-legacy{display:flex;flex-direction:column;gap:13px;padding:16px 0 0;border-top:1px solid #e7e1ee}
+.as-similar-legacy>h4{font-size:15px;font-weight:800;color:#55436a}
+@media(max-width:580px){
+  .as-similar{padding:13px;gap:13px}
+  .as-similar-modes{grid-template-columns:1fr}
+  .as-similar-modes button{min-height:52px;flex-direction:row;justify-content:flex-start;align-items:baseline;gap:9px}
+  .as-similar-modes button strong{flex:none}
+  .as-similar-modes button small{font-size:11px}
+  .as-similar-selects{gap:8px}
+  .as-similar-ex{padding:12px}
+}
+
 </style>
 </head>
 <body>
@@ -4728,6 +4766,9 @@ function asField(as, el, commit) {
   else if (k === 'att') { as.att[id] = v; if (commit && id === 'ex') asRender(as); }
   else if (k === 'sim') {
     if (as.similar.status === 'assigned') return;
+    if (id === 'reviewed') {
+      as.similar.reviewed = !!v; as.similarDirty = true; if (commit) asRender(as); return;
+    }
     as.similar[id] = id === 'count' ? Math.max(1, Math.min(8, Number(v) || 3)) : v;
     as.similar.reviewed = false; as.similarDirty = true;
     if (commit && ['mode', 'difficulty', 'count', 'includeMedia'].includes(id)) asRender(as);
@@ -4997,6 +5038,63 @@ function asRender(as) {
   }
   const log = $('.as-log', as.el); if (log) log.scrollTop = log.scrollHeight;
 }
+
+/* Tạo bài tập tương tự: không yêu cầu duyệt lỗi, kết quả là bản nháp riêng của giáo viên. */
+function asSimilarHtml(as) {
+  const p = getPost(as.id), b = getBoard(p.boardId), v = as.similar;
+  const lock = !!as.busy || as.ext, assigned = v.status === 'assigned';
+  const off = lock || !aiOn(), ed = lock || assigned ? 'disabled' : '';
+  const modeNames = { topic: 'Theo chủ đề', content: 'Theo nội dung', type: 'Theo dạng bài' };
+  const choices = [['topic', 'Cùng chủ đề', 'Mạch kiến thức tương tự'],
+    ['content', 'Tương tự nội dung', 'Thay dữ kiện, ngữ cảnh'],
+    ['type', 'Cùng dạng bài', 'Giữ cách giải, đổi đề']];
+  return `<section class="as-similar" aria-label="Tạo bài tập tương tự bằng AI">
+    <header class="as-similar-head"><span class="as-icon">${ic('sparkles')}</span><div><h4>Tạo bài tập tương tự bằng AI</h4>
+      <p>Chọn chủ đề, nội dung hoặc dạng bài · AI tạo đề mới có gợi ý, đáp án và tiêu chí.</p></div></header>
+    <div class="as-similar-modes" role="group" aria-label="Kiểu bài tập tương tự">
+      ${choices.map(([key,title,sub]) => `<button type="button" data-as="similar-mode" data-mode="${key}" class="${v.mode === key ? 'sel' : ''}" aria-pressed="${v.mode === key}" ${ed}>
+        <strong>${title}</strong><small>${sub}</small></button>`).join('')}</div>
+    <div class="as-similar-fields">
+      ${v.mode !== 'type' ? `<label class="as-lbl">Chủ đề / kiến thức trọng tâm<input data-asf="sim.topic" maxlength="200" placeholder="Ví dụ: Phương trình bậc nhất một ẩn" value="${esc(v.topic)}" ${ed}></label>` : ''}
+      ${v.mode === 'type' ? `<label class="as-lbl">Dạng bài muốn tạo<input data-asf="sim.kind" maxlength="160" placeholder="Ví dụ: Giải phương trình có dấu ngoặc" value="${esc(v.kind)}" ${ed}></label>` : ''}
+      <label class="as-lbl">${v.mode === 'content' ? 'Nội dung / bài mẫu cần tạo tương tự' : 'Đề bài mẫu hoặc yêu cầu bổ sung (không bắt buộc)'}
+        <textarea data-asf="sim.reference" rows="3" maxlength="5000" placeholder="Dán ví dụ hoặc đề bài gốc. AI sẽ tạo câu hỏi mới, không sao chép nguyên bài." ${ed}>${esc(v.reference)}</textarea></label>
+      ${!assigned ? `<div class="as-row"><button type="button" class="btn as-btn" data-as="similar-from-task" ${lock ? 'disabled' : ''}>${ic('copy','ic-sm')}Lấy đề bài đã nhập ở bước 1</button></div>` : ''}
+      <div class="as-similar-selects">
+        <label class="as-lbl">Số bài tập<select data-asf="sim.count" ${ed}>${[1,2,3,4,5,6,8].map((n) => `<option value="${n}" ${+v.count === n ? 'selected' : ''}>${n} bài</option>`).join('')}</select></label>
+        <label class="as-lbl">Mức độ<select data-asf="sim.difficulty" ${ed}>${Object.entries(AS_LEVEL).map(([key,val]) => `<option value="${key}" ${v.difficulty === key ? 'selected' : ''}>${val}</option>`).join('')}</select></label>
+      </div>
+      <label class="as-chk"><input type="checkbox" data-asf="sim.includeMedia" ${v.includeMedia ? 'checked' : ''} ${ed}>Cho AI tham khảo ảnh bài làm đang mở</label>
+      <p class="as-help">Không chọn: chỉ gửi chủ đề, đề mẫu và tiêu chí thầy cô nhập. Nếu bật tham khảo ảnh, hãy kiểm tra và che tên, thông tin cá nhân học sinh trước khi gửi tới AI.</p>
+      ${!assigned ? `<button type="button" class="btn as-primary as-block as-similar-generate" data-as="similar-gen" ${off}>${ic('sparkles')} ${v.exercises?.length ? 'Tạo lại bộ bài tương tự' : 'AI tạo bài tập tương tự'}</button>` : ''}
+      ${!aiOn() ? '<p class="as-warn">Chưa có kết nối AI sử dụng được. Hãy chọn và kiểm tra Gemini, ChatGPT hoặc Claude ở đầu Trợ lý AI.</p>' : ''}
+    </div>
+    ${v.exercises?.length ? `<div class="as-similar-result">
+      <div class="as-similar-result-head"><h4>${v.exercises.length} bài tập ${modeNames[v.mode] || 'tương tự'}</h4>
+        <span class="as-chip${assigned ? ' is-resolved' : ''}">${assigned ? 'Đã duyệt' : 'Bản nháp chờ giáo viên duyệt'}</span></div>
+      <p class="as-help">Mô hình: ${esc(v.model || 'AI đã chọn')} · Đáp án và tiêu chí chỉ dùng để giáo viên đối chiếu.</p>
+      <label class="as-lbl">Hướng dẫn chung<textarea data-asf="sim.instructions" maxlength="1500" rows="2" ${ed}>${esc(v.instructions)}</textarea></label>
+      ${v.exercises.map((ex,i) => `<article class="as-similar-ex">
+        <div class="as-similar-exhead"><strong>Bài ${i+1}</strong><span class="as-chip">${AS_LEVEL[ex.difficulty] || AS_LEVEL[v.difficulty] || 'Củng cố'}</span></div>
+        <label class="as-lbl">Đề bài<textarea rows="3" data-asf="simex.${i}.question" maxlength="2000" ${ed}>${esc(ex.question)}</textarea></label>
+        <label class="as-lbl">Gợi ý cho học sinh<textarea rows="2" data-asf="simex.${i}.hint" maxlength="1200" ${ed}>${esc(ex.hint)}</textarea></label>
+        <details class="as-sub" ${!assigned ? 'open' : ''}><summary>Đáp án mẫu và tiêu chí (chỉ giáo viên)</summary>
+          <label class="as-lbl">Đáp án / hướng giải<textarea rows="3" data-asf="simex.${i}.expectedAnswer" maxlength="2000" ${ed}>${esc(ex.expectedAnswer)}</textarea></label>
+          <label class="as-lbl">Tiêu chí kiểm tra<textarea rows="2" data-asf="simex.${i}.successCriteria" maxlength="1200" ${ed}>${esc(ex.successCriteria)}</textarea></label>
+        </details>
+      </article>`).join('')}
+      ${!assigned ? `<label class="as-chk as-similar-check"><input type="checkbox" data-asf="sim.reviewed" ${v.reviewed ? 'checked' : ''} ${lock ? 'disabled' : ''}>Tôi đã kiểm tra và chịu trách nhiệm về đề bài, đáp án, tiêu chí do AI tạo.</label>
+      <div class="as-row"><button type="button" class="btn as-btn" data-as="similar-save" ${lock}>${ic('save')}Lưu bản nháp</button>
+      <button type="button" class="btn as-primary" data-as="similar-approve" ${lock || !v.reviewed ? 'disabled' : ''}>${ic('clipck')}Duyệt bộ bài</button></div>
+      <p class="as-help">Bộ bài chưa tự gửi cho học sinh. Sau khi duyệt, thầy cô sao chép hoặc tải phiếu để giao.</p>` :
+      `<div class="as-row"><button type="button" class="btn as-primary" data-as="similar-copy">${ic('copy')}Sao chép phiếu bài tập</button>
+      <button type="button" class="btn as-btn" data-as="similar-download">${ic('download')}Tải phiếu .txt</button>
+      <button type="button" class="btn as-btn" data-as="similar-new" ${lock ? 'disabled' : ''}>${ic('plus')}Tạo bộ khác</button></div>
+      <p class="as-help">Phiếu xuất chỉ gồm đề và gợi ý, không kèm đáp án. Chưa tự gửi cho học sinh; giáo viên chủ động giao.</p>`}
+    </div>` : ''}
+  </section>`;
+}
+
 function asHtml(as) {
   const p = getPost(as.id); if (!p) return '';
   const b = getBoard(p.boardId); const max = b.assignment?.maxScore || 10;
@@ -5049,12 +5147,13 @@ function asHtml(as) {
         ${approved ? `<p class="as-ok">${esc(x.review.byName)} đã duyệt lúc ${when(x.review.at)}. Điểm: ${x.review.score === '' ? 'chưa đặt' : fmt(+x.review.score) + '/' + max}.</p>` : ''}`;
     }
   } else if (as.step === 2) {
-    if (!x || !approved) body = '<p class="as-empty">Thầy cô cần kiểm chứng và duyệt nhận xét ở bước 2 trước khi tạo bài luyện tập.</p>';
+    const similarHtml = asSimilarHtml(as);
+    if (!x || !approved) body = similarHtml + '<p class="as-empty">Tính năng luyện tập theo lỗi cần thầy cô kiểm chứng và duyệt nhận xét ở bước 2. Bạn vẫn có thể dùng công cụ tạo bài tập tương tự bên trên mà không cần chờ bước này.</p>';
     else {
       const conf = x.analysis.errors.filter((e) => e.decision === 'confirmed');
       const pr = x.practice; const assigned = pr?.status === 'assigned'; const ed = dis(lock || assigned);
       const skillOf = (id) => x.analysis.errors.find((e) => e.id === id)?.skill || '';
-      body = `<p>${conf.length} lỗi đã xác nhận. AI tạo nhiệm vụ theo nguyên nhân do thầy cô kết luận, kèm gợi ý và tiêu chí kiểm tra.</p>
+      body = similarHtml + `<div class="as-similar-legacy"><h4>Luyện tập cá nhân hóa theo lỗi đã duyệt</h4><p>${conf.length} lỗi đã xác nhận. AI tạo nhiệm vụ theo nguyên nhân do thầy cô kết luận, kèm gợi ý và tiêu chí kiểm tra.</p>
         ${!conf.length ? '<p class="as-warn">Chưa có lỗi được xác nhận. Không tạo bài luyện tập dựa vào lỗi bị loại hoặc chưa kiểm chứng.</p>' : ''}
         ${!assigned ? `<button type="button" class="btn as-primary as-block" data-as="gen-prac" ${dis(off || !conf.length)}>${ic('sparkles')}${pr ? 'Tạo lại luyện tập AI' : 'Tạo luyện tập cá nhân hóa'}</button>` : ''}
         ${pr ? `<label class="as-lbl">Hướng dẫn học sinh<textarea data-asf="practice.instructions" rows="2" maxlength="2000" ${ed}>${esc(pr.instructions)}</textarea></label>
@@ -5064,7 +5163,7 @@ function asHtml(as) {
             <details class="as-sub"><summary>Đáp án và tiêu chí riêng của giáo viên</summary><label class="as-lbl">Đáp án mẫu<textarea data-asf="ex.${esc(e.id)}.expectedAnswer" rows="3" maxlength="2000" ${ed}>${esc(e.expectedAnswer)}</textarea></label><label class="as-lbl">Tiêu chí khắc phục lỗi<textarea data-asf="ex.${esc(e.id)}.successCriteria" rows="2" maxlength="1200" ${ed}>${esc(e.successCriteria)}</textarea></label></details>
           </article>`).join('')}
           <div class="as-row">${!assigned ? `<button type="button" class="btn as-btn" data-as="save-prac" ${dis(lock)}>${ic('save')}Lưu luyện tập nháp</button><button type="button" class="btn as-primary" data-as="assign" ${dis(lock)}>${ic('check')}Duyệt và giao luyện tập</button>` : `<button type="button" class="btn as-primary" data-as="dl-sheet">${ic('download')}Tải phiếu cho học sinh</button><button type="button" class="btn as-btn" data-as="copy-sheet">${ic('copy')}Sao chép phiếu luyện tập</button><button type="button" class="btn as-btn" data-as="step" data-i="3">${ic('trend')}Ghi nhận tiến bộ</button>`}</div>
-          <p class="as-help">“Giao luyện tập” lưu phiên bản thầy cô đã duyệt. Tải hoặc sao chép phiếu rồi gửi riêng cho học sinh; em làm xong nộp lại trên bảng hoặc gửi thầy cô. Đáp án mẫu được giữ riêng.</p>` : ''}`;
+          <p class="as-help">“Giao luyện tập” lưu phiên bản thầy cô đã duyệt. Tải hoặc sao chép phiếu rồi gửi riêng cho học sinh; em làm xong nộp lại trên bảng hoặc gửi thầy cô. Đáp án mẫu được giữ riêng.</p>` : ''}</div>`;
     }
   } else {
     const pr = x?.practice; const exSel = pr?.exercises.find((e) => e.id === as.att.ex);
