@@ -1416,6 +1416,59 @@ body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
   .side-head .brand .brand-en{font-size:8px}
 }
 
+
+/* Chi tiết bài làm: cột trái giấy bài, cột phải trợ lý AI và nhận xét */
+.modal.wide.pd-review-modal{width:min(1450px,96vw);height:min(930px,94dvh)}
+.pd-review-modal .pd{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}
+.pd-review-modal .pd-media{padding:20px;background:#f3f5fa}
+.pd-review-modal .pd-media img{border-radius:12px;box-shadow:0 5px 22px #172a461b}
+.pd-review-modal .pd-side{padding:22px 24px 32px;gap:18px;background:#fff}
+.pd-review-modal .pd-cmt{display:flex;flex-direction:column;align-items:stretch;gap:17px;min-width:0}
+.pd-review-modal .pd-review-heading{display:flex;flex-direction:column;gap:10px}
+.pd-review-modal .pd-review-heading h4{font-size:18px;font-weight:800;margin:0;letter-spacing:-.015em;color:#19263c}
+.pd-review-modal .pd-review-heading .meta{font-size:12px;color:#8c7959;line-height:1.5}
+.pd-review-modal .as{margin:0;gap:17px;padding:21px 20px;background:linear-gradient(145deg,#faf7fd,#fff 76%);border-color:#e2d6ec}
+.pd-review-modal .as-prov{gap:10px}
+.pd-review-modal .as .as-steps{gap:8px}
+.pd-review-modal .as .as-steps button{min-height:47px;padding:9px 7px;font-size:12px;font-weight:700}
+.pd-review-modal .as .as-chat{padding:16px}
+.pd-review-modal .as .as-log{min-height:115px}
+.pd-review-modal .as .as-ctx{padding:14px 13px}
+.pd-review-modal .as .as-ctx>.as-sec{padding-top:18px}
+.pd-review-modal .as .as-ctx>summary{font-size:13px;list-style-position:inside}
+.pd-review-modal .pd-review-manual{display:grid;gap:12px}
+.pd-review-modal .pd-review-manual .fld{gap:7px}
+.pd-review-modal .pd-review-manual .fld span,.pd-review-modal .pd-score-manual .fld span{font-size:14px;font-weight:700;color:#3b3b42}
+.pd-review-modal .pd-review-manual textarea{min-height:96px;resize:vertical}
+.pd-review-modal .pd-review-manual>.btn{width:100%;min-height:43px;border:1px solid #d9dbd3;background:#fff;color:#273247;border-radius:10px}
+.pd-review-modal .pd-score-manual{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.pd-review-modal .pd-score-manual .fld{max-width:155px;flex:0 1 155px;min-width:120px}
+.pd-review-modal .pd-score-manual .fld input{width:100%}
+.pd-review-modal .pd-score-manual .btn{min-height:43px;border-radius:10px}
+.pd-review-modal .pd-review-delete{min-height:44px;background:#fff;border:1px solid #dce0e6;color:#c92d3c}
+.pd-review-modal .pd-review-delete:hover{background:#fff3f4;border-color:#ecb5bd}
+.pd-review-modal .pd-review-history{background:#fff;border:1px solid #e5e6ed;border-radius:12px;padding:13px 14px;min-width:0}
+.pd-review-modal .pd-review-history>summary{font-size:13px;font-weight:700;color:#60547c;cursor:pointer}
+.pd-review-modal .pd-review-history>summary .ic{vertical-align:middle;margin-right:5px}
+.pd-review-modal .pd-review-history>.pd-review-extra-body{display:grid;gap:13px;padding-top:14px}
+.pd-review-modal .pd-review-history>.cmts,.pd-review-modal .pd-review-history>.air{margin-top:14px}
+.pd-review-modal .pd-review-history .air{overflow-x:auto;max-width:100%}
+.pd-review-modal .pd-cmt>.form-err:empty{display:none}
+@media(max-width:900px){
+ .modal.wide.pd-review-modal{width:min(100%,760px);height:auto;max-height:95dvh}
+ .pd-review-modal .pd{grid-template-columns:minmax(0,1fr);overflow-y:auto}
+ .pd-review-modal .pd-media{overflow:visible;max-height:none;padding:12px}
+ .pd-review-modal .pd-side{overflow:visible;padding:18px 16px}
+}
+@media(max-width:580px){
+ .pd-review-modal .as{padding:14px 12px;gap:14px}
+ .pd-review-modal .as .as-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .pd-review-modal .pd-side{padding:15px 12px}
+ .pd-review-modal .pd-review-heading h4{font-size:17px}
+ .pd-review-modal .pd-score-manual .fld{flex:0 1 125px;min-width:105px}
+ .pd-review-modal .as .as-grid{grid-template-columns:1fr}
+}
+
 </style>
 </head>
 <body>
@@ -4268,6 +4321,7 @@ function openDetail(id, autoGrade, focus) {
   const m = openModal({
     title: (gv ? p.studentName : b.name) + ' · ' + (b.assignment?.title || 'Bài làm'),
     wide: true,
+    cls: gv ? "pd-review-modal" : "",
     body: `<div class="pd"><div class="pd-media" id="pd-media"></div><div class="pd-side" id="pd-side"></div></div>`,
     onClose: () => { const c = ctlOf.get(id); if (c) c.abort(); detail?.as?.ctl?.abort(); detail = null; },
   });
@@ -4362,8 +4416,21 @@ function drawSide() {
   const cmtList = `${cms.length ? `<div class="cmts">${cms.map((c) => `<div class="cmt"><div class="cmt-h"><b>${esc(c.name || 'Giáo viên')}</b><span class="meta">${timeAgo(c.at)}</span>${gv && (c.by === S.meId || isAdmin()) ? `<button class="icon-btn" data-pd="cdel" data-cid="${esc(c.id)}" aria-label="Xóa nhận xét này">${ic('x', 'ic-sm')}</button>` : ''}</div><p>${esc(c.text)}</p></div>`).join('')}</div>` : ''}`;
   /* Thầy cô: mục nhận xét có Trợ lý AI cho bài làm (theo mẫu Tường học tập Ai), danh sách nhận xét và ô Viết nhận xét. */
   const cmtHtml = gv
-    ? `<section class="blk pd-cmt" id="pd-cmt"><h4>${ic('chat', 'ic-sm')}Nhận xét của giáo viên <span class="n">${cms.length}</span></h4><p class="meta">Học sinh thấy điểm, lỗi cần sửa, bài luyện tập và nhận xét thầy cô gửi ở ô Viết nhận xét. Phần đọc bài, nguyên nhân và Trợ lý AI chỉ thầy cô thấy.</p>${p.ai && !S.grading.has(p.id) ? aiPartsHtml(p, b) : ''}<div id="pd-assist-slot"></div>${cmtList}<div class="cmt-new"><label class="fld"><span>Viết nhận xét</span><textarea id="cm-text" class="inp" rows="3" maxlength="2000" placeholder="Viết nhận xét cho em…"></textarea></label><button class="btn btn-block" data-pd="cadd">${ic('send', 'ic-sm')}Gửi nhận xét</button></div></section>`
-    : cms.length ? `<section class="blk" id="pd-cmt"><h4>${ic('chat', 'ic-sm')}Trao đổi nhận xét <span class="n">${cms.length}</span></h4>${cmtList}</section>` : '';
+    ? `<section class="blk pd-cmt" id="pd-cmt" aria-label="Nhận xét riêng của giáo viên">
+      <header class="pd-review-heading"><h4>Nhận xét riêng của giáo viên</h4><p class="meta">Nhận xét và điểm số không xuất hiện ở liên kết chia sẻ.</p></header>
+      <div id="pd-assist-slot"></div>
+      ${p.ai && !S.grading.has(p.id) ? `<details class="pd-review-history"><summary>${ic('sparkles','ic-sm')} Xem kết quả AI chấm và lỗi sai từng câu</summary>${aiPartsHtml(p, b)}</details>` : ''}
+      <div class="pd-review-manual"><label class="fld"><span>Viết nhận xét</span><textarea id="cm-text" class="inp" rows="3" maxlength="2000" placeholder="Viết nhận xét và gợi ý cách sửa cho học sinh…"></textarea></label><button type="button" class="btn btn-block" data-pd="cadd">Gửi nhận xét</button></div>
+      ${cms.length ? `<details class="pd-review-history pd-comment-history"><summary>Nhận xét đã gửi (${cms.length})</summary>${cmtList}</details>` : ''}
+      ${!S.grading.has(p.id) ? `<div class="pd-score-manual"><label class="fld"><span>Điểm / ${max}</span><input id="td-score" type="number" inputmode="decimal" step="0.25" min="0" max="${max}" value="${esc(isNum(p.teacher?.score) ? p.teacher.score : '')}" placeholder="Nhập điểm"></label><button type="button" class="btn btn-ghost" data-pd="save-score">Lưu điểm</button></div>
+      <p class="form-err" id="td-err" role="alert"></p>
+      <details class="pd-review-history pd-review-extra"><summary>${ic('clipck','ic-sm')} Chốt điểm kèm nhận xét riêng</summary><div class="pd-review-extra-body">
+        <label class="fld"><span>Nhận xét chốt của giáo viên</span><textarea id="td-note" rows="4" placeholder="Nhập nhận xét cuối cùng của thầy cô…">${esc(p.teacher?.note ?? (p.ai ? aiComment(p.ai) : ''))}</textarea></label>
+        ${p.ai ? `<button type="button" class="btn btn-sm btn-ai" data-pd="ai-note">✨ Lấy lại nhận xét của AI</button>` : ''}
+        <button type="button" class="btn btn-navy btn-block" data-pd="approve">${ic('check')} Duyệt điểm và nhận xét</button></div></details>
+      <button type="button" class="btn btn-danger btn-block pd-review-delete" data-pd="delete">${ic('trash','ic-sm')} Xóa bài này</button>` : ''}
+      </section>`
+    : cms.length ? `<section class="blk" id="pd-cmt"><h4>${ic('chat','ic-sm')}Trao đổi nhận xét <span class="n">${cms.length}</span></h4>${cmtList}</section>` : '';
   const ai = p.ai;
   const grading = S.grading.has(p.id);
   const fs = finalScore(p);
@@ -4386,8 +4453,8 @@ function drawSide() {
   el.innerHTML = `
     <div class="pd-who"><div><h3>${esc(p.studentName)}</h3><p class="meta">${timeAgo(p.createdAt)} · ${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}${p.aiAt ? ' · AI chấm ' + timeAgo(p.aiAt) : ''}</p></div><div class="row-gap" style="align-items:center">${gv ? `<button class="preact${(tmeta(p).likes || []).includes(S.meId) ? ' on' : ''}" data-pd="like" aria-label="Thích bài">${ic((tmeta(p).likes || []).includes(S.meId) ? 'heart-f' : 'heart', 'ic-sm')}${(tmeta(p).likes || []).length || ''}</button>` : ''}${chip(p)}</div></div>
     ${detail.err ? `<p class="warnline">${esc(detail.err)}</p>` : ''}
-    ${main}
-    ${gv && !grading ? `<section class="tbox"><h4 style="font-size:14px">Giáo viên duyệt</h4><div class="grid2"><label class="fld"><span>Điểm chốt (0–${max})</span><input id="td-score" type="number" inputmode="decimal" step="0.25" min="0" max="${max}" value="${esc(isNum(p.teacher?.score) ? p.teacher.score : ai ? ai.diem : '')}"></label></div><label class="fld"><span>Nhận xét${ai && p.teacher?.note == null ? ' <em>(AI đã viết sẵn, thầy cô sửa nếu cần)</em>' : ''}</span><textarea id="td-note" rows="${ai ? 7 : 3}" placeholder="Ví dụ: Cẩn thận khi mở ngoặc nhé!">${esc(p.teacher?.note ?? (ai ? aiComment(ai) : ''))}</textarea></label>${ai ? `<button type="button" class="btn btn-sm btn-ai" data-pd="ai-note" style="justify-self:start">✨ Lấy lại nhận xét của AI</button>` : ''}<p class="form-err" id="td-err"></p><div class="row-between"><button class="btn btn-sm btn-danger" data-pd="delete">${ic('trash', 'ic-sm')}Xóa bài</button><button class="btn btn-navy" data-pd="approve">${ic('check')}Duyệt điểm và nhận xét</button></div></section>` : ''}
+    ${gv ? (grading ? main : "") : main}
+
     ${cmtHtml}
     <div class="row-between">${canGrade ? `<button class="btn ${ai ? 'btn-ghost' : 'btn-brand'}" data-pd="grade">${ic('spark')}${ai ? 'Chấm lại bằng AI' : 'Chấm bằng AI'}</button>` : '<span></span>'}<button class="btn btn-ghost" data-pd="close">Đóng</button></div>`;
   if (dirty) { if (keepNote != null && $('#td-note', el)) $('#td-note', el).value = keepNote; if (keepScore != null && $('#td-score', el)) $('#td-score', el).value = keepScore; }
@@ -4439,7 +4506,7 @@ async function detailAct(a, src) {
   if (a === 'close') return detail.m.close();
   if (a === 'airtab') { const i = +src.dataset.i; detail.airTab = i; const box = $('#pd-air', detail.m.el); $$('[role=tab]', box).forEach((t, k) => t.setAttribute('aria-selected', String(k === i))); $$('.air-panel', box).forEach((x, k) => (x.hidden = k !== i)); return; }
   if (a === 'go-air') { $('#pd-air', detail.m.el)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
-  if (a === 'ai-use-score') { const inp = $('#td-score', detail.m.el); if (inp && p.ai) { inp.value = p.ai.diem; detail.dirty = true; inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); inp.focus({ preventScroll: true }); toast('Đã điền điểm AI đề xuất. Bấm Duyệt điểm và nhận xét để lưu.'); } return; }
+  if (a === 'ai-use-score') { const inp = $('#td-score', detail.m.el); if (inp && p.ai) { inp.value = p.ai.diem; detail.dirty = true; inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); inp.focus({ preventScroll: true }); toast('Đã điền điểm AI đề xuất. Hãy kiểm tra và bấm Lưu điểm để xác nhận.'); } return; }
   if (a === 'ai-ex-note') { const box = $('#cm-text', detail.m.el); if (box && p.ai) { const t = 'Bài tập luyện thêm cho em:\n' + airExercises(p.ai).map((x, i) => (i + 1) + ') ' + x.de).join('\n'); box.value = box.value.trim() ? box.value.trim() + '\n\n' + t : t; box.scrollIntoView({ behavior: 'smooth', block: 'center' }); box.focus({ preventScroll: true }); } return; }
   if (a === 'stop') { ctlOf.get(id)?.abort(); return; }
   if (a === 'grade') return runGrade(id);
@@ -4454,6 +4521,22 @@ async function detailAct(a, src) {
   }
   if (a === 'cdel') { const cid = src?.dataset.cid; await patchTeacher(p, { comments: (tmeta(p).comments || []).filter((c) => c.id !== cid) }); return; }
   if (a === 'ai-note') { const t = $('#td-note', detail.m.el); if (t && p.ai) { t.value = aiComment(p.ai); detail.dirty = true; t.focus(); } return; }
+  if (a === 'save-score') {
+    const inp = $('#td-score', detail.m.el), err = $('#td-err', detail.m.el);
+    if (!inp) return;
+    const max = b.assignment?.maxScore || 10;
+    const raw = inp.value.trim().replace(',', '.');
+    const sc = Number(raw);
+    if (!raw || !Number.isFinite(sc) || sc < 0 || sc > max) {
+      if (err) err.textContent = 'Điểm phải nằm trong khoảng từ 0 đến ' + max + '.';
+      inp.focus(); return;
+    }
+    if (err) err.textContent = '';
+    const value = Math.round(sc * 4) / 4;
+    const ok = await savePost({ ...p, teacher: { ...(p.teacher || {}), score: value, approvedAt: now(), by: S.meId } });
+    if (ok) { detail.dirty = false; toast('Đã lưu điểm ' + fmt(value) + '/' + max + ' cho ' + p.studentName + '.'); }
+    return;
+  }
   if (a === 'approve') {
     const max = b.assignment?.maxScore || 10;
     const raw = $('#td-score', detail.m.el).value.replace(',', '.');
@@ -4513,7 +4596,7 @@ function assistMount(p) {
     id: p.id, el: document.createElement('section'), step: 0,
     ctx: { ...asDefaults(b), ...(saved?.ctx || {}) }, media: saved?.media !== false, draft: '',
     a: asLocal(saved?.a || null), base: canon(saved), busy: '', pending: '', err: '', msg: '', conn: '',
-    ext: false, dirty: false, att: { ex: '', resp: '', ev: '', verdict: '' }, ctl: null, open: { ctx: !saved },
+    ext: false, dirty: false, att: { ex: '', resp: '', ev: '', verdict: '' }, ctl: null, open: { ctx: true },
   };
   as.el.className = 'as';
   as.el.setAttribute('aria-label', 'Trợ lý AI cho bài làm');
@@ -4829,7 +4912,7 @@ function asHtml(as) {
       ${saved.history?.length ? `<details class="as-sub"><summary>Lịch sử nhận xét đã duyệt (${saved.history.length} phiên bản)</summary><div class="as-hist">${[...saved.history].reverse().map((h) => `<article><strong>${esc(h.review?.byName || '')} · ${when(h.review?.at)}</strong><p>${esc(h.review?.feedback || '')}</p><small>${h.practice?.attempts?.length || 0} lượt luyện tập đã kiểm tra</small></article>`).join('')}</div></details>` : ''}`;
   }
   return `<div class="as-head"><span class="as-icon">${ic('sparkles')}</span><div><h3>Trợ lý AI cho bài làm</h3><p>Phát hiện lỗi · Kiểm chứng nguyên nhân · Luyện tập · Tiến bộ</p></div><span class="as-chip${approved ? ' is-resolved' : ''}">${approved ? 'Giáo viên đã duyệt' : 'Giáo viên quyết định'}</span></div>
-    <div class="as-prov"><label class="as-lbl">Chọn AI cho bài làm<select data-asf="prov" ${dis(busy)}><option value="google" ${aiProv() === 'google' ? 'selected' : ''}>Gemini · Google (không cần khóa API)</option>${CAP.aiReady ? `<option value="server" ${aiProv() === 'server' ? 'selected' : ''}>Gemini · khóa chung của hệ thống</option>` : ''}${KEY_PROVS.filter(hasKey).map((k) => `<option value="${k}" ${aiProv() === k ? 'selected' : ''}>${PROV_LABEL[k]} · ${esc(provModel(k))}</option>`).join('')}</select></label>
+    <div class="as-prov"><label class="as-lbl">Chọn AI cho bài làm<select data-asf="prov" ${dis(busy)}><option value="google" ${aiProv() === 'google' ? 'selected' : ''}>Gemini · Google</option>${CAP.aiReady ? `<option value="server" ${aiProv() === 'server' ? 'selected' : ''}>Gemini · khóa chung của hệ thống</option>` : ''}${KEY_PROVS.filter(hasKey).map((k) => `<option value="${k}" ${aiProv() === k ? 'selected' : ''}>${PROV_LABEL[k]} · ${esc(provModel(k))}</option>`).join('')}</select></label>
       <button type="button" class="btn btn-sm as-btn" data-act="ai-connect">${ic('spark', 'ic-sm')}Kết nối ChatGPT, Claude, Gemini</button>
       <p class="as-help">${aiProv() === 'google' ? 'Kết nối giống Hệ sinh thái 4.0: trình duyệt của thầy cô gọi Gemini qua Google Firebase, được Firebase App Check xác minh trang, không cần dán khóa API.' : aiProv() === 'server' ? 'AI chạy trên máy chủ Tường AI bằng khóa chung do Quản trị hệ thống cài đặt.' : 'Dùng tài khoản ' + PROV_INFO[aiProv()].short + ' của riêng thầy cô (mô hình ' + esc(provModel()) + '). Trình duyệt gửi thẳng tới ' + PROV_INFO[aiProv()].short + '.'}</p>
       <p class="as-help">Khi bấm gửi, nội dung bài, ảnh bài làm (nếu chọn gửi kèm) và lịch sử trao đổi của bài này được gửi tới AI đã chọn. Giáo viên kiểm tra nhận xét và quyết định điểm.</p></div>
