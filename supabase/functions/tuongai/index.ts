@@ -186,6 +186,27 @@ const publicBoard = (b: any) => ({
 });
 // Phần Trợ lý AI (chat, giả thuyết nguyên nhân, đáp án luyện tập) là ghi chú riêng của giáo viên: không gửi cho học sinh.
 const forStudent = (t: any) => { if (!t || typeof t !== "object") return t ?? null; const { assist: _a, ...rest } = t; return rest; };
+
+/* Học sinh chỉ nhận đề + gợi ý; tuyệt đối không đưa expectedAnswer,
+   successCriteria, lịch sử AI hoặc khóa vào dữ liệu gửi tới trình duyệt. */
+function studentPracticeSets(post: any) {
+  const assist = post?.teacher?.assist || {};
+  const sets: any[] = [];
+  const add = (id: string, kind: string, title: string, pack: any) => {
+    if (!pack || pack.status !== "assigned") return;
+    const exercises = (Array.isArray(pack.exercises) ? pack.exercises : [])
+      .slice(0, 18).map((x: any) => ({
+        id: txt(x?.id, 100), question: txt(x?.question, 2000),
+        hint: txt(x?.hint, 1200), difficulty: txt(x?.difficulty, 30),
+      })).filter((x: any) => x.id && x.question);
+    if (exercises.length) sets.push({ id, kind, title, instructions: txt(pack.instructions, 2000), exercises });
+  };
+  const sim = assist.similar;
+  if (sim?.status === "assigned") add(String(sim.id || ("similar-" + (sim.approvedAt || sim.at || "legacy"))), "similar", "Bài tập tương tự", sim);
+  const pr = assist.a?.practice;
+  if (pr?.status === "assigned") add(String(pr.id || ("practice-" + pr.assignedAt)), "practice", "Luyện tập theo lỗi đã sửa", pr);
+  return sets;
+}
 const publicPost = (p: any) => ({
   id: p.id, board_id: p.board_id, column_id: p.column_id, student_name: p.student_name, student_class: p.student_class,
   by: p.by, body: p.body, images: p.images, ai: p.ai, ai_at: p.ai_at, teacher: forStudent(p.teacher), created_at: p.created_at,
@@ -282,8 +303,53 @@ async function handle(req: Request) {
       const token = str(body.token, 80);
       if (token.length < 16) return { posts: [], urls: {} };
       const { data } = await db.from("posts").select("*").eq("board_id", b.id).eq("student_token", token).order("created_at", { ascending: false });
-      const posts = (data || []).map(publicPost);
+      const posts = (data || []).map((p: any) => ({ ...publicPost(p), practice: studentPracticeSets(p) }));
+      const ids = posts.map((p: any) => p.id);
+      let submitted: any[] = [];
+      if (ids.length) {
+        const { data: rows, error: subErr } = await db.from("practice_submissions")
+          .select("post_id,set_id,exercise_id,response,submitted_at").in("post_id", ids);
+        if (subErr) throw new Fail("server", "Không tải được bài luyện tập đã nộp.", 500);
+        submitted = rows || [];
+      }
+      const grouped = new Map<string, any[]>();
+      for (const entry of submitted) grouped.set(entry.post_id, [...(grouped.get(entry.post_id) || []), entry]);
+      for (const post of posts) post.practice_submissions = grouped.get(post.id) || [];
       return { posts, urls: await signed(posts.flatMap((p: any) => (p.images || []).map((i: any) => i.path)).filter(Boolean)) };
+    }
+    case "student_practice_submit": {
+      // Không tin set/exercise do trình duyệt gửi. Ràng buộc với bài của token học sinh.
+      const b = await boardByCode(body.code);
+      const token = str(body.token, 80), postId = str(body.post_id, 60);
+      const setId = str(body.set_id, 100), exerciseId = str(body.exercise_id, 100);
+      const response = str(body.response, 8000);
+      if (token.length < 16) throw new Fail("bad_token", "Phiên học sinh không hợp lệ. Hãy vào lại lớp.", 403);
+      if (!response.trim()) throw new Fail("empty", "Em cần nhập bài làm trước khi nộp.");
+      const { data: post } = await db.from("posts").select("*").eq("id", postId)
+        .eq("board_id", b.id).eq("student_token", token).eq("by", "hs").maybeSingle();
+      if (!post) throw new Fail("forbidden", "Em chỉ có thể làm bài luyện tập được giao cho mình.", 403);
+      const valid = studentPracticeSets(post).some((set: any) => set.id === setId &&
+        set.exercises.some((ex: any) => ex.id === exerciseId));
+      if (!valid) throw new Fail("not_assigned", "Bài luyện tập này không còn được giao. Hãy tải lại trang.", 403);
+      const { data, error } = await db.from("practice_submissions").upsert({
+        post_id: post.id, set_id: setId, exercise_id: exerciseId, response,
+        submitted_at: new Date().toISOString(),
+      }, { onConflict: "post_id,set_id,exercise_id" })
+        .select("set_id,exercise_id,response,submitted_at").single();
+      if (error) throw new Fail("server", "Không lưu được bài luyện tập: " + error.message, 500);
+      return { submission: data, message: "Đã nộp bài luyện tập. Giáo viên sẽ xem và nhận xét." };
+    }
+    case "practice_submissions_teacher": {
+      const u = needActive(me);
+      const postId = str(body.post_id, 60);
+      const { data: post } = await db.from("posts").select("id,owner").eq("id", postId).maybeSingle();
+      if (!post || (post.owner !== u.id && u.role !== "admin"))
+        throw new Fail("forbidden", "Không có quyền xem bài luyện tập.", 403);
+      const { data, error } = await db.from("practice_submissions")
+        .select("post_id,set_id,exercise_id,response,submitted_at")
+        .eq("post_id", post.id).order("submitted_at", { ascending: false });
+      if (error) throw new Fail("server", "Chưa lấy được bài luyện tập đã nộp.", 500);
+      return { submissions: data || [] };
     }
     case "student_submit": {
       const b = await boardByCode(body.code);
