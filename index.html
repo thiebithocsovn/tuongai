@@ -3301,6 +3301,7 @@ function postCard(p, studentView) {
   const approved = !!tm.approvedAt;
   const aiLabel = grading ? '✨ AI đang phân tích…'
     : gv ? '✨ Phân tích AI' + (approved ? ' · Đã duyệt' : p.ai ? ' · Chờ duyệt' : '')
+    : p.practice?.length ? '📚 Làm bài luyện tập (' + p.practice.reduce((n, v) => n + (v.exercises?.length || 0), 0) + ' bài)'
     : p.ai || tm.note ? '✨ Xem nhận xét' : 'Xem bài đã nộp';
   const color = postColor(p);
   const time = p.createdAt ? new Date(p.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date(p.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }).replace(/\//g, '-') : 'Đang đồng bộ';
@@ -4548,7 +4549,7 @@ async function studentPracticeRefresh(id) {
     for (const row of data.posts || []) S.posts.set(row.id, rowToPost(row, g.id));
     refreshDetail();
   } catch (e) {
-    if (detail?.id === id) { detail.studentError = aiMsg(e); refreshDetail(); }
+    if (detail?.id === id) { detail.studentError = aiMsg(e); drawSide(); }
   }
 }
 async function studentPracticeSubmit(key) {
@@ -4560,10 +4561,10 @@ async function studentPracticeSubmit(key) {
   const box = [...original.m.el.querySelectorAll('[data-st-pr-answer]')].find((el) => el.dataset.stPrAnswer === key);
   const response = (box?.value || '').trim();
   if (!ex) return;
-  if (!response) { original.studentError = 'Em hãy nhập bài làm trước khi nộp.'; refreshDetail(); return; }
+  if (!response) { original.studentError = 'Em hãy nhập bài làm trước khi nộp.'; drawSide(); return; }
   original.studentDrafts[key] = response;
   original.studentBusy = key; original.studentError = '';
-  refreshDetail();
+  drawSide();
   try {
     const result = await api('student_practice_submit', { code: b.code, token: S.guest.token,
       post_id: p.id, set_id: set.id, exercise_id: ex.id, response });
@@ -4575,7 +4576,7 @@ async function studentPracticeSubmit(key) {
   } catch(e) {
     if (detail === original) original.studentError = aiMsg(e);
   } finally {
-    if (detail === original) { original.studentBusy = ''; refreshDetail(); }
+    if (detail === original) { original.studentBusy = ''; drawSide(); }
   }
 }
 /* ================= Kết quả AI chấm bài trong mục nhận xét (chỉ giáo viên) =================
@@ -5054,7 +5055,7 @@ async function asAct(as, a, t) {
       as.similar = next;
       if (!await asPersist(as, { similar: next })) throw new Error('Chưa lưu được bộ bài tập đã duyệt.');
       as.similarDirty = false;
-      as.msg = 'Đã duyệt bộ bài. Bấm Sao chép hoặc Tải phiếu để giao cho học sinh; đáp án vẫn chỉ ở phần giáo viên.';
+      as.msg = 'Đã duyệt và giao bài. Học sinh mở bài đã nộp sẽ thấy đề, hướng dẫn và ô làm bài ngay bên dưới. Đáp án vẫn chỉ giáo viên xem được.';
     });
     case 'similar-new':
       as.similar = { ...asSimilarDefaults(), mode: as.similar.mode, topic: as.similar.topic,
@@ -5086,7 +5087,7 @@ async function asAct(as, a, t) {
       const next = { ...asNorm(as.a), practice: { ...clone(pr), status: 'assigned', assignedAt: now() } };
       as.a = asLocal(next); as.dirty = false;
       await asPersist(as, { a: next });
-      as.msg = 'Đã giao luyện tập. Tải hoặc sao chép phiếu để gửi riêng cho học sinh.';
+      as.msg = 'Đã giao luyện tập. Học sinh mở lại bài đã nộp để làm trực tiếp, hoặc thầy cô tải phiếu để gửi.';
     });
     case 'dl-sheet': {
       const url = URL.createObjectURL(new Blob([asSheet(p, as.a)], { type: 'text/plain;charset=utf-8' }));
@@ -5192,12 +5193,12 @@ function asSimilarHtml(as) {
       </article>`).join('')}
       ${!assigned ? `<label class="as-chk as-similar-check"><input type="checkbox" data-asf="sim.reviewed" ${v.reviewed ? 'checked' : ''} ${lock ? 'disabled' : ''}>Tôi đã kiểm tra và chịu trách nhiệm về đề bài, đáp án, tiêu chí do AI tạo.</label>
       <div class="as-row"><button type="button" class="btn as-btn" data-as="similar-save" ${lock}>${ic('save')}Lưu bản nháp</button>
-      <button type="button" class="btn as-primary" data-as="similar-approve" ${lock || !v.reviewed ? 'disabled' : ''}>${ic('clipck')}Duyệt bộ bài</button></div>
-      <p class="as-help">Bộ bài chưa tự gửi cho học sinh. Sau khi duyệt, thầy cô sao chép hoặc tải phiếu để giao.</p>` :
+      <button type="button" class="btn as-primary" data-as="similar-approve" ${lock || !v.reviewed ? 'disabled' : ''}>${ic('clipck')}Duyệt và giao cho học sinh</button></div>
+      <p class="as-help">Chỉ khi thầy cô duyệt, học sinh mở bài đã nộp mới thấy bài tập và nộp lời giải ngay dưới từng đề.</p>` :
       `<div class="as-row"><button type="button" class="btn as-primary" data-as="similar-copy">${ic('copy')}Sao chép phiếu bài tập</button>
       <button type="button" class="btn as-btn" data-as="similar-download">${ic('download')}Tải phiếu .txt</button>
       <button type="button" class="btn as-btn" data-as="similar-new" ${lock ? 'disabled' : ''}>${ic('plus')}Tạo bộ khác</button></div>
-      <p class="as-help">Phiếu xuất chỉ gồm đề và gợi ý, không kèm đáp án. Chưa tự gửi cho học sinh; giáo viên chủ động giao.</p>`}
+      <p class="as-help">Phiếu xuất chỉ gồm đề và gợi ý, không kèm đáp án. Học sinh cũng có thể mở bài đã nộp trên Tường AI để làm và nộp trực tiếp.</p>`}
     </div>` : ''}
   </section>`;
 }
@@ -5306,7 +5307,7 @@ function asHtml(as) {
             <details class="as-sub"><summary>Đáp án và tiêu chí riêng của giáo viên</summary><label class="as-lbl">Đáp án mẫu<textarea data-asf="ex.${esc(e.id)}.expectedAnswer" rows="3" maxlength="2000" ${ed}>${esc(e.expectedAnswer)}</textarea></label><label class="as-lbl">Tiêu chí khắc phục lỗi<textarea data-asf="ex.${esc(e.id)}.successCriteria" rows="2" maxlength="1200" ${ed}>${esc(e.successCriteria)}</textarea></label></details>
           </article>`).join('')}
           <div class="as-row">${!assigned ? `<button type="button" class="btn as-btn" data-as="save-prac" ${dis(lock)}>${ic('save')}Lưu luyện tập nháp</button><button type="button" class="btn as-primary" data-as="assign" ${dis(lock)}>${ic('check')}Duyệt và giao luyện tập</button>` : `<button type="button" class="btn as-primary" data-as="dl-sheet">${ic('download')}Tải phiếu cho học sinh</button><button type="button" class="btn as-btn" data-as="copy-sheet">${ic('copy')}Sao chép phiếu luyện tập</button><button type="button" class="btn as-btn" data-as="step" data-i="3">${ic('trend')}Ghi nhận tiến bộ</button>`}</div>
-          <p class="as-help">“Giao luyện tập” lưu phiên bản thầy cô đã duyệt. Tải hoặc sao chép phiếu rồi gửi riêng cho học sinh; em làm xong nộp lại trên bảng hoặc gửi thầy cô. Đáp án mẫu được giữ riêng.</p>` : ''}</div>`;
+          <p class="as-help">“Giao luyện tập” lưu phiên bản đã duyệt. Học sinh mở bài đã nộp sẽ thấy đề và ô làm bài bên dưới để nộp trực tiếp. Thầy cô vẫn có thể tải hoặc sao chép phiếu; đáp án mẫu được giữ riêng.</p>` : ''}</div>`;
     }
   } else {
     const pr = x?.practice; const exSel = pr?.exercises.find((e) => e.id === as.att.ex);
