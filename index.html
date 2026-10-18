@@ -5044,7 +5044,7 @@ function asSimilarHtml(as) {
   const p = getPost(as.id), b = getBoard(p.boardId), v = as.similar;
   const lock = !!as.busy || as.ext, assigned = v.status === 'assigned';
   const off = lock || !aiOn(), ed = lock || assigned ? 'disabled' : '';
-  const modeNames = { topic: 'Theo chủ đề', content: 'Theo nội dung', type: 'Theo dạng bài' };
+  const modeNames = { topic: 'theo chủ đề', content: 'theo nội dung', type: 'theo dạng bài' };
   const choices = [['topic', 'Cùng chủ đề', 'Mạch kiến thức tương tự'],
     ['content', 'Tương tự nội dung', 'Thay dữ kiện, ngữ cảnh'],
     ['type', 'Cùng dạng bài', 'Giữ cách giải, đổi đề']];
