@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Tường AI: giáo viên chụp bài, học sinh nộp bài bằng điện thoại, AI chấm điểm, chỉ lỗi sai và gợi ý luyện tập.">
+<meta name="description" content="Tường học tập AI - Truy gốc lỗi (Learning Wall AI – Error Root Tracer): Giáo viên chụp bài, học sinh nộp bài, AI phân tích, truy gốc lỗi sai và hướng dẫn luyện tập.">
+<meta property="og:title" content="Tường học tập AI - Truy gốc lỗi | Learning Wall AI – Error Root Tracer">
+<meta property="og:description" content="Nền tảng học tập hỗ trợ AI phân tích nguyên nhân lỗi sai và định hướng luyện tập cho học sinh.">
 <meta name="theme-color" content="#f6eee2">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%20focusable%3D%22false%22%3E%3Cpath%20d%3D%22M3%2037.5Q13.5%2033%2024%2037.5Q34.5%2033%2045%2037.5V45Q34.5%2040.5%2024%2045Q13.5%2040.5%203%2045Z%22%20fill%3D%22%23e8553f%22/%3E%3Cpath%20d%3D%22M5.5%2036.5Q14.5%2032.6%2024%2036.4V42.6Q14.5%2038.8%205.5%2042.6Z%22%20fill%3D%22%23fff%22/%3E%3Cpath%20d%3D%22M42.5%2036.5Q33.5%2032.6%2024%2036.4V42.6Q33.5%2038.8%2042.5%2042.6Z%22%20fill%3D%22%23e8f1ff%22/%3E%3Cpath%20d%3D%22M3%2045Q13.5%2040.5%2024%2045Q34.5%2040.5%2045%2045V46.6Q34.5%2042.2%2024%2046.6Q13.5%2042.2%203%2046.6Z%22%20fill%3D%22%232f6fd0%22/%3E%3Cpath%20d%3D%22M13%2010.5L11.2%202.8L18.6%207.4Z%22%20fill%3D%22%231d63b8%22/%3E%3Cpath%20d%3D%22M35%2010.5L36.8%202.8L29.4%207.4Z%22%20fill%3D%22%231d63b8%22/%3E%3Cpath%20d%3D%22M12%2016.5Q12%206%2024%206Q36%206%2036%2016.5V27Q36%2036%2024%2036Q12%2036%2012%2027Z%22%20fill%3D%22%232a8fd0%22/%3E%3Cpath%20d%3D%22M14.5%2013Q17%207.5%2024%207.4Q20%209%2018%2014Z%22%20fill%3D%22%235cc3dc%22%20opacity%3D%22.8%22/%3E%3Cpath%20d%3D%22M12.6%2020Q9.4%2026%2012.6%2032.5Q15%2026%2012.6%2020Z%22%20fill%3D%22%231a5fb0%22/%3E%3Cpath%20d%3D%22M35.4%2020Q38.6%2026%2035.4%2032.5Q33%2026%2035.4%2020Z%22%20fill%3D%22%231a5fb0%22/%3E%3Cellipse%20cx%3D%2224%22%20cy%3D%2227.6%22%20rx%3D%227.4%22%20ry%3D%226.8%22%20fill%3D%22%23c8eef3%22/%3E%3Cpath%20d%3D%22M19.6%2025.6q2.2%202%204.4%200q2.2%202%204.4%200M19.6%2029.4q2.2%202%204.4%200q2.2%202%204.4%200%22%20stroke%3D%22%237fc7d3%22%20stroke-width%3D%221%22%20fill%3D%22none%22/%3E%3Ccircle%20cx%3D%2218.5%22%20cy%3D%2216.2%22%20r%3D%225.6%22%20fill%3D%22%23fff%22%20stroke%3D%22%23123e73%22%20stroke-width%3D%221.2%22/%3E%3Ccircle%20cx%3D%2229.5%22%20cy%3D%2216.2%22%20r%3D%225.6%22%20fill%3D%22%23fff%22%20stroke%3D%22%23123e73%22%20stroke-width%3D%221.2%22/%3E%3Ccircle%20cx%3D%2219%22%20cy%3D%2216.6%22%20r%3D%222.7%22%20fill%3D%22%230f1b33%22/%3E%3Ccircle%20cx%3D%2229%22%20cy%3D%2216.6%22%20r%3D%222.7%22%20fill%3D%22%230f1b33%22/%3E%3Ccircle%20cx%3D%2219.9%22%20cy%3D%2215.6%22%20r%3D%22.9%22%20fill%3D%22%23fff%22/%3E%3Ccircle%20cx%3D%2229.9%22%20cy%3D%2215.6%22%20r%3D%22.9%22%20fill%3D%22%23fff%22/%3E%3Cpath%20d%3D%22M22.3%2020.4H25.7L24%2023.6Z%22%20fill%3D%22%23f5a524%22/%3E%3Cpath%20d%3D%22M20%2035.6v1.6M22%2035.6v1.6M26%2035.6v1.6M28%2035.6v1.6%22%20stroke%3D%22%23f5a524%22%20stroke-width%3D%221.4%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E">
 <style>:root{color-scheme:light}body{margin:0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}img{max-width:100%}[hidden]{display:none!important}/* ---------- kết nối AI, chân trang, hướng dẫn ---------- */
@@ -43,7 +45,7 @@
 .help p{font-size:15px;color:var(--ink-2);margin-top:2px}
 @media (max-width:760px){.prov-list{grid-template-columns:1fr}}
 </style>
-<title>Tường AI</title>
+<title>Tường học tập AI - Truy gốc lỗi | Learning Wall AI – Error Root Tracer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700&family=Nunito:wght@500;600;700;800&family=Patrick+Hand&display=swap">
@@ -1357,13 +1359,33 @@ body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
  #site-foot .sbar-in{font-size:13px}
 }
 
+/* Nhận diện thương hiệu song ngữ: rõ nét ở máy tính, gọn trên điện thoại */
+.brand{min-width:0}
+.brand>div,.side-head .brand>span{min-width:0}
+.brand b{max-width:100%;overflow-wrap:break-word;text-wrap:balance}
+.brand .brand-en{display:block;font-size:11.5px;line-height:1.3;color:var(--muted);font-weight:500;letter-spacing:.01em;margin-top:4px;overflow-wrap:anywhere}
+.side-head .brand b{font-size:15px;line-height:1.22}
+.side-head .brand .brand-en{font-size:10.5px;line-height:1.25}
+.topbar .brand b{font-size:15px;line-height:1.23}
+.topbar .brand .brand-en{font-size:10.5px}
+.auth-hero .brand b{font-size:clamp(18px,2.5vw,23px)}
+.auth-hero .brand .brand-en{font-size:13px}
+.sf-brand .brand-en{font-size:13px;color:var(--muted);margin-top:4px}
+@media(max-width:760px){
+  .side-head .brand b{font-size:13px}
+  .side-head .brand .brand-en{font-size:9px;line-height:1.2}
+  .side-head .brand .owl{width:35px;height:35px}
+  .topbar .brand b{font-size:13px}
+  .topbar .brand .brand-en{font-size:9px}
+}
+
 </style>
 </head>
 <body>
-<section id="auth" class="auth" aria-label="Đăng nhập Tường AI">
+<section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
   <div class="auth-wrap">
     <div class="auth-hero">
-      <div class="brand"><span class="logo-slot"></span><div><b>Tường Học Tập AI</b><span>Không gian cùng học</span></div></div>
+      <div class="brand"><span class="logo-slot"></span><div><b>Tường học tập AI - Truy gốc lỗi</b><span class="brand-en">Learning Wall AI – Error Root Tracer</span></div></div>
       <p class="eyebrow" style="margin:6px 0 -10px">Mỗi ý tưởng đều có một chỗ</p>
       <h1>Chụp bài, nộp bài, <span class="hl">AI chấm ngay.</span></h1>
       <p class="lede">Giáo viên chụp bài làm hoặc học sinh nộp bằng điện thoại. AI đọc cả chữ viết tay, cho điểm, chỉ đúng chỗ sai và gợi ý bài luyện thêm cho từng em.</p>
@@ -1429,7 +1451,7 @@ body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
     </div>
   </div>
   <section class="auth-metrics-wrap" aria-labelledby="landing-metrics-title">
-    <div class="auth-metrics-top"><div><p class="auth-metrics-kicker">Tường Học Tập AI · Dữ liệu thực tế</p><h2 class="auth-metrics-heading" id="landing-metrics-title">Cộng đồng học tập đang phát triển</h2></div><p class="auth-metrics-note">Thống kê tổng hợp từ hệ thống, tự động cập nhật</p></div>
+    <div class="auth-metrics-top"><div><p class="auth-metrics-kicker">Tường học tập AI - Truy gốc lỗi · Dữ liệu thực tế</p><h2 class="auth-metrics-heading" id="landing-metrics-title">Cộng đồng học tập đang phát triển</h2></div><p class="auth-metrics-note">Thống kê tổng hợp từ hệ thống, tự động cập nhật</p></div>
     <div class="auth-metrics">
       <article class="auth-metric"><div class="auth-metric-top"><span class="auth-metric-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2.2.6 3.5 2.6 3.5 6"/></svg></span><span class="auth-metric-trend">TÀI KHOẢN</span></div><strong class="auth-metric-num" data-public-metric="users">—</strong><span class="auth-metric-label">Người đăng ký</span><p class="auth-metric-caption">Tài khoản đã đăng ký trên nền tảng</p></article>
       <article class="auth-metric green"><div class="auth-metric-top"><span class="auth-metric-icon"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3 21V9l9-6 9 6v12M9 21v-7h6v7M6 10h2M16 10h2M6 13h2M16 13h2M2 21h20"/></svg></span><span class="auth-metric-trend">ĐƠN VỊ</span></div><strong class="auth-metric-num" data-public-metric="units">—</strong><span class="auth-metric-label">Đơn vị đăng ký</span><p class="auth-metric-caption">Số tên đơn vị công tác khác nhau đã khai báo</p></article>
@@ -1440,7 +1462,7 @@ body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
 
 <section id="join" class="auth" aria-label="Vào lớp" hidden>
   <div class="join-card">
-    <div class="brand"><span class="logo-slot"></span><div><b>Tường Học Tập AI</b><span>Không gian cùng học</span></div></div>
+    <div class="brand"><span class="logo-slot"></span><div><b>Tường học tập AI - Truy gốc lỗi</b><span class="brand-en">Learning Wall AI – Error Root Tracer</span></div></div>
     <div id="join-body"></div>
   </div>
 </section>
@@ -1451,7 +1473,7 @@ body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
   <div class="main">
     <header class="topbar">
       <button class="icon-btn" data-act="drawer" aria-label="Mở menu"><span data-ic="menu"></span></button>
-      <div class="brand"><span class="logo-slot"></span><div><b>Tường Học Tập AI</b><span>Không gian cùng học</span></div></div>
+      <div class="brand"><span class="logo-slot"></span><div><b>Tường học tập AI - Truy gốc lỗi</b><span class="brand-en">Learning Wall AI – Error Root Tracer</span></div></div>
       <span id="top-av"></span>
     </header>
     <main id="view" class="view"></main>
@@ -1996,7 +2018,7 @@ async function api(action, payload = {}, signal) {
     });
   } catch (e) {
     if (e && e.name === 'AbortError') throw { code: 'cancelled' };
-    throw { code: 'network', message: 'Không kết nối được máy chủ Tường AI. Kiểm tra mạng rồi thử lại.' };
+    throw { code: 'network', message: 'Không kết nối được máy chủ Tường học tập AI. Kiểm tra mạng rồi thử lại.' };
   }
   let data = null; try { data = await res.json(); } catch (e) {}
   if (!res.ok || data?.error) throw { code: data?.error?.code || 'server', message: data?.error?.message || 'Máy chủ đang bận. Hãy thử lại sau ít phút.' };
@@ -2221,7 +2243,7 @@ let readyResolve; const ready = new Promise((r) => (readyResolve = r));
 async function init() {
   makeDemo();
   if (!window.supabase || !/^https:\/\//.test(SB_URL)) {
-    $('#store-note-t').textContent = 'Chưa kết nối được máy chủ Tường AI. Hãy tải lại trang sau ít phút.';
+    $('#store-note-t').textContent = 'Chưa kết nối được máy chủ Tường học tập AI. Hãy tải lại trang sau ít phút.';
     readyResolve(); return;
   }
   CAP.sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { storage: authStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
@@ -2244,7 +2266,7 @@ async function init() {
 }
 function updateStoreNote() {
   const t = $('#store-note-t');
-  if (t) t.textContent = 'Dữ liệu lưu trên máy chủ Tường AI. Mỗi giáo viên chỉ thấy bảng và bài của mình; học sinh chỉ thấy bài của em.';
+  if (t) t.textContent = 'Dữ liệu lưu trên máy chủ Tường học tập AI. Mỗi giáo viên chỉ thấy bảng và bài của mình; học sinh chỉ thấy bài của em.';
 }
 /* ================= mật khẩu ================= */
 /* Mật khẩu được bọc thêm tiền tố trước khi gửi, để mật khẩu ngắn như "admin" vẫn hợp lệ với máy chủ. */
@@ -2315,7 +2337,7 @@ async function restoreGuest(g) {
 const LINK_CODE = (new URLSearchParams(location.search).get('lop') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
 const shareLink = (b) => location.origin + location.pathname.replace(/index\.html$/, '') + '?lop=' + b.code;
 function joinState(icon, title, text) {
-  return `<div class="join-state">${ic(icon)}<h2>${esc(title)}</h2><p>${text}</p><p class="meta">Giáo viên? <a class="link" href="${esc(location.origin + location.pathname)}">Đăng nhập Tường AI</a></p></div>`;
+  return `<div class="join-state">${ic(icon)}<h2>${esc(title)}</h2><p>${text}</p><p class="meta">Giáo viên? <a class="link" href="${esc(location.origin + location.pathname)}">Đăng nhập Tường học tập AI</a></p></div>`;
 }
 async function showJoin(code, name, cls) {
   $('#auth').hidden = true; $('#app').hidden = true; $('#join').hidden = false;
@@ -2449,7 +2471,7 @@ async function afterSignIn(fresh) {
   if (!u?.user) return false;
   const { data: prof } = await CAP.sb.from('profiles').select('*').eq('id', u.user.id).maybeSingle();
   const err = $('#li-err');
-  if (!prof) { await CAP.sb.auth.signOut(); if (err) err.textContent = 'Tài khoản này chưa có hồ sơ trên Tường AI. Hãy đăng ký hoặc liên hệ Quản trị hệ thống.'; return false; }
+  if (!prof) { await CAP.sb.auth.signOut(); if (err) err.textContent = 'Tài khoản này chưa có hồ sơ trên Tường học tập AI. Hãy đăng ký hoặc liên hệ Quản trị hệ thống.'; return false; }
   if (prof.status !== 'active') {
     await CAP.sb.auth.signOut();
     setTab('login');
@@ -2523,7 +2545,7 @@ async function onLogin(e) {
       r = await CAP.sb.auth.signInWithPassword({ email, password: wrapPw(pw) });
     }
     if (r.error && (r.error.name === 'AuthRetryableFetchError' || r.error.status === 0 || /fetch|network/i.test(r.error.message || ''))) {
-      err.textContent = 'Không kết nối được máy chủ Tường AI. Kiểm tra mạng rồi thử lại.';
+      err.textContent = 'Không kết nối được máy chủ Tường học tập AI. Kiểm tra mạng rồi thử lại.';
       return;
     }
     if (r.error) {
@@ -2704,7 +2726,7 @@ function chip(p) {
 }
 const canManage = (b) => !!b && !b.demo && isGV() && (isAdmin() || b.ownerAcc === S.meId);
 const ownerLabel = (b) => {
-  if (b.demo) return 'Tường Học Tập AI';
+  if (b.demo) return 'Tường học tập AI - Truy gốc lỗi';
   if (b.teacherName) return b.teacherName;
   if (b.ownerAcc && b.ownerAcc === S.meId) return ME()?.name || 'Bạn';
   const o = S.members.get(b.ownerAcc);
@@ -2755,11 +2777,11 @@ function renderSide() {
   const roleLine = me.isAdmin ? 'Quản trị toàn hệ thống' : gv ? 'Không gian giáo viên' : me.className ? 'Học sinh lớp ' + me.className : 'Học sinh';
   const av = gv ? myAvatar(me) : avatar(me);
   $('#side').innerHTML = `
-    <div class="side-head"><button class="brand" data-act="tab" data-tab="${gv ? 'mine' : 'classes'}" aria-label="Về trang chính">${OWL}<span><b>Tường Học Tập AI</b><small>Không gian cùng học</small></span></button></div>
+    <div class="side-head"><button class="brand" data-act="tab" data-tab="${gv ? 'mine' : 'classes'}" aria-label="Về trang chính">${OWL}<span><b>Tường học tập AI - Truy gốc lỗi</b><small class="brand-en">Learning Wall AI – Error Root Tracer</small></span></button></div>
     <button class="icon-btn m-only acct-m" data-act="me-menu-top" aria-label="Tài khoản" title="Tài khoản">${av}</button>
     ${gv ? `<button class="btn create" data-act="new-board">${ic('plus')}Tạo bảng mới</button>` : ''}
     <nav class="nav" aria-label="Danh mục bảng">${navs.map(([k, i, t]) => `<button data-act="tab" data-tab="${k}">${ic(i)}<span>${t}</span><span class="n" data-count="${k}"></span></button>`).join('')}</nav>
-    <section class="traffic-panel" aria-label="Thống kê truy cập Tường AI">
+    <section class="traffic-panel" aria-label="Thống kê truy cập Tường học tập AI">
       <div class="traffic-head"><span class="traffic-title">HOẠT ĐỘNG HỆ THỐNG</span><span class="traffic-live off" data-traffic-live>● ĐANG KẾT NỐI</span></div>
       <div class="traffic-grid">
         <div class="traffic-cell"><span class="traffic-icon">${ic('users')}</span><strong class="traffic-number" data-traffic-online>—</strong><span class="traffic-name">Đang trực tuyến</span></div>
@@ -3652,7 +3674,7 @@ function submitForm(b, asTeacher, colId) {
 /* AI chạy trên máy chủ bằng một khóa Gemini chung do Quản trị hệ thống đặt. */
 const AI_MSG = {
   no_ai: 'Quản trị hệ thống chưa bật AI chấm bài.',
-  network: 'Không kết nối được máy chủ Tường AI. Kiểm tra mạng rồi thử lại.',
+  network: 'Không kết nối được máy chủ Tường học tập AI. Kiểm tra mạng rồi thử lại.',
   demo_guest: 'Bảng mẫu chỉ để xem thử. Bài nộp vào lớp thật sẽ được AI chấm.',
   image_missing: 'Không tải được ảnh bài làm. Hãy tải lại trang rồi thử lại.',
 };
@@ -3708,11 +3730,11 @@ function gaiError(e) {
   const st = Number(e?.status || e?.customData?.status || e?.customData?.httpStatus || 0);
   const d = (code + ' ' + msg).toLowerCase();
   const m = (c, t) => ({ code: c, message: t });
-  if (/app.?check|attestation|recaptcha|invalid.*token|missing.*token/.test(d)) return m('g_appcheck', 'Google chưa xác minh được trang Tường AI (Firebase App Check). Quản trị cần dán khóa trang reCAPTCHA của Hệ sinh thái 4.0 trong Cài đặt hệ thống, rồi thầy cô tải lại trang.');
+  if (/app.?check|attestation|recaptcha|invalid.*token|missing.*token/.test(d)) return m('g_appcheck', 'Google chưa xác minh được trang Tường học tập AI (Firebase App Check). Quản trị cần dán khóa trang reCAPTCHA của Hệ sinh thái 4.0 trong Cài đặt hệ thống, rồi thầy cô tải lại trang.');
   if (/api.?not.?enabled|service_disabled|api.*not.*used|api.*disabled|not set up/.test(d)) return m('g_disabled', 'Dự án Google của Hệ sinh thái 4.0 chưa bật Firebase AI Logic (Gemini Developer API).');
   if (st === 429 || /resource_exhausted|quota|rate.?limit|too many/.test(d)) return m('rate_limited', 'Gemini đang bận hoặc đã chạm giới hạn lượt dùng. Hãy thử lại sau ít phút.');
   if (st === 404 || /model.*not.?found|unsupported.?model/.test(d)) return m('bad_model', 'Mô hình Gemini ' + GAI_MODEL + ' hiện không dùng được.');
-  if ((st === 400 || st === 403) && /api.?key|referer|referrer/.test(d)) return m('g_key', 'Khóa công khai của dự án Google đang giới hạn tên miền nên chưa cho trang Tường AI dùng.');
+  if ((st === 400 || st === 403) && /api.?key|referer|referrer/.test(d)) return m('g_key', 'Khóa công khai của dự án Google đang giới hạn tên miền nên chưa cho trang Tường học tập AI dùng.');
   if (st === 401 || st === 403 || /permission|unauthenticated|forbidden/.test(d)) return m('g_denied', 'Google từ chối yêu cầu (401/403). Kiểm tra App Check và Firebase AI Logic của dự án Hệ sinh thái 4.0.');
   if (/blocked|safety|prohibited/.test(d)) return m('refused', 'Gemini từ chối xử lý bài này. Hãy kiểm tra lại ảnh bài làm.');
   if (/failed to fetch|network|fetch.?error|unavailable|timeout|importing a module/.test(d)) return m('network', 'Không kết nối được Gemini · Google. Kiểm tra mạng rồi thử lại.');
@@ -3926,8 +3948,8 @@ function updateFoot() {
   el.innerHTML = footerHtml(inApp ? '' : 'public');
 }
 function aboutForm() {
-  openModal({ title: 'Giới thiệu Tường Học Tập AI', body: `<div class="modal-b about">
-    <div class="sf-brand">${OWL}<div><b>Tường Học Tập AI</b><p>Không gian cùng học: chụp bài, nộp bài bằng điện thoại, AI chấm điểm, chỉ lỗi sai và gợi ý luyện tập cho từng em.</p></div></div>
+  openModal({ title: 'Giới thiệu Tường học tập AI - Truy gốc lỗi', body: `<div class="modal-b about">
+    <div class="sf-brand">${OWL}<div><b>Tường học tập AI - Truy gốc lỗi</b><p class="brand-en">Learning Wall AI – Error Root Tracer</p><p>Không gian cùng học: chụp bài, nộp bài bằng điện thoại, AI chấm điểm, truy gốc lỗi sai và gợi ý luyện tập cho từng em.</p></div></div>
     <div class="about-grid">
       <section><h4>AI chấm bài</h4><p>Gemini · ChatGPT · Claude. Chấm theo đề, đáp án của thầy cô và Chương trình GDPT 2018. Thầy cô duyệt điểm cuối cùng.</p></section>
       <section><h4>Riêng tư</h4><p>Mỗi giáo viên chỉ thấy bảng của mình. Học sinh nộp bài qua đường link, chỉ thấy bài của em. Khóa AI riêng của thầy cô không ai khác xem được.</p></section>
@@ -5021,10 +5043,10 @@ function editMemberForm(mb) {
 }
 function credBox(name, email, pw) {
   const link = location.origin + location.pathname;
-  const text = `Tài khoản Tường Học Tập AI của ${name}\nĐịa chỉ: ${link}\nEmail: ${email}\nMật khẩu tạm: ${pw}\nLần đầu đăng nhập, hãy đổi mật khẩu.`;
+  const text = `Tài khoản Tường học tập AI - Truy gốc lỗi của ${name}\nĐịa chỉ: ${link}\nEmail: ${email}\nMật khẩu tạm: ${pw}\nLần đầu đăng nhập, hãy đổi mật khẩu.`;
   const m = openModal({
     title: 'Đã thêm thành viên',
-    body: `<div class="modal-b"><p>Gửi thông tin đăng nhập này cho <b>${esc(name)}</b>. Lần đầu đăng nhập, Tường AI sẽ nhắc đổi mật khẩu.</p>
+    body: `<div class="modal-b"><p>Gửi thông tin đăng nhập này cho <b>${esc(name)}</b>. Lần đầu đăng nhập, Tường học tập AI sẽ nhắc đổi mật khẩu.</p>
       <div class="cred"><div><span>Địa chỉ</span><b>${esc(link)}</b></div><div><span>Email đăng ký</span><b>${esc(email)}</b></div><div><span>Mật khẩu tạm</span><b>${esc(pw)}</b></div></div></div>`,
     foot: `<button class="btn btn-ghost" id="cr-copy">${ic('copy')}Sao chép thông tin</button><button class="btn btn-brand" data-close>Xong</button>`,
   });
