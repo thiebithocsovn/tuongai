@@ -3783,9 +3783,11 @@ const GAI_CONFIG = {
   projectId: 'gen-lang-client-0870957273', storageBucket: 'gen-lang-client-0870957273.firebasestorage.app',
   messagingSenderId: '154715124810', appId: '1:154715124810:web:e4cb97ce2671f0ac92e2b3',
 };
-const GAI_MODEL = 'gemini-3.1-flash-lite';
+/* Dùng mô hình Gemini Firebase AI Logic đang được hỗ trợ, thử dự phòng chỉ khi mô hình không khả dụng. */
+const GAI_MODEL = 'gemini-3.5-flash-lite';
+const GAI_BACKUP_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash'];
 const K_PROV = 'tuongai.ai';
-const GAI = { ready: null, lib: null, ai: null, appCheck: null, key: '' };
+const GAI = { ready: null, lib: null, ai: null, appCheck: null, key: '', workingModel: '', unavailableModels: new Set() };
 const PROV_LABEL = { google: 'Gemini · Google', server: 'Gemini · khóa chung', gemini: 'Gemini · khóa của tôi', openai: 'ChatGPT · OpenAI', anthropic: 'Claude · Anthropic' };
 /* Nguồn AI: thầy cô mặc định dùng Gemini · Google (không cần khóa). Học sinh chỉ dùng khóa chung trên máy chủ. */
 const aiProv = () => {
@@ -3823,37 +3825,76 @@ function gaiError(e) {
   if (/app.?check|attestation|recaptcha|invalid.*token|missing.*token/.test(d)) return m('g_appcheck', 'Google chưa xác minh được trang Tường học tập AI (Firebase App Check). Quản trị cần dán khóa trang reCAPTCHA của Hệ sinh thái 4.0 trong Cài đặt hệ thống, rồi thầy cô tải lại trang.');
   if (/api.?not.?enabled|service_disabled|api.*not.*used|api.*disabled|not set up/.test(d)) return m('g_disabled', 'Dự án Google của Hệ sinh thái 4.0 chưa bật Firebase AI Logic (Gemini Developer API).');
   if (st === 429 || /resource_exhausted|quota|rate.?limit|too many/.test(d)) return m('rate_limited', 'Gemini đang bận hoặc đã chạm giới hạn lượt dùng. Hãy thử lại sau ít phút.');
-  if (st === 404 || /model.*not.?found|unsupported.?model/.test(d)) return m('bad_model', 'Mô hình Gemini ' + GAI_MODEL + ' hiện không dùng được.');
+  if (gaiModelUnavailable(e)) return m('bad_model', 'Mô hình Gemini chưa khả dụng cho dự án Google này. Hãy kiểm tra Firebase AI Logic và tên mô hình được hỗ trợ.');
   if ((st === 400 || st === 403) && /api.?key|referer|referrer/.test(d)) return m('g_key', 'Khóa công khai của dự án Google đang giới hạn tên miền nên chưa cho trang Tường học tập AI dùng.');
   if (st === 401 || st === 403 || /permission|unauthenticated|forbidden/.test(d)) return m('g_denied', 'Google từ chối yêu cầu (401/403). Kiểm tra App Check và Firebase AI Logic của dự án Hệ sinh thái 4.0.');
   if (/blocked|safety|prohibited/.test(d)) return m('refused', 'Gemini từ chối xử lý bài này. Hãy kiểm tra lại ảnh bài làm.');
   if (/failed to fetch|network|fetch.?error|unavailable|timeout|importing a module/.test(d)) return m('network', 'Không kết nối được Gemini · Google. Kiểm tra mạng rồi thử lại.');
   return m('g_error', 'Gemini · Google chưa xử lý được yêu cầu. Hãy thử lại.');
 }
-/* Gọi Gemini, trả về đối tượng JSON. Hết 90 giây hoặc bấm Dừng thì hủy. */
+/* Phân biệt model 404/không được hỗ trợ với lỗi mạng, quota và App Check. */
+function gaiModelUnavailable(e) {
+  const code = String(e?.code || ''), msg = String(e?.message || '');
+  const status = Number(e?.status || e?.customData?.status || e?.customData?.httpStatus || 0);
+  const details = (code + ' ' + msg).toLowerCase();
+  if (status === 404 || /\b404\b/.test(details)) return true;
+  if (/(?:model|models\/).*(?:not found|not supported|unavailable|does not exist|unknown|not accessible|invalid)/.test(details)) return true;
+  if (/(?:not found|not supported|unavailable|does not exist|unknown|invalid).*(?:model|models\/)/.test(details)) return true;
+  return false;
+}
+/* Gọi Gemini, trả về JSON. Toàn bộ các lần thử mô hình dùng chung giới hạn 90 giây. */
 async function gaiJson(prompt, images = [], signal) {
   if (signal?.aborted) throw { code: 'cancelled' };
   let timer, onAbort;
   try {
     const g = await gaiInit();
     if (g.appCheck) {
-      try { const t = await g.lib.getToken(g.appCheck, false); if (!t?.token) throw new Error('app check token empty'); }
-      catch (e) { throw { code: 'g_appcheck', message: gaiError({ message: 'app check' }).message }; }
+      try {
+        const t = await g.lib.getToken(g.appCheck, false);
+        if (!t?.token) throw new Error('app check token empty');
+      } catch (e) {
+        throw { code: 'g_appcheck', message: gaiError({ message: 'app check' }).message };
+      }
     }
-    const model = g.lib.getGenerativeModel(g.ai, { model: GAI_MODEL, generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 16384 } });
     const parts = [...images.map((i) => ({ inlineData: { mimeType: i.mime, data: i.data } })), { text: prompt }];
-    const res = await Promise.race([
-      model.generateContent(parts),
-      new Promise((_, reject) => { timer = setTimeout(() => reject({ code: 'network', message: 'Gemini chưa trả lời sau 90 giây. Hãy thử lại.' }), 90e3); }),
-      new Promise((_, reject) => { onAbort = () => reject({ code: 'cancelled' }); signal?.addEventListener('abort', onAbort); }),
-    ]);
-    const text = res.response.text();
-    if (!String(text || '').trim()) throw { code: 'empty_completion', message: 'Gemini không trả về nội dung. Hãy kiểm tra lại ảnh bài làm.' };
-    return parseLoose(text);
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject({ code: 'network', message: 'Gemini chưa trả lời sau 90 giây. Hãy thử lại.' }), 90e3);
+    });
+    const aborted = new Promise((_, reject) => {
+      onAbort = () => reject({ code: 'cancelled' });
+      signal?.addEventListener('abort', onAbort, { once: true });
+      if (signal?.aborted) onAbort();
+    });
+    const names = [...new Set([g.workingModel, GAI_MODEL, ...GAI_BACKUP_MODELS]
+      .filter((name) => name && !g.unavailableModels.has(name)))];
+    if (!names.length) throw { code: 'bad_model', message: 'Các mô hình Gemini của dự án Google hiện chưa khả dụng. Kiểm tra Firebase AI Logic hoặc tải lại trang để thử lại.' };
+    for (const name of names) {
+      if (signal?.aborted) throw { code: 'cancelled' };
+      try {
+        const model = g.lib.getGenerativeModel(g.ai, {
+          model: name, generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 16384 },
+        });
+        const res = await Promise.race([model.generateContent(parts), timeout, aborted]);
+        const content = res.response.text();
+        if (!String(content || '').trim()) throw { code: 'empty_completion', message: 'Gemini không trả về nội dung. Hãy kiểm tra lại ảnh bài làm.' };
+        const result = parseLoose(content);
+        g.workingModel = name;
+        return result;
+      } catch (e) {
+        if (!gaiModelUnavailable(e)) throw e;
+        g.unavailableModels.add(name);
+        if (g.workingModel === name) g.workingModel = '';
+        console.warn('Gemini Firebase: mô hình không khả dụng, thử dự phòng:', name);
+      }
+    }
+    throw { code: 'bad_model', message: 'Dự án Firebase chưa dùng được các mô hình Gemini: ' + [GAI_MODEL, ...GAI_BACKUP_MODELS].join(', ') + '. Kiểm tra Firebase AI Logic, Gemini Developer API và App Check.' };
   } catch (e) {
     if (!e?.code || e.customData || e.name === 'FirebaseError') console.warn('Gemini · Google:', e);
     throw gaiError(e);
-  } finally { clearTimeout(timer); signal?.removeEventListener('abort', onAbort); }
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+  }
 }
 function parseLoose(t) {
   try { return JSON.parse(t); } catch (e) { /* thử cách khác */ }
@@ -3891,7 +3932,7 @@ async function loadAiConn() {
 }
 const hasKey = (p) => !!S.aiConn?.keys?.[p];
 const clientProv = () => aiProv() !== 'server';
-const provModel = (p = aiProv()) => (p === 'google' ? GAI_MODEL : p === 'server' ? (CAP.aiModel || 'gemini-flash-latest') : (S.aiConn.models?.[p] || PROV_INFO[p].model));
+const provModel = (p = aiProv()) => (p === 'google' ? (GAI.workingModel || GAI_MODEL) : p === 'server' ? (CAP.aiModel || 'gemini-flash-latest') : (S.aiConn.models?.[p] || PROV_INFO[p].model));
 const aiNow = () => PROV_LABEL[aiProv()] + ' · ' + provModel();
 /* Gọi AI đang chọn, trả về đối tượng JSON (Gemini · Google qua Firebase, hoặc khóa riêng của thầy cô). */
 async function aiJson(prompt, images = [], signal) {
@@ -3979,7 +4020,7 @@ function aiConnectForm() {
   const drawDetail = () => {
     const id = draft.provider;
     if (!KEY_PROVS.includes(id)) {
-      $('#ac-detail', el).innerHTML = `<p class="info-box">${id === 'google' ? 'Giống Hệ sinh thái 4.0: trình duyệt gọi Gemini qua Google Firebase, không cần dán khóa API. Đây là kết nối mặc định.' : 'AI chạy trên máy chủ Tường AI bằng khóa Gemini chung do Quản trị hệ thống cài.'}</p><div class="row-gap"><button type="button" class="btn btn-sm btn-ai" id="ac-test">${ic('spark', 'ic-sm')}Kiểm tra kết nối</button><span class="meta" id="ac-st" role="status"></span></div>`;
+      $('#ac-detail', el).innerHTML = `<p class="info-box">${id === 'google' ? 'Giống Hệ sinh thái 4.0: trình duyệt gọi Gemini qua Google Firebase, không cần dán khóa API. Đây là kết nối mặc định; nếu mô hình Gemini không khả dụng, hệ thống sẽ thử mô hình dự phòng được Google hỗ trợ.' : 'AI chạy trên máy chủ Tường AI bằng khóa Gemini chung do Quản trị hệ thống cài.'}</p><div class="row-gap"><button type="button" class="btn btn-sm btn-ai" id="ac-test">${ic('spark', 'ic-sm')}Kiểm tra kết nối</button><span class="meta" id="ac-st" role="status"></span></div>`;
     } else {
       const info = PROV_INFO[id];
       $('#ac-detail', el).innerHTML = `<div class="prov-box">
@@ -4002,7 +4043,7 @@ function aiConnectForm() {
         if (id === 'google') await gaiJson(ping, []);
         else if (id === 'server') await api('assist', { kind: 'ping' });
         else parseLoose(await callAI({ provider: id, key: draft.keys[id], model: draft.models[id] || PROV_INFO[id].model }, ping, []));
-        st.textContent = '✓ Kết nối được.'; st.className = 'meta ok';
+        st.textContent = '✓ Kết nối được' + (id === 'google' ? ' · ' + provModel('google') : '') + '.'; st.className = 'meta ok';
       } catch (e) { st.textContent = ''; err.textContent = aiMsg(e); }
       finally { btn.disabled = false; drawList(); }
     };
