@@ -1535,6 +1535,10 @@ body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
 .as-submitted-item p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.55}
 @media(max-width:580px){.student-practice{padding:12px}.student-practice-ex{padding:12px}.student-practice-question{font-size:14.5px}}
 
+.share-check{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.share-check .btn{min-height:34px}
+#sh-test-result:empty{display:none}
+#sh-test-result{font-size:12px;line-height:1.5;margin:4px 0}
 </style>
 </head>
 <body>
@@ -2400,8 +2404,12 @@ let readyResolve; const ready = new Promise((r) => (readyResolve = r));
 async function init() {
   makeDemo();
   if (!window.supabase || !/^https:\/\//.test(SB_URL)) {
-    $('#store-note-t').textContent = 'Chưa kết nối được máy chủ Tường học tập AI. Hãy tải lại trang sau ít phút.';
-    readyResolve(); return;
+    $('#store-note-t').textContent = 'Chưa tải được thư viện đăng nhập giáo viên. Chế độ vào lớp bằng liên kết vẫn có thể dùng nếu máy chủ sẵn sàng.';
+    readyResolve();
+    // Học sinh không cần Supabase Auth SDK; API học sinh gọi Edge Function bằng fetch.
+    // Nếu CDN bị chặn trên điện thoại, vẫn phải hiển thị trang vào lớp thay vì màn hình đăng nhập giáo viên.
+    if (LINK_CODE && /^https:\/\//.test(SB_URL)) { showJoin(LINK_CODE, '', ''); }
+    return;
   }
   CAP.sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { storage: authStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
   startSiteTraffic();
@@ -2411,7 +2419,7 @@ async function init() {
   if (LINK_CODE) {
     let g = null; try { g = JSON.parse(SS.get(K_GUEST) || 'null'); } catch (x) {}
     if (g && g.id && g.name && Array.isArray(g.codes) && g.codes.includes(LINK_CODE)) {
-      try { await restoreGuest(g); return; } catch (x) { SS.del(K_GUEST); }
+      try { if (await restoreGuest(g, LINK_CODE)) return; } catch (x) { SS.del(K_GUEST); }
     }
     showJoin(LINK_CODE, g?.name || '', g?.className || '');
     return;
@@ -2485,10 +2493,14 @@ function enterGuest(g, boardId) {
   S.view = boardId ? { name: 'board', boardId, tab: 'classes', q: '' } : { name: 'home', tab: 'classes', q: '' };
   renderSide(); render(); window.scrollTo(0, 0);
 }
-async function restoreGuest(g) {
+async function restoreGuest(g, preferredCode = '') {
   const guest = { ...g, role: 'hs', guest: true, joined: [], codes: [] };
   for (const c of g.codes) { try { await addGuestBoard(guest, c); } catch (x) { /* lớp đã bị xóa hoặc tạm dừng */ } }
-  enterGuest(guest, null);
+  const target = preferredCode ? [...S.boards.values()].find((b) => b.code === preferredCode && guest.joined.includes(b.id)) : null;
+  // Không dẫn học sinh quay về trang chủ khi em mở mã QR của một lớp cụ thể.
+  if (preferredCode && !target) return false;
+  enterGuest(guest, target?.id || null);
+  return true;
 }
 /* ---------- học sinh vào lớp bằng đường link thầy cô chia sẻ ---------- */
 const LINK_CODE = (new URLSearchParams(location.search).get('lop') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
@@ -2523,7 +2535,7 @@ async function showJoin(code, name, cls) {
       <label class="fld"><span>Họ và tên của em</span><input id="jn-name" autocomplete="name" placeholder="Ví dụ: Nguyễn Văn An"></label>
       <label class="fld"><span>Lớp <em>(không bắt buộc)</em></span><input id="jn-class" autocomplete="off" placeholder="Ví dụ: 9A5"></label>
       <p class="form-err" id="jn-err" role="alert"></p>
-      <button class="btn btn-brand btn-block" type="submit" id="jn-btn">${ic('door')}Vào nộp bài</button>
+      <button class="btn btn-brand btn-block" type="submit" id="jn-btn">${ic('door')}Vào lớp và nộp bài</button>
       <p class="switch">Em không cần tài khoản. Chỉ em và thầy cô thấy bài em nộp.</p>
     </form>`;
   $('#jn-name').value = name || ''; $('#jn-class').value = cls || '';
@@ -2539,10 +2551,12 @@ async function showJoin(code, name, cls) {
       const g = { id, name: nm, className: cl, role: 'hs', guest: true, joined: [], codes: [], token: deviceToken() + id.slice(2) };
       const jb = await addGuestBoard(g, b.code);
       enterGuest(g, jb.id);
-      toast('Chào ' + givenName(nm) + '! Bấm Nộp bài để gửi bài cho thầy cô.');
+      toast('Chào ' + givenName(nm) + '! Em có thể nộp bài ngay.');
+      // Sau khi nhập tên ở liên kết mời, mở ngay biểu mẫu nộp bài thay vì bắt học sinh tìm nút +.
+      if (!jb.demo) submitForm(jb, false);
     } catch (x) {
       err.textContent = x?.message || 'Chưa vào được lớp. Hãy thử lại.';
-    } finally { btn.disabled = false; btn.innerHTML = ic('door') + 'Vào nộp bài'; }
+    } finally { btn.disabled = false; btn.innerHTML = ic('door') + 'Vào lớp và nộp bài'; }
   });
   if (window.innerWidth > 560) $('#jn-name').focus();
 }
@@ -2569,6 +2583,8 @@ function shareForm(b) {
       <label class="switch-row"><input type="checkbox" id="sh-on" ${on ? 'checked' : ''} ${b.demo ? 'disabled' : ''}><span><b>Cho học sinh nộp bài qua đường link</b><small>Tắt đi thì đường link ngừng hoạt động ngay. Bài đã nộp vẫn được giữ.</small></span></label>
       <div id="sh-box" class="form" ${on ? '' : 'hidden'}>
         <div class="share-row"><input id="sh-url" readonly value="${esc(link)}" aria-label="Đường link cho học sinh"><button type="button" class="btn btn-navy" id="sh-copy">${ic('copy')}Sao chép</button></div>
+        <div class="share-check"><button type="button" class="btn btn-sm btn-ghost" id="sh-test">${ic('check', 'ic-sm')}Kiểm tra đường link lớp</button><a href="${esc(link)}" class="btn btn-sm btn-ghost" target="_blank" rel="noopener noreferrer">Mở thử trang học sinh</a></div>
+        <p class="meta" id="sh-test-result" role="status" aria-live="polite"></p>
         <div class="qr" id="sh-qr" role="img" aria-label="Mã QR mở đường link"><span class="spin"></span></div>
         <p class="meta" style="text-align:center">Học sinh mở đường link hoặc quét mã QR bằng camera điện thoại, nhập họ tên là nộp được bài. Không cần tài khoản.</p>
       </div>
@@ -2586,6 +2602,19 @@ function shareForm(b) {
   $('#sh-copy', el).onclick = async () => {
     try { await navigator.clipboard.writeText(link); toast('Đã sao chép đường link. Gửi cho học sinh qua Zalo, Messenger hoặc nhóm lớp.'); }
     catch (e) { const i = $('#sh-url', el); i.focus(); i.select(); toast('Hãy nhấn giữ để sao chép đường link.'); }
+  };
+  $('#sh-test', el).onclick = async () => {
+    const output = $('#sh-test-result', el), button = $('#sh-test', el);
+    button.disabled = true; output.textContent = 'Đang kiểm tra máy chủ và mã lớp…';
+    try {
+      const result = await api('student_board', { code: b.code });
+      if (result.board?.code !== b.code) throw { message: 'Máy chủ trả về sai mã lớp.' };
+      output.textContent = '✓ Mã lớp ' + b.code + ' hoạt động. Học sinh có thể vào lớp bằng đường link và nộp bài.';
+      output.style.color = 'var(--ok)';
+    } catch (err) {
+      output.textContent = 'Chưa mở được lớp: ' + (err?.message || 'lỗi kết nối') + '. Vui lòng kiểm tra mạng và bật chia sẻ lớp.';
+      output.style.color = 'var(--pen)';
+    } finally { button.disabled = false; }
   };
   $('#sh-on', el).onchange = async (e) => {
     const want = e.target.checked;
