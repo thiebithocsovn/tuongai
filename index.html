@@ -1335,8 +1335,8 @@ body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
 #site-foot .footer-credits{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:12px;font-weight:400;letter-spacing:0;color:#cbd8e9}
 #site-foot .footer-sep{opacity:.5}
 @media(max-width:620px){
- body.has-sbar{--sbh:calc(70px + env(safe-area-inset-bottom,0px))}
- #site-foot .sbar-in{min-height:70px;padding:8px 12px}
+ body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
+ #site-foot .sbar-in{min-height:52px;padding:8px 12px}
  #site-foot .footer-credits{flex-direction:column;gap:3px;font-size:11.5px}
  #site-foot .footer-sep{display:none}
 }
@@ -3973,7 +3973,7 @@ const K_HIDE_DEMO = 'tuongai.hideDemo.';
 const demoHidden = () => LS.get(K_HIDE_DEMO + (S.meId || '')) === '1';
 /* Chân trang cố định: một dải chạy hết đáy màn hình */
 function footerHtml() {
-  return '<div class="sbar-in"><div class="footer-credits"><span>Trương Bảo Phúc - Nông Thanh Thuý</span><span class="footer-sep" aria-hidden="true">•</span><span>Bản quyền tuonghoctapAI@2026</span></div></div>';
+  return '<div class="sbar-in"><div class="footer-credits"><span>Bản quyền tuonghoctapAI@2026</span></div></div>';
 }
 function updateFoot() {
   const el = $('#site-foot'); if (!el) return;
