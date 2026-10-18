@@ -3787,7 +3787,7 @@ const GAI_CONFIG = {
 const GAI_MODEL = 'gemini-3.5-flash-lite';
 const GAI_BACKUP_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash'];
 const K_PROV = 'tuongai.ai';
-const GAI = { ready: null, lib: null, ai: null, appCheck: null, key: '', workingModel: '', unavailableModels: new Set() };
+const GAI = { ready: null, lib: null, ai: null, appCheck: null, key: '', workingModel: '' };
 const PROV_LABEL = { google: 'Gemini · Google', server: 'Gemini · khóa chung', gemini: 'Gemini · khóa của tôi', openai: 'ChatGPT · OpenAI', anthropic: 'Claude · Anthropic' };
 /* Nguồn AI: thầy cô mặc định dùng Gemini · Google (không cần khóa). Học sinh chỉ dùng khóa chung trên máy chủ. */
 const aiProv = () => {
@@ -3816,31 +3816,51 @@ function gaiInit() {
   }
   return GAI.ready;
 }
-function gaiError(e) {
-  if (e && e.code && !(e instanceof Error)) return e; // lỗi đã có lời giải thích sẵn
-  const code = String(e?.code || ''), msg = String(e?.message || '');
-  const st = Number(e?.status || e?.customData?.status || e?.customData?.httpStatus || 0);
-  const d = (code + ' ' + msg).toLowerCase();
-  const m = (c, t) => ({ code: c, message: t });
-  if (/app.?check|attestation|recaptcha|invalid.*token|missing.*token/.test(d)) return m('g_appcheck', 'Google chưa xác minh được trang Tường học tập AI (Firebase App Check). Quản trị cần dán khóa trang reCAPTCHA của Hệ sinh thái 4.0 trong Cài đặt hệ thống, rồi thầy cô tải lại trang.');
-  if (/api.?not.?enabled|service_disabled|api.*not.*used|api.*disabled|not set up/.test(d)) return m('g_disabled', 'Dự án Google của Hệ sinh thái 4.0 chưa bật Firebase AI Logic (Gemini Developer API).');
-  if (st === 429 || /resource_exhausted|quota|rate.?limit|too many/.test(d)) return m('rate_limited', 'Gemini đang bận hoặc đã chạm giới hạn lượt dùng. Hãy thử lại sau ít phút.');
-  if (gaiModelUnavailable(e)) return m('bad_model', 'Mô hình Gemini chưa khả dụng cho dự án Google này. Hãy kiểm tra Firebase AI Logic và tên mô hình được hỗ trợ.');
-  if ((st === 400 || st === 403) && /api.?key|referer|referrer/.test(d)) return m('g_key', 'Khóa công khai của dự án Google đang giới hạn tên miền nên chưa cho trang Tường học tập AI dùng.');
-  if (st === 401 || st === 403 || /permission|unauthenticated|forbidden/.test(d)) return m('g_denied', 'Google từ chối yêu cầu (401/403). Kiểm tra App Check và Firebase AI Logic của dự án Hệ sinh thái 4.0.');
-  if (/blocked|safety|prohibited/.test(d)) return m('refused', 'Gemini từ chối xử lý bài này. Hãy kiểm tra lại ảnh bài làm.');
-  if (/failed to fetch|network|fetch.?error|unavailable|timeout|importing a module/.test(d)) return m('network', 'Không kết nối được Gemini · Google. Kiểm tra mạng rồi thử lại.');
-  return m('g_error', 'Gemini · Google chưa xử lý được yêu cầu. Hãy thử lại.');
+/* Một HTTP 404 từ Firebase có thể báo "genai config not found" — lỗi cấu hình,
+   hoàn toàn khác với tên model không tồn tại. Không dùng mã 404 làm bằng chứng tên model sai. */
+function gaiErrorDetails(e) {
+  const pieces = [e?.code, e?.message, e?.status, e?.customData?.status, e?.customData?.message, e?.customData?.httpStatus];
+  if (e?.customData?.error) {
+    try { pieces.push(JSON.stringify(e.customData.error)); } catch (_) {}
+  }
+  return pieces.filter((x) => x != null).join(' ').toLowerCase();
 }
-/* Phân biệt model 404/không được hỗ trợ với lỗi mạng, quota và App Check. */
+function gaiIsSetupError(e) {
+  const d = gaiErrorDetails(e);
+  return /genai.?config.?not.?found|firebase ai logic.{0,45}(?:not configured|not set up|deactivated)|project.{0,45}(?:not configured|not onboarded)|missing.*gemini.*(?:provider|config)/.test(d);
+}
 function gaiModelUnavailable(e) {
-  const code = String(e?.code || ''), msg = String(e?.message || '');
-  const status = Number(e?.status || e?.customData?.status || e?.customData?.httpStatus || 0);
-  const details = (code + ' ' + msg).toLowerCase();
-  if (status === 404 || /\b404\b/.test(details)) return true;
-  if (/(?:model|models\/).*(?:not found|not supported|unavailable|does not exist|unknown|not accessible|invalid)/.test(details)) return true;
-  if (/(?:not found|not supported|unavailable|does not exist|unknown|invalid).*(?:model|models\/)/.test(details)) return true;
-  return false;
+  const d = gaiErrorDetails(e);
+  if (gaiIsSetupError(e)) return false;
+  return /(?:model|models\/)[^\n]{0,180}(?:not found|not supported|unavailable|does not exist|unknown|not accessible|invalid)/.test(d)
+    || /(?:not found|not supported|unavailable|does not exist|unknown|invalid)[^\n]{0,180}(?:model|models\/)/.test(d);
+}
+function gaiError(e) {
+  if (e && e.code && !(e instanceof Error)) return e;
+  const d = gaiErrorDetails(e);
+  const st = Number(e?.status || e?.customData?.status || e?.customData?.httpStatus || 0);
+  const m = (code, message) => ({ code, message });
+  if (gaiIsSetupError(e))
+    return m('g_setup', 'Dự án Firebase gen-lang-client-0870957273 chưa hoàn tất cấu hình Firebase AI Logic (genai config not found) hoặc đang bị tạm dừng. Mở Firebase Console → AI Services → AI Logic → Get started, chọn Gemini Developer API, hoàn tất kích hoạt và kiểm tra App Check; sau đó bấm Kiểm tra kết nối lại.');
+  if (/app.?check|attestation|recaptcha|invalid.*token|missing.*token/.test(d))
+    return m('g_appcheck', 'Google chưa xác minh được trang bằng Firebase App Check. Trong Firebase Console, kiểm tra App Check, đăng ký tên miền thiebithocsovn.github.io và khóa reCAPTCHA Enterprise của ứng dụng.');
+  if (/api.?not.?enabled|service_disabled|api.*not.*used|api.*disabled|not set up/.test(d))
+    return m('g_disabled', 'Firebase chưa bật Gemini Developer API và Firebase AI Logic API. Hoàn tất AI Services → AI Logic → Get started trong đúng dự án Google.');
+  if (st === 429 || /resource_exhausted|quota|rate.?limit|too many/.test(d))
+    return m('rate_limited', 'Gemini đang bận hoặc đã chạm giới hạn lượt dùng. Hãy thử lại sau ít phút.');
+  if ((st === 400 || st === 403) && /api.?key|referer|referrer|firebasevertexai.googleapis.com.{0,60}blocked/.test(d))
+    return m('g_key', 'Khóa web Firebase không được phép gọi firebasevertexai.googleapis.com. Kiểm tra API restrictions và tên miền trong Google Cloud Console.');
+  if (st === 401 || st === 403 || /permission|unauthenticated|forbidden/.test(d))
+    return m('g_denied', 'Firebase từ chối truy cập (401/403). Kiểm tra đúng Firebase project, Firebase AI Logic, App Check và quyền của API key.');
+  if (gaiModelUnavailable(e))
+    return m('bad_model', 'Google báo tên mô hình Gemini không khả dụng cho dự án. Kiểm tra danh sách mô hình và quyền truy cập Gemini API.');
+  if (st === 404 || /\b404\b/.test(d))
+    return m('g_setup', 'Firebase AI Logic trả HTTP 404 nhưng không xác nhận lỗi tên mô hình. Vào Firebase Console của gen-lang-client-0870957273 → AI Services → AI Logic kiểm tra bước thiết lập Gemini Developer API và App Check.');
+  if (/blocked|safety|prohibited/.test(d))
+    return m('refused', 'Gemini từ chối xử lý bài này. Hãy kiểm tra lại ảnh bài làm.');
+  if (/failed to fetch|network|fetch.?error|timeout|importing a module/.test(d))
+    return m('network', 'Không kết nối được Gemini · Google. Kiểm tra mạng rồi thử lại.');
+  return m('g_error', 'Gemini · Google chưa xử lý được yêu cầu. Kiểm tra Firebase AI Logic và thử lại.');
 }
 /* Gọi Gemini, trả về JSON. Toàn bộ các lần thử mô hình dùng chung giới hạn 90 giây. */
 async function gaiJson(prompt, images = [], signal) {
@@ -3865,9 +3885,8 @@ async function gaiJson(prompt, images = [], signal) {
       signal?.addEventListener('abort', onAbort, { once: true });
       if (signal?.aborted) onAbort();
     });
-    const names = [...new Set([g.workingModel, GAI_MODEL, ...GAI_BACKUP_MODELS]
-      .filter((name) => name && !g.unavailableModels.has(name)))];
-    if (!names.length) throw { code: 'bad_model', message: 'Các mô hình Gemini của dự án Google hiện chưa khả dụng. Kiểm tra Firebase AI Logic hoặc tải lại trang để thử lại.' };
+    // Mỗi lần kiểm tra đều thử lại sau khi giáo viên bật cấu hình Firebase; không lưu 404 vĩnh viễn.
+    const names = [...new Set([g.workingModel, GAI_MODEL, ...GAI_BACKUP_MODELS].filter(Boolean))];
     for (const name of names) {
       if (signal?.aborted) throw { code: 'cancelled' };
       try {
@@ -3882,12 +3901,11 @@ async function gaiJson(prompt, images = [], signal) {
         return result;
       } catch (e) {
         if (!gaiModelUnavailable(e)) throw e;
-        g.unavailableModels.add(name);
         if (g.workingModel === name) g.workingModel = '';
-        console.warn('Gemini Firebase: mô hình không khả dụng, thử dự phòng:', name);
+        console.warn('Gemini Firebase: tên mô hình không được hỗ trợ, thử dự phòng:', name);
       }
     }
-    throw { code: 'bad_model', message: 'Dự án Firebase chưa dùng được các mô hình Gemini: ' + [GAI_MODEL, ...GAI_BACKUP_MODELS].join(', ') + '. Kiểm tra Firebase AI Logic, Gemini Developer API và App Check.' };
+    throw { code: 'bad_model', message: 'Các mô hình được thử đều bị Google từ chối theo tên hoặc quyền truy cập: ' + names.join(', ') + '. Kiểm tra quyền truy cập mô hình trong Gemini Developer API.' };
   } catch (e) {
     if (!e?.code || e.customData || e.name === 'FirebaseError') console.warn('Gemini · Google:', e);
     throw gaiError(e);
@@ -4020,7 +4038,7 @@ function aiConnectForm() {
   const drawDetail = () => {
     const id = draft.provider;
     if (!KEY_PROVS.includes(id)) {
-      $('#ac-detail', el).innerHTML = `<p class="info-box">${id === 'google' ? 'Giống Hệ sinh thái 4.0: trình duyệt gọi Gemini qua Google Firebase, không cần dán khóa API. Đây là kết nối mặc định; nếu mô hình Gemini không khả dụng, hệ thống sẽ thử mô hình dự phòng được Google hỗ trợ.' : 'AI chạy trên máy chủ Tường AI bằng khóa Gemini chung do Quản trị hệ thống cài.'}</p><div class="row-gap"><button type="button" class="btn btn-sm btn-ai" id="ac-test">${ic('spark', 'ic-sm')}Kiểm tra kết nối</button><span class="meta" id="ac-st" role="status"></span></div>`;
+      $('#ac-detail', el).innerHTML = `<p class="info-box">${id === 'google' ? 'Gemini sử dụng Firebase AI Logic. Nếu lỗi 404 “genai config not found”, cần hoàn tất bước Get started với Gemini Developer API trên đúng dự án. Đổi tên mô hình không sửa được lỗi cấu hình này.' : 'AI chạy trên máy chủ Tường AI bằng khóa Gemini chung do Quản trị hệ thống cài.'}</p>${id === 'google' ? '<p class="meta">Dự án: <b>gen-lang-client-0870957273</b> · <a class="link" href="https://console.firebase.google.com/project/gen-lang-client-0870957273/overview" target="_blank" rel="noopener noreferrer">Mở Firebase Console</a> → AI Services → AI Logic. Sau khi bật Gemini Developer API, hãy kiểm tra App Check và bấm kiểm tra lại.</p>' : ''}<div class="row-gap"><button type="button" class="btn btn-sm btn-ai" id="ac-test">${ic('spark', 'ic-sm')}Kiểm tra kết nối</button><span class="meta" id="ac-st" role="status"></span></div>`;
     } else {
       const info = PROV_INFO[id];
       $('#ac-detail', el).innerHTML = `<div class="prov-box">
@@ -4326,7 +4344,7 @@ async function aiSettingsForm() {
   $('#st', el).addEventListener('submit', (e) => e.preventDefault());
   $('#st-gping', el).onclick = async (e) => {
     const btn = e.currentTarget; const out = $('#st-gres', el); btn.disabled = true; out.textContent = 'Đang kiểm tra…';
-    try { await gaiJson('Đây là kiểm tra kết nối, không có dữ liệu học sinh. Chỉ trả về đúng JSON sau: {"ok": true}', []); out.textContent = 'Đã kết nối Gemini · Google (' + GAI_MODEL + ').'; }
+    try { await gaiJson('Đây là kiểm tra kết nối, không có dữ liệu học sinh. Chỉ trả về đúng JSON sau: {"ok": true}', []); out.textContent = 'Đã kết nối Gemini · Google (' + (GAI.workingModel || GAI_MODEL) + ').'; }
     catch (x) { out.textContent = aiMsg(x); }
     finally { btn.disabled = false; }
   };
