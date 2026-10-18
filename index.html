@@ -1623,6 +1623,26 @@ body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
   .app.board-open .col-addpost{min-height:48px}
 }
 
+
+/* Trong lớp: thêm hàng/cột bằng hộp thoại và lưu trong các nhóm bài hiện có. */
+.app.board-open .board-structure-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:-7px;margin-bottom:19px}
+.app.board-open .board-structure-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:9px 17px;border:1.5px dashed #9fbea6;border-radius:10px;background:rgba(255,255,255,.62);color:#2d6542;font-size:14px;font-weight:800;transition:background .16s,border-color .16s,transform .16s}
+.app.board-open .board-structure-btn:hover{background:#fff;border-color:#55886a;transform:translateY(-1px)}
+.app.board-open .board-structure-btn .ic{width:18px;height:18px}
+.app.board-open .board-structure-hint{font-size:12px;color:#667f70;line-height:1.45}
+.app.board-open .col-add-actions{display:flex;flex-direction:column;gap:12px;width:210px;flex:0 0 210px}
+.app.board-open .col-add-actions .col-add{width:100%;min-width:0;min-height:56px}
+.app.board-open .col-add-row{border-color:#adb7d1;color:#48618a}
+.app.board-open .cols.dir-v .col-add-actions{align-self:center;width:100%;max-width:780px;flex:none}
+.app.board-open .cols.dir-v .col-add-actions .col-add{width:100%;max-width:none}
+@media(max-width:900px){
+ .app.board-open .board-structure-actions{margin-top:0;margin-bottom:15px;gap:8px}
+ .app.board-open .board-structure-btn{flex:1 1 auto;min-height:42px;font-size:13px;padding:9px 12px}
+ .app.board-open .board-structure-hint{flex:1 1 100%}
+ .app.board-open .col-add-actions{width:185px;flex-basis:185px}
+ .app.board-open .cols.dir-v .col-add-actions{max-width:760px}
+}
+
 </style>
 </head>
 <body>
@@ -3253,7 +3273,7 @@ function renderBoard(b) {
           <span class="board-owner-icon" aria-hidden="true">${ic('users')}</span>
           <div class="board-owner-copy">
             <p class="eyebrow2">${esc(eyebrow)}</p>
-            <p class="bcount">${ps.length} bài đăng · ${(b.columns || []).length} cột${b.archived ? ' · Đã lưu trữ' : ''}</p>
+            <p class="bcount">${ps.length} bài đăng · ${(b.columns || []).length} ${boardDir(b) === 'v' ? 'hàng' : 'cột'}${b.archived ? ' · Đã lưu trữ' : ''}</p>
           </div>
         </div>
         ${a.description ? `<p class="bdesc2">${esc(a.description)}</p>` : ''}
@@ -3276,6 +3296,11 @@ function renderBoard(b) {
         ${gv ? `<button class="btn btn-soft" data-act="review" data-id="${b.id}" aria-label="Chờ duyệt${review ? ', ' + review + ' bài' : ''}">${ic('inbox')}Chờ duyệt${review ? `<b class="bcnt">${review}</b>` : ''}</button>` : ''}
       </div>
     </div>
+    ${manage ? `<div class="board-structure-actions" role="group" aria-label="Thêm hàng hoặc cột trong lớp">
+      <button type="button" class="board-structure-btn" data-act="add-col" data-id="${b.id}" title="Tạo nhóm bài theo chiều ngang">${ic('plus')}Thêm cột</button>
+      <button type="button" class="board-structure-btn" data-act="add-row" data-id="${b.id}" title="Tạo nhóm bài theo chiều dọc">${ic('plus')}Thêm hàng</button>
+      <span class="board-structure-hint">${layoutKey(b.layout) !== 'cot' ? 'Bấm để chuyển sang bố cục cột hoặc hàng.' : 'Các bài làm cũ được giữ nguyên khi đổi hướng.'}</span>
+    </div>` : ''}
     <section id="posts" class="full" aria-label="Bài làm và các cột của lớp">${boardPostsHtml(b)}</section>
     <button class="fab" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}" aria-label="${gv ? 'Thêm bài học sinh' : 'Nộp bài'}" title="${gv ? 'Thêm bài học sinh' : 'Nộp bài'}">${ic('plus')}</button>`;
   $('#bq').addEventListener('input', (e) => { S.view.pq = e.target.value; const box = $('#posts'); if (box) box.innerHTML = boardPostsHtml(b); });
@@ -3393,7 +3418,7 @@ function renderPosts(b, ps, gv, q) {
   const groups = [];
   if (loose.length || !cols.length) groups.push({ id: '', name: 'Bài chung', items: loose, own: false });
   cols.forEach((c) => groups.push({ id: c.id, name: c.name, items: ps.filter((p) => p.columnId === c.id), own: true }));
-  return `<div class="cols-wrap"><div class="cols${dir}">${groups.map((g) => `<section class="col" aria-label="${esc(g.name)}"><div class="col-h"><h2>${esc(g.name)}</h2><span>${g.items.length}</span>${manage && g.own ? `<button class="icon-btn" data-act="col-rename" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Đổi tên cột ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Xóa cột ${esc(g.name)}" title="Xóa cột">${ic('trash')}</button>` : ''}</div>${cards(g.items)}${!g.items.length && q ? '<p class="col-empty">Không có bài phù hợp.</p>' : ''}<button class="col-addpost" data-act="capture" data-id="${b.id}" data-col="${esc(g.id)}">${ic('plus')}Thêm bài</button></section>`).join('')}${manage ? `<button class="col-add" data-act="add-col" data-id="${b.id}">${ic('plus')}Thêm cột</button>` : ''}</div></div>`;
+  return `<div class="cols-wrap"><div class="cols${dir}">${groups.map((g) => `<section class="col" aria-label="${esc(g.name)}"><div class="col-h"><h2>${esc(g.name)}</h2><span>${g.items.length}</span>${manage && g.own ? `<button class="icon-btn" data-act="col-rename" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>` : ''}</div>${cards(g.items)}${!g.items.length && q ? '<p class="col-empty">Không có bài phù hợp.</p>' : ''}<button class="col-addpost" data-act="capture" data-id="${b.id}" data-col="${esc(g.id)}">${ic('plus')}Thêm bài</button></section>`).join('')}${manage ? `<div class="col-add-actions"><button class="col-add" data-act="add-col" data-id="${b.id}">${ic('plus')}Thêm cột</button><button class="col-add col-add-row" data-act="add-row" data-id="${b.id}">${ic('plus')}Thêm hàng</button></div>` : ''}</div></div>`;
 }
 function imgSrc(r) {
   if (!r) return '';
@@ -3652,21 +3677,52 @@ function bgForm(b) {
     if (ok) { m.close(); toast('Đã đổi nền cho lớp.'); } else $('#bg-ok', el).disabled = false;
   };
 }
-function colForm(b, colId) {
+function colForm(b, colId, kind = 'column') {
+  if (!canManage(b)) return;
   const col = (b.columns || []).find((c) => c.id === colId);
+  const vertical = col ? boardDir(b) === 'v' : kind === 'row';
+  const word = vertical ? 'hàng' : 'cột';
+  const label = word[0].toUpperCase() + word.slice(1);
+  const existing = b.columns || [];
+  const suggested = col?.name || label + ' ' + (existing.length + 1);
+  const changingDirection = !col && (layoutKey(b.layout) !== 'cot' || boardDir(b) !== (vertical ? 'v' : 'h'));
   const m = openModal({
-    title: col ? 'Đổi tên cột' : 'Thêm cột',
-    body: `<form class="modal-b" id="cf" novalidate><label class="fld"><span>Tên cột</span><input id="cf-name" maxlength="180" value="${esc(col?.name || '')}" placeholder="Ví dụ: Nhóm 1, Tổ 2, Bài kiểm tra 15 phút"></label><p class="form-err" id="cf-err" role="alert"></p></form>`,
-    foot: `<button class="btn btn-ghost" data-close>Hủy</button><button class="btn btn-brand" id="cf-ok">Lưu cột</button>`,
+    title: col ? 'Đổi tên ' + word : 'Thêm ' + word,
+    body: `<form class="modal-b" id="cf" novalidate>
+      <label class="fld"><span>Tên ${word}</span><input id="cf-name" maxlength="180" value="${esc(suggested)}" placeholder="Ví dụ: ${vertical ? 'Hàng 1, Chủ đề 2' : 'Nhóm 1, Tổ 2, Bài kiểm tra'}" required></label>
+      <p class="meta">${col ? 'Đổi tên không làm thay đổi bài đã lưu trong nhóm này.' : changingDirection ? 'Lớp sẽ chuyển sang bố cục ' + (vertical ? 'chiều dọc (hàng)' : 'chiều ngang (cột)') + '. Các nhóm và bài làm hiện có vẫn được giữ nguyên.' : 'Nhóm mới xuất hiện cùng các nhóm hiện tại; thầy cô có thể thêm bài vào bên trong.'}</p>
+      <p class="form-err" id="cf-err" role="alert"></p></form>`,
+    foot: `<button class="btn btn-ghost" data-close>Hủy</button><button class="btn btn-brand" id="cf-ok">${col ? 'Lưu tên ' : 'Tạo '}${word}</button>`,
   });
   const el = m.el;
   const go = async () => {
-    const name = $('#cf-name', el).value.trim();
-    if (!name) { $('#cf-err', el).textContent = 'Hãy đặt tên cho cột.'; $('#cf-name', el).focus(); return; }
+    const button = $('#cf-ok', el);
+    if (button.disabled) return;
+    const name = $('#cf-name', el).value.trim().replace(/\s+/g, ' ');
+    if (!name) { $('#cf-err', el).textContent = 'Hãy nhập tên ' + word + '.'; $('#cf-name', el).focus(); return; }
     const cur = getBoard(b.id); if (!cur) return m.close();
-    const columns = col ? (cur.columns || []).map((c) => (c.id === colId ? { ...c, name } : c)) : [...(cur.columns || []), { id: uid('c'), name }];
-    $('#cf-ok', el).disabled = true;
-    if (await saveBoard({ ...cur, columns })) { m.close(); toast('Đã lưu cột.'); } else $('#cf-ok', el).disabled = false;
+    if ((cur.columns || []).some((c) => c.id !== colId && c.name.toLocaleLowerCase('vi-VN') === name.toLocaleLowerCase('vi-VN'))) {
+      $('#cf-err', el).textContent = 'Tên này đã có. Hãy chọn tên khác.'; $('#cf-name', el).focus(); return;
+    }
+    const columns = col
+      ? (cur.columns || []).map((c) => (c.id === colId ? { ...c, name } : c))
+      : [...(cur.columns || []), { id: uid('c'), name }];
+    const updated = col ? { ...cur, columns } : {
+      ...cur, columns, layout: 'cot',
+      assignment: { ...(cur.assignment || {}), direction: vertical ? 'v' : 'h' },
+    };
+    button.disabled = true;
+    const oldOverride = S.dirOverrides.get(cur.id);
+    if (!col) S.dirOverrides.delete(cur.id);
+    const ok = await saveBoard(updated);
+    if (ok) {
+      m.close();
+      render();
+      toast((col ? 'Đã đổi tên ' : 'Đã tạo ') + word + ' “' + name + '”.');
+    } else {
+      if (!col && oldOverride) S.dirOverrides.set(cur.id, oldOverride);
+      button.disabled = false;
+    }
   };
   $('#cf-ok', el).onclick = go;
   $('#cf', el).addEventListener('submit', (e) => { e.preventDefault(); go(); });
@@ -5825,7 +5881,8 @@ document.addEventListener('click', async (e) => {
     case 'copy-code': copyText(t.dataset.code); $('.menu')?.remove(); break;
     case 'share': $('.menu')?.remove(); if (b) shareForm(b); break;
     case 'layout': S.layout = t.dataset.v; LS.set(K_LAYOUT, S.layout); renderHome(); break;
-    case 'add-col': if (b) colForm(b, null); break;
+    case 'add-col': if (b && canManage(b)) colForm(b, null, 'column'); break;
+    case 'add-row': if (b && canManage(b)) colForm(b, null, 'row'); break;
     case 'col-rename': if (b) colForm(b, t.dataset.col); break;
     case 'col-del': {
       const col = b && (b.columns || []).find((c) => c.id === t.dataset.col);
