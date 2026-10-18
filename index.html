@@ -1539,6 +1539,90 @@ body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
 .share-check .btn{min-height:34px}
 #sh-test-result:empty{display:none}
 #sh-test-result{font-size:12px;line-height:1.5;margin:4px 0}
+
+/* 2026: Bố cục lớp học theo ảnh tham chiếu – nền xanh bạc hà chấm, cột nổi, thanh công cụ liền mạch.
+   Giới hạn trong lớp đang mở, không thay đổi màn hình chính, dữ liệu hay hành vi nút. */
+.app.board-open .main{
+  background-color:#e8f3e8;
+  background-image:radial-gradient(circle at 1px 1px,rgba(108,153,108,.24) .95px,transparent 1.15px),linear-gradient(150deg,#eaf5e9 0%,#e4f1e5 100%);
+  background-size:18px 18px,100% 100%;
+  background-attachment:local;
+}
+.app.board-open .btop{background:transparent;box-shadow:none}
+.app.board-open .bhead2{padding:18px 0 18px}
+.app.board-open .board-intro{display:flex;flex-direction:column;align-items:flex-start;gap:0;max-width:900px}
+.app.board-open .board-owner-line{display:flex;align-items:center;gap:14px;min-height:48px}
+.app.board-open .board-owner-icon{width:44px;height:44px;display:grid;place-items:center;flex:none;border-radius:10px;background:#d9ecda;color:#28643b}
+.app.board-open .board-owner-icon svg{width:25px;height:25px;stroke-width:2.2}
+.app.board-open .board-owner-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+.app.board-open .board-owner-copy .eyebrow2{font-size:16px;line-height:1.35;letter-spacing:0;text-transform:none;font-weight:800;color:#223327;margin:0}
+.app.board-open .board-owner-copy .bcount{margin:0;font-size:13px;color:#62776c;line-height:1.4}
+.app.board-open .board-intro>.bdesc2{margin:9px 0 0 58px;line-height:1.5}
+.app.board-open .board-intro>.bkey{margin-left:58px}
+.app.board-open .board-intro>.bcount{margin-left:58px}
+.app.board-open .btool{display:flex;align-items:center;flex-wrap:nowrap;gap:16px;padding:10px 0 22px;min-width:0}
+.app.board-open .btool .search{flex:0 0 clamp(240px,19vw,390px);width:auto;min-height:48px;border-radius:11px;background:rgba(255,255,255,.94);box-shadow:0 5px 16px rgba(53,90,60,.055);border:1px solid rgba(83,127,88,.09);padding:0 15px}
+.app.board-open .btool .search .ic{height:19px;width:19px;color:#67867b}
+.app.board-open .btool .search input{font-size:14px;min-width:0}
+.app.board-open .btool>.row{display:flex;justify-content:flex-end;flex-wrap:nowrap;align-items:center;min-width:0;max-width:calc(100% - 260px);margin-left:auto;gap:8px;overflow-x:auto;overflow-y:hidden;padding:2px 2px 5px;scrollbar-width:thin;scrollbar-color:#b7cbb5 transparent}
+.app.board-open .btool>.row>*{flex-shrink:0}
+.app.board-open .btool .btn-soft,.app.board-open .btool select{
+  background:rgba(255,255,255,.93);border:1px solid rgba(132,161,139,.16);
+  box-shadow:0 3px 10px rgba(50,91,60,.035);min-height:46px;border-radius:10px;
+  color:#273633;
+}
+.app.board-open .btool .btn-soft{font-size:13px;font-weight:700;padding:9px 12px;gap:7px}
+.app.board-open .btool .btn-soft .ic{width:17px;height:17px}
+.app.board-open .btool select{font-size:13px;max-width:142px;min-width:108px;padding:8px 10px}
+.app.board-open .btool .bdirs{gap:5px;flex-wrap:nowrap}
+.app.board-open .btool .bdirs .btn{border:1px solid rgba(132,161,139,.16);background:rgba(255,255,255,.94)}
+.app.board-open .btool .bdirs .btn[aria-pressed="true"]{background:#f7e9ec;border-color:#ab7180;color:#81384e;box-shadow:inset 0 0 0 1px #ab7180}
+.app.board-open .btool .btn-soft:hover,.app.board-open .btool select:hover{border-color:#b5c6b8;background:#fff}
+.app.board-open .cols-wrap{min-height:calc(100dvh - 270px);padding-bottom:100px}
+.app.board-open .cols{align-items:flex-start;gap:24px}
+.app.board-open .col{width:310px;min-width:310px}
+.app.board-open .col-h{min-height:48px;gap:12px;padding:12px 15px;margin-bottom:15px;background:rgba(255,255,255,.94);border:1px solid rgba(143,169,151,.10);border-radius:12px;box-shadow:0 4px 14px rgba(36,77,47,.045)}
+.app.board-open .col-h h2{font-size:16px;font-weight:800;color:#202d27}
+.app.board-open .col-h>span{background:#edf1f3;color:#50606c;font-size:12px;font-weight:700;min-width:26px;height:26px;border-radius:16px}
+.app.board-open .col-addpost{min-height:55px;font-size:15px;background:rgba(255,255,255,.23);border:1.4px dashed #b3cfb7;border-radius:11px;color:#4f825b;gap:10px;transition:background .15s,border-color .15s,transform .15s}
+.app.board-open .col-add{width:210px;min-width:210px;min-height:57px;font-size:15px;background:rgba(255,255,255,.22);border:1.4px dashed #b3cfb7;border-radius:11px;color:#4b8159;gap:11px;transition:background .15s,border-color .15s,transform .15s}
+.app.board-open .col-addpost:hover,.app.board-open .col-add:hover{background:rgba(255,255,255,.7);border-color:#629973;color:#32684a;transform:translateY(-1px)}
+.app.board-open .cols.dir-v{gap:16px}
+.app.board-open .cols.dir-v .col{width:100%;max-width:780px}
+.app.board-open .cols.dir-v .col-add{width:100%;max-width:780px;min-height:55px}
+.app.board-open .fab{background:#833b52;border:3px solid rgba(255,255,255,.68);box-shadow:0 8px 25px rgba(94,38,57,.29),inset 0 0 0 1px rgba(255,255,255,.18)}
+.app.board-open .fab:hover{background:#763147}
+@media(max-width:1250px){
+  .app.board-open .btool{flex-wrap:wrap;gap:10px}
+  .app.board-open .btool .search{flex:1 1 260px;max-width:100%;width:auto}
+  .app.board-open .btool>.row{flex:1 1 100%;max-width:100%;justify-content:flex-start;margin:0}
+}
+@media(max-width:900px){
+  .app.board-open .board-owner-line{gap:10px}
+  .app.board-open .board-owner-icon{width:38px;height:38px}
+  .app.board-open .board-owner-icon svg{width:22px;height:22px}
+  .app.board-open .board-owner-copy .eyebrow2{font-size:15px}
+  .app.board-open .board-intro>.bdesc2,.app.board-open .board-intro>.bkey,.app.board-open .board-intro>.bcount{margin-left:0}
+  .app.board-open .btool{gap:10px;padding:5px 0 16px}
+  .app.board-open .btool .search{flex:1 1 100%;width:100%;min-height:44px}
+  .app.board-open .btool>.row{width:100%;max-width:100%;display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-start;gap:8px;padding:2px 2px 9px;scroll-snap-type:x proximity}
+  .app.board-open .btool>.row>*{flex:0 0 auto;scroll-snap-align:start}
+  .app.board-open .btool .bdirs{flex:0 0 auto;order:0}
+  .app.board-open .btool .bdirs .btn{flex:none}
+  .app.board-open .btool .btn-soft{font-size:12.5px;min-height:42px}
+  .app.board-open .btool select{min-height:42px;max-width:140px}
+  .app.board-open .col{width:calc(100vw - 54px);min-width:calc(100vw - 54px);max-width:340px}
+  .app.board-open .col-h{min-height:46px;padding:10px 12px}
+  .app.board-open .col-add{width:185px;min-width:185px;min-height:54px}
+  .app.board-open .cols.dir-v .col-add{width:100%;min-width:0}
+}
+@media(max-width:560px){
+  .app.board-open .board-owner-copy .bcount{font-size:12px}
+  .app.board-open .btool>.row{scrollbar-width:thin}
+  .app.board-open .col-h h2{font-size:15px}
+  .app.board-open .col-addpost{min-height:48px}
+}
+
 </style>
 </head>
 <body>
@@ -3163,12 +3247,17 @@ function renderBoard(b) {
         ${acctChip(true)}
       </div>
     </header>
-    <section class="bhead2">
-      <div>
-        <p class="eyebrow2">${esc(eyebrow)}</p>
+    <section class="bhead2" aria-label="Thông tin lớp học">
+      <div class="board-intro">
+        <div class="board-owner-line">
+          <span class="board-owner-icon" aria-hidden="true">${ic('users')}</span>
+          <div class="board-owner-copy">
+            <p class="eyebrow2">${esc(eyebrow)}</p>
+            <p class="bcount">${ps.length} bài đăng · ${(b.columns || []).length} cột${b.archived ? ' · Đã lưu trữ' : ''}</p>
+          </div>
+        </div>
         ${a.description ? `<p class="bdesc2">${esc(a.description)}</p>` : ''}
         ${a.title || a.prompt ? `<p class="bdesc2">${a.title ? `<b>${esc(a.title)}</b>` : ''}${a.prompt ? esc(a.prompt) : ''}</p>` : ''}
-        <p class="bcount">${ps.length} bài đăng · ${(b.columns || []).length} cột${b.archived ? ' · Đã lưu trữ' : ''}</p>
         ${gv && a.answerKey ? `<details class="bkey"><summary>Đáp án và tiêu chí chấm (chỉ giáo viên thấy)</summary><p>${esc(a.answerKey)}</p></details>` : ''}
         ${b.demo ? `<p class="bcount">Bảng mẫu: thử chấm thật, không lưu lại.</p>` : ''}
       </div>
@@ -3176,7 +3265,7 @@ function renderBoard(b) {
     ${!gv ? `<div class="gbanner" role="status"><div><strong>Nộp bài vào lớp, không cần đăng nhập</strong><p>Chụp ảnh vở hoặc gõ bài rồi gửi cho thầy cô. ${b.autoGrade !== false && aiOn() ? 'AI chấm ngay, chỉ lỗi sai và gợi ý luyện tập. ' : ''}Chỉ em và thầy cô thấy bài em nộp.</p></div><button class="btn btn-brand" data-act="submit" data-id="${b.id}">${ic('send')}Nộp bài vào lớp</button></div>` : ''}
     ${S.batch && S.batch.boardId === b.id ? `<div class="batch" role="status"><span class="spin"></span><span>AI đang chấm bài ${Math.min(S.batch.done + 1, S.batch.total)}/${S.batch.total}</span><span class="bar"><i style="width:${(S.batch.done / S.batch.total) * 100}%"></i></span><button class="btn btn-sm btn-ghost" data-act="stop-batch">${ic('stop', 'ic-sm')}Dừng</button></div>` : ''}
     ${!aiOn() && !b.demo && isAdmin() ? `<div class="warnline row-between"><span>AI chấm bài chưa bật. Dán một khóa Gemini để mọi giáo viên dùng chung.</span><button class="btn btn-sm btn-navy" data-act="ai-settings">${ic('spark', 'ic-sm')}Bật AI chấm bài</button></div>` : ''}
-    <div class="btool">
+    <div class="btool" role="toolbar" aria-label="Công cụ quản lý lớp">
       <label class="search">${ic('search')}<span class="sr">Tìm bài đăng</span><input id="bq" type="search" placeholder="Tìm bài đăng, học sinh…" value="${esc(S.view.pq || '')}"></label>
       <div class="row">
         ${manage ? `<button class="btn btn-soft" data-act="bg-pick" data-id="${b.id}">${ic('imgplus')}Đổi nền</button>` : ''}
@@ -3187,7 +3276,7 @@ function renderBoard(b) {
         ${gv ? `<button class="btn btn-soft" data-act="review" data-id="${b.id}" aria-label="Chờ duyệt${review ? ', ' + review + ' bài' : ''}">${ic('inbox')}Chờ duyệt${review ? `<b class="bcnt">${review}</b>` : ''}</button>` : ''}
       </div>
     </div>
-    <section id="posts" class="full">${boardPostsHtml(b)}</section>
+    <section id="posts" class="full" aria-label="Bài làm và các cột của lớp">${boardPostsHtml(b)}</section>
     <button class="fab" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}" aria-label="${gv ? 'Thêm bài học sinh' : 'Nộp bài'}" title="${gv ? 'Thêm bài học sinh' : 'Nộp bài'}">${ic('plus')}</button>`;
   $('#bq').addEventListener('input', (e) => { S.view.pq = e.target.value; const box = $('#posts'); if (box) box.innerHTML = boardPostsHtml(b); });
 }
