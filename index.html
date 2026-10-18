@@ -1507,6 +1507,34 @@ body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
   .as-similar-ex{padding:12px}
 }
 
+
+/* Học sinh làm bài dưới từng đề, tuyệt đối không render đáp án mẫu. */
+.student-practice{display:flex;flex-direction:column;gap:17px;padding:18px;border:1px solid #ded4ef;border-radius:14px;background:#fcfaff;margin:12px 0}
+.student-practice-title{display:flex;align-items:center;gap:12px}
+.student-practice-title>div{min-width:0;flex:1}
+.student-practice-title h3{font-size:18px;font-weight:800;margin:0;color:#443060}
+.student-practice-title p{font-size:13px;color:#6b6079;margin-top:5px}
+.student-practice-set{display:flex;flex-direction:column;gap:13px;padding-top:14px;border-top:1px solid #e5ddee}
+.student-practice-set>h4{font-size:16px;font-weight:800;color:#543a71}
+.student-practice-guide,.student-practice-hint{padding:12px 14px;border:1px solid #dce4ec;border-radius:10px;background:#f2f7fd;font-size:13px}
+.student-practice-guide strong,.student-practice-hint strong{display:block;color:#30446c;margin-bottom:4px}
+.student-practice-guide p,.student-practice-hint p{white-space:pre-wrap;overflow-wrap:anywhere}
+.student-practice-ex{display:flex;flex-direction:column;gap:11px;padding:16px;background:#fff;border:1px solid #e4e1ed;border-radius:12px}
+.student-practice-exh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.student-practice-question{font-size:15.5px;line-height:1.65;font-weight:650;color:#243247;white-space:pre-wrap;overflow-wrap:anywhere}
+.student-practice-ex .as-lbl{font-size:13px;font-weight:700;color:#4a4155}
+.student-practice-ex textarea{font:inherit;font-size:15px;line-height:1.6;min-height:132px;width:100%;resize:vertical;border:1px solid #d8dce4;border-radius:10px;padding:12px;background:#fff;color:#222}
+.student-practice-ex textarea:focus{outline:2px solid #9673ac;border-color:#9673ac}
+.student-practice-success{display:flex;align-items:center;gap:6px;font-size:12px;color:#267347;line-height:1.5}
+.as-student-submissions{display:flex;flex-direction:column;gap:12px;border:1px solid #dce4ec;background:#fff;border-radius:12px;padding:15px}
+.as-row-between{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.as-row-between>div{flex:1;min-width:200px}
+.as-submitted-item{border-radius:9px;border:1px solid #dde6e2;background:#f8fcfa;padding:12px;display:flex;flex-direction:column;gap:5px}
+.as-submitted-item strong{font-size:13px;color:#265a49}
+.as-submitted-item small{font-size:11px;color:#728179}
+.as-submitted-item p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.55}
+@media(max-width:580px){.student-practice{padding:12px}.student-practice-ex{padding:12px}.student-practice-question{font-size:14.5px}}
+
 </style>
 </head>
 <body>
@@ -2120,7 +2148,8 @@ const boardToRow = (b) => ({
 const rowToPost = (r, studentAcc = null) => ({
   id: r.id, boardId: r.board_id, ownerAcc: r.owner || null, columnId: r.column_id || '', studentName: r.student_name || '', studentClass: r.student_class || '',
   studentAcc, by: r.by || 'gv', text: r.body || '', images: (r.images || []).filter((i) => i && i.path).map((i) => ({ k: 's', path: i.path })),
-  ai: r.ai || null, aiAt: r.ai_at ? ts(r.ai_at) : null, teacher: r.teacher || null, createdAt: ts(r.created_at),
+  ai: r.ai || null, aiAt: r.ai_at ? ts(r.ai_at) : null, teacher: r.teacher || null,
+  practice: r.practice || [], practiceSubmissions: r.practice_submissions || [], createdAt: ts(r.created_at),
 });
 const postToRow = (p) => ({
   id: p.id, board_id: p.boardId, owner: p.ownerAcc, column_id: p.columnId || '', student_name: p.studentName || '', student_class: p.studentClass || '',
@@ -4452,8 +4481,9 @@ function openDetail(id, autoGrade, focus) {
     body: `<div class="pd"><div class="pd-media" id="pd-media"></div><div class="pd-side" id="pd-side"></div></div>`,
     onClose: () => { const c = ctlOf.get(id); if (c) c.abort(); detail?.as?.ctl?.abort(); detail = null; },
   });
-  detail = { id, m, started: 0 };
+  detail = { id, m, started: 0, studentDrafts: {}, studentBusy: '', studentMessage: '', studentError: '' };
   drawMedia(); drawSide();
+  if (!gv && S.guest) studentPracticeRefresh(id);
   if (autoGrade && !p.ai) runGrade(id);
   if (focus === 'cmt') setTimeout(() => { $('#pd-cmt', m.el)?.scrollIntoView({ block: 'center' }); $('#cm-text', m.el)?.focus(); }, 80);
 }
@@ -4476,6 +4506,77 @@ function refreshDetail() {
   if (detail.as) asSync(detail.as, p);
   if (detail.key === detailKey(p)) return;
   drawSide();
+}
+
+/* Bài luyện tập trên trang học sinh: chỉ hiển thị bản đã duyệt, không có đáp án. */
+function studentPracticeHtml(p) {
+  if (!S.guest || !Array.isArray(p.practice) || !p.practice.length) return '';
+  const responses = p.practiceSubmissions || [];
+  const drafts = detail?.studentDrafts || {};
+  return `<section class="student-practice" id="student-practice">
+    <div class="student-practice-title"><span class="as-icon">${ic('bookopen')}</span><div>
+    <h3>Bài luyện tập thầy cô đã giao</h3><p>Đọc đề và hướng dẫn, làm bài ngay bên dưới rồi nhấn Nộp bài.</p></div></div>
+    ${p.practice.map((set) => `<section class="student-practice-set"><h4>${esc(set.title)}</h4>
+      ${set.instructions ? `<div class="student-practice-guide"><strong>Hướng dẫn:</strong><p>${esc(set.instructions)}</p></div>` : ''}
+      ${set.exercises.map((ex, ix) => {
+        const k = set.id + ':' + ex.id;
+        const previous = responses.find((v) => v.set_id === set.id && v.exercise_id === ex.id);
+        const v = Object.prototype.hasOwnProperty.call(drafts, k) ? drafts[k] : (previous?.response || '');
+        const busy = detail?.studentBusy === k;
+        return `<article class="student-practice-ex">
+          <div class="student-practice-exh"><strong>Bài ${ix + 1}</strong><span class="as-chip">${esc(AS_LEVEL[ex.difficulty] || 'Luyện tập')}</span></div>
+          <p class="student-practice-question">${esc(ex.question)}</p>
+          ${ex.hint ? `<div class="student-practice-hint"><strong>Gợi ý thực hiện</strong><p>${esc(ex.hint)}</p></div>` : ''}
+          <label class="as-lbl" for="st-pr-${ix}-${esc(set.id)}">Bài làm của em
+            <textarea id="st-pr-${ix}-${esc(set.id)}" data-st-pr-answer="${esc(k)}" rows="5" maxlength="8000" placeholder="Em trình bày lời giải, phép tính hoặc câu trả lời tại đây…" ${busy ? 'disabled' : ''}>${esc(v)}</textarea></label>
+          <button type="button" class="btn btn-brand btn-block" data-st-pr-send="${esc(k)}" ${busy ? 'disabled' : ''}>${ic('send')}${busy ? 'Đang nộp…' : previous ? 'Nộp lại bài làm' : 'Nộp bài luyện tập'}</button>
+          ${previous ? `<p class="student-practice-success">${ic('check','ic-sm')}Đã nộp lúc ${esc(new Date(previous.submitted_at).toLocaleString('vi-VN'))}. Em có thể sửa và nộp lại.</p>` : ''}
+        </article>`;
+      }).join('')}
+    </section>`).join('')}
+    <p class="as-help">Em chỉ xem được đề bài và hướng dẫn. Đáp án do thầy cô giữ riêng để nhận xét sau khi em nộp.</p>
+  </section>`;
+}
+async function studentPracticeRefresh(id) {
+  if (!S.guest || !detail || detail.id !== id) return;
+  const p = getPost(id), b = p && getBoard(p.boardId), g = S.guest;
+  if (!b || b.demo) return;
+  try {
+    const data = await api('student_mine', { code: b.code, token: g.token });
+    if (S.meId !== g.id || !detail || detail.id !== id) return;
+    rememberUrls(data.urls);
+    for (const row of data.posts || []) S.posts.set(row.id, rowToPost(row, g.id));
+    refreshDetail();
+  } catch (e) {
+    if (detail?.id === id) { detail.studentError = aiMsg(e); refreshDetail(); }
+  }
+}
+async function studentPracticeSubmit(key) {
+  if (!S.guest || !detail) return;
+  const original = detail, p = getPost(original.id), b = p && getBoard(p.boardId);
+  if (!p || !b) return;
+  const set = (p.practice || []).find((item) => item.exercises.some((ex) => item.id + ':' + ex.id === key));
+  const ex = set?.exercises.find((item) => set.id + ':' + item.id === key);
+  const box = [...original.m.el.querySelectorAll('[data-st-pr-answer]')].find((el) => el.dataset.stPrAnswer === key);
+  const response = (box?.value || '').trim();
+  if (!ex) return;
+  if (!response) { original.studentError = 'Em hãy nhập bài làm trước khi nộp.'; refreshDetail(); return; }
+  original.studentDrafts[key] = response;
+  original.studentBusy = key; original.studentError = '';
+  refreshDetail();
+  try {
+    const result = await api('student_practice_submit', { code: b.code, token: S.guest.token,
+      post_id: p.id, set_id: set.id, exercise_id: ex.id, response });
+    if (detail !== original) return;
+    p.practiceSubmissions = (p.practiceSubmissions || []).filter((r) => !(r.set_id === set.id && r.exercise_id === ex.id));
+    p.practiceSubmissions.push(result.submission);
+    original.studentMessage = 'Đã nộp bài luyện tập. Thầy cô sẽ xem và nhận xét.';
+    delete original.studentDrafts[key];
+  } catch(e) {
+    if (detail === original) original.studentError = aiMsg(e);
+  } finally {
+    if (detail === original) { original.studentBusy = ''; refreshDetail(); }
+  }
 }
 /* ================= Kết quả AI chấm bài trong mục nhận xét (chỉ giáo viên) =================
    1. Đọc bài: nội dung AI đọc được, đánh dấu chỗ ảnh mờ hoặc chưa chắc.
@@ -4581,7 +4682,9 @@ function drawSide() {
     <div class="pd-who"><div><h3>${esc(p.studentName)}</h3><p class="meta">${timeAgo(p.createdAt)} · ${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}${p.aiAt ? ' · AI chấm ' + timeAgo(p.aiAt) : ''}</p></div><div class="row-gap" style="align-items:center">${gv ? `<button class="preact${(tmeta(p).likes || []).includes(S.meId) ? ' on' : ''}" data-pd="like" aria-label="Thích bài">${ic((tmeta(p).likes || []).includes(S.meId) ? 'heart-f' : 'heart', 'ic-sm')}${(tmeta(p).likes || []).length || ''}</button>` : ''}${chip(p)}</div></div>
     ${detail.err ? `<p class="warnline">${esc(detail.err)}</p>` : ''}
     ${gv ? (grading ? main : "") : main}
-
+    ${!gv ? studentPracticeHtml(p) : ''}
+    ${!gv && detail.studentError ? `<p class="as-err" role="alert">${esc(detail.studentError)}</p>` : ''}
+    ${!gv && detail.studentMessage ? `<p class="as-ok" role="status">${esc(detail.studentMessage)}</p>` : ''}
     ${cmtHtml}
     <div class="row-between">${canGrade ? `<button class="btn ${ai ? 'btn-ghost' : 'btn-brand'}" data-pd="grade">${ic('spark')}${ai ? 'Chấm lại bằng AI' : 'Chấm bằng AI'}</button>` : '<span></span>'}<button class="btn btn-ghost" data-pd="close">Đóng</button></div>`;
   if (dirty) { if (keepNote != null && $('#td-note', el)) $('#td-note', el).value = keepNote; if (keepScore != null && $('#td-score', el)) $('#td-score', el).value = keepScore; }
@@ -4596,6 +4699,8 @@ function drawSide() {
   $('#td-note', el)?.addEventListener('input', () => (detail.dirty = true));
   $('#td-score', el)?.addEventListener('input', () => (detail.dirty = true));
   $$('[data-pd]', el).forEach((x) => (x.onclick = () => detailAct(x.dataset.pd, x)));
+  $$('[data-st-pr-answer]', el).forEach((x) => (x.oninput = () => { if (detail) detail.studentDrafts[x.dataset.stPrAnswer] = x.value; }));
+  $$('[data-st-pr-send]', el).forEach((x) => (x.onclick = () => studentPracticeSubmit(x.dataset.stPrSend)));
   drawMedia();
 }
 let secT = 0;
@@ -4731,7 +4836,7 @@ function asSimilarSheet(p, b, as) {
     ...x.exercises.map((e, i) => 'Bài ' + (i + 1) + ': ' + e.question + (e.hint ? '\nGợi ý: ' + e.hint : '') + '\nBài làm: ....................................................................................'),
     'Thầy cô sẽ nhận xét sau khi học sinh nộp bài.'].filter(Boolean).join('\n\n');
 }
-const detailKey = (p) => JSON.stringify([p.ai, p.teacher ? { ...p.teacher, assist: undefined } : null, S.grading.has(p.id), detail?.err || '']);
+const detailKey = (p) => JSON.stringify([p.ai, p.teacher ? { ...p.teacher, assist: undefined } : null, p.practice || [], p.practiceSubmissions || [], S.grading.has(p.id), detail?.err || '']);
 
 function assistMount(p) {
   const b = getBoard(p.boardId);
@@ -4741,6 +4846,7 @@ function assistMount(p) {
     ctx: { ...asDefaults(b), ...(saved?.ctx || {}) }, media: saved?.media !== false, draft: '',
     a: asLocal(saved?.a || null), base: canon(saved), busy: '', pending: '', err: '', msg: '', conn: '',
     ext: false, dirty: false, similar: { ...asSimilarDefaults(), ...clone(saved?.similar || {}) }, similarDirty: false,
+    submissions: [], submissionsLoaded: false, submissionsLoading: false,
     att: { ex: '', resp: '', ev: '', verdict: '' }, ctl: null, open: { ctx: true },
   };
   as.el.className = 'as';
@@ -4838,7 +4944,8 @@ async function asAct(as, a, t) {
   };
   const copy = async (text, ok) => { try { await navigator.clipboard.writeText(text); as.msg = ok; } catch (e) { as.err = 'Trình duyệt chưa cho sao chép. Hãy chọn chữ rồi sao chép tay.'; } asRender(as); };
   switch (a) {
-    case 'step': as.step = +t.dataset.i; as.err = ''; as.msg = ''; asRender(as); return;
+    case 'step': as.step = +t.dataset.i; as.err = ''; as.msg = ''; asRender(as); if (as.step === 2 && !as.submissionsLoaded) await asLoadSubmissions(as); return;
+    case 'reload-subs': await asLoadSubmissions(as); return;
     case 'reload': asAdopt(as, asSaved(p)); return;
     case 'ping': return run('ping', async () => { const r = await asCall(as, 'ping', {}); as.conn = 'Đã nhận phản hồi từ ' + r.model + '. AI sẵn sàng cho chat và đánh giá tại đây.'; });
     case 'prompt': as.draft = t.dataset.q; asRender(as); $('[data-asf="draft"]', as.el)?.focus(); return;
@@ -4943,7 +5050,7 @@ async function asAct(as, a, t) {
       if (!v.reviewed) throw new Error('Thầy cô cần xác nhận đã kiểm tra đề và đáp án trước khi duyệt.');
       if (v.exercises.some((e) => !String(e.question || '').trim() || !String(e.expectedAnswer || '').trim()))
         throw new Error('Mỗi bài phải có đề bài và đáp án mẫu để giáo viên kiểm tra.');
-      const next = { ...clone(v), status: 'assigned', approvedAt: now(), by: S.meId };
+      const next = { ...clone(v), id: uid('simset'), status: 'assigned', approvedAt: now(), by: S.meId };
       as.similar = next;
       if (!await asPersist(as, { similar: next })) throw new Error('Chưa lưu được bộ bài tập đã duyệt.');
       as.similarDirty = false;
@@ -5095,6 +5202,42 @@ function asSimilarHtml(as) {
   </section>`;
 }
 
+
+/* Chỉ tài khoản giáo viên đăng nhập có quyền với bài được đọc lời giải học sinh. */
+async function asLoadSubmissions(as) {
+  if (as.submissionsLoading) return;
+  as.submissionsLoading = true;
+  as.err = '';
+  asRender(as);
+  try {
+    const r = await api('practice_submissions_teacher', { post_id: as.id });
+    as.submissions = Array.isArray(r.submissions) ? r.submissions : [];
+    as.submissionsLoaded = true;
+  } catch (e) { as.err = aiMsg(e); }
+  finally { as.submissionsLoading = false; if (detail?.as === as) asRender(as); }
+}
+function asSubmissionsHtml(as) {
+  const entries = as.submissions || [];
+  const similar = as.similar || {};
+  const practice = as.a?.practice;
+  const nameOf = (submission) => {
+    if (submission.set_id === (similar.id || 'similar-' + (similar.approvedAt || similar.at || 'legacy'))) {
+      const i = (similar.exercises || []).findIndex((e) => e.id === submission.exercise_id);
+      return 'Bài tương tự ' + (i >= 0 ? i + 1 : submission.exercise_id);
+    }
+    if (submission.set_id === practice?.id) {
+      const i = (practice?.exercises || []).findIndex((e) => e.id === submission.exercise_id);
+      return 'Luyện tập khắc phục lỗi · Bài ' + (i >= 0 ? i + 1 : submission.exercise_id);
+    }
+    return 'Bài tập đã nộp · ' + submission.exercise_id;
+  };
+  return `<section class="as-student-submissions"><div class="as-row-between">
+    <div><h4>Học sinh nộp bài luyện tập</h4><p class="as-help">Lời giải học sinh lưu riêng, không kèm đáp án AI.</p></div>
+    <button type="button" class="btn as-btn btn-sm" data-as="reload-subs" ${as.submissionsLoading ? 'disabled' : ''}>${ic('restore','ic-sm')}Làm mới</button></div>
+    ${as.submissionsLoading ? '<p class="as-help">Đang lấy bài học sinh nộp…</p>' : !as.submissionsLoaded ? '<p class="as-help">Bấm Làm mới để xem bài đã nộp.</p>' : !entries.length ? '<p class="as-empty">Chưa có bài luyện tập nào được nộp.</p>' :
+      entries.map((sub) => `<article class="as-submitted-item"><strong>${esc(nameOf(sub))}</strong><small>${esc(new Date(sub.submitted_at).toLocaleString('vi-VN'))}</small><p>${esc(sub.response)}</p></article>`).join('')}
+  </section>`;
+}
 function asHtml(as) {
   const p = getPost(as.id); if (!p) return '';
   const b = getBoard(p.boardId); const max = b.assignment?.maxScore || 10;
@@ -5185,6 +5328,7 @@ function asHtml(as) {
       ${hist.length ? `<details class="as-sub" open><summary>Lịch sử bài luyện tập này (${hist.length} lượt)</summary><div class="as-hist">${[...hist].reverse().map((h) => `<article><strong>Bài ${pr.exercises.findIndex((e) => e.id === h.exerciseId) + 1} · ${AS_VERDICT[h.verdict]}</strong><small>${when(h.at)}</small><p>Bài làm: ${esc(h.response)}</p><p>Căn cứ: ${esc(h.evidence)}</p></article>`).join('')}</div></details>` : ''}
       ${saved.history?.length ? `<details class="as-sub"><summary>Lịch sử nhận xét đã duyệt (${saved.history.length} phiên bản)</summary><div class="as-hist">${[...saved.history].reverse().map((h) => `<article><strong>${esc(h.review?.byName || '')} · ${when(h.review?.at)}</strong><p>${esc(h.review?.feedback || '')}</p><small>${h.practice?.attempts?.length || 0} lượt luyện tập đã kiểm tra</small></article>`).join('')}</div></details>` : ''}`;
   }
+  if (as.step === 2) body += asSubmissionsHtml(as);
   return `<div class="as-head"><span class="as-icon">${ic('sparkles')}</span><div><h3>Trợ lý AI cho bài làm</h3><p>Phát hiện lỗi · Kiểm chứng nguyên nhân · Luyện tập · Tiến bộ</p></div><span class="as-chip${approved ? ' is-resolved' : ''}">${approved ? 'Giáo viên đã duyệt' : 'Giáo viên quyết định'}</span></div>
     <div class="as-prov"><label class="as-lbl">Chọn AI cho bài làm<select data-asf="prov" ${dis(busy)}><option value="google" ${aiProv() === 'google' ? 'selected' : ''}>Gemini · Google</option>${CAP.aiReady ? `<option value="server" ${aiProv() === 'server' ? 'selected' : ''}>Gemini · khóa chung của hệ thống</option>` : ''}${KEY_PROVS.filter(hasKey).map((k) => `<option value="${k}" ${aiProv() === k ? 'selected' : ''}>${PROV_LABEL[k]} · ${esc(provModel(k))}</option>`).join('')}</select></label>
       <button type="button" class="btn btn-sm as-btn" data-act="ai-connect">${ic('spark', 'ic-sm')}Kết nối ChatGPT, Claude, Gemini</button>
