@@ -1,4 +1,6 @@
-# Tường AI
+# Tường học tập AI - Truy gốc lỗi
+
+**English name:** Learning Wall AI – Error Root Tracer
 
 Không gian cùng học: giáo viên chụp bài làm của học sinh hoặc học sinh nộp bài bằng điện thoại; AI chấm điểm, chỉ lỗi sai từng dòng và gợi ý luyện tập.
 
