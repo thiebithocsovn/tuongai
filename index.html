@@ -1328,14 +1328,13 @@ body.has-sbar{--sbh:calc(54px + env(safe-area-inset-bottom,0px))}
 #site-foot.sbar::before{display:none}
 #site-foot .sbar-in{height:54px;display:flex;align-items:center;justify-content:center;color:#f0f6ff;font-size:14px;font-weight:500;text-align:center;letter-spacing:.025em}
 #site-foot .sbar-in strong{font-weight:800}
-body.has-sbar{--sbh:calc(80px + env(safe-area-inset-bottom,0px))}
-#site-foot .sbar-in{height:auto;min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:10px 16px;line-height:1.35}
-#site-foot .footer-title{font-size:15px;font-weight:500}
+body.has-sbar{--sbh:calc(52px + env(safe-area-inset-bottom,0px))}
+#site-foot .sbar-in{height:auto;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 16px;line-height:1.35}
 #site-foot .footer-credits{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:12px;font-weight:400;letter-spacing:0;color:#cbd8e9}
 #site-foot .footer-sep{opacity:.5}
 @media(max-width:620px){
- body.has-sbar{--sbh:calc(101px + env(safe-area-inset-bottom,0px))}
- #site-foot .sbar-in{min-height:101px;gap:4px;padding:9px 12px}
+ body.has-sbar{--sbh:calc(70px + env(safe-area-inset-bottom,0px))}
+ #site-foot .sbar-in{min-height:70px;padding:8px 12px}
  #site-foot .footer-credits{flex-direction:column;gap:3px;font-size:11.5px}
  #site-foot .footer-sep{display:none}
 }
@@ -3915,7 +3914,7 @@ const K_HIDE_DEMO = 'tuongai.hideDemo.';
 const demoHidden = () => LS.get(K_HIDE_DEMO + (S.meId || '')) === '1';
 /* Chân trang cố định: một dải chạy hết đáy màn hình */
 function footerHtml() {
-  return '<div class="sbar-in"><div class="footer-title">Học tập AI <strong>© 2026</strong></div><div class="footer-credits"><span>Tác giả: Trương Bảo Phúc - Nông Thanh Thuý</span><span class="footer-sep" aria-hidden="true">•</span><span>Bản quyền tuonghoctapAI@2026</span></div></div>';
+  return '<div class="sbar-in"><div class="footer-credits"><span>Trương Bảo Phúc - Nông Thanh Thuý</span><span class="footer-sep" aria-hidden="true">•</span><span>Bản quyền tuonghoctapAI@2026</span></div></div>';
 }
 function updateFoot() {
   const el = $('#site-foot'); if (!el) return;
