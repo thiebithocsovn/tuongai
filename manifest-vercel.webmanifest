@@ -1,0 +1,24 @@
+{
+  "id": "/",
+  "name": "Tường học tập AI – Truy gốc lỗi",
+  "short_name": "Tường AI",
+  "description": "Giáo viên giao bài, học sinh nộp bài, AI phân tích lỗi và hướng dẫn luyện tập.",
+  "lang": "vi",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "theme_color": "#143e73",
+  "background_color": "#f5f8fb",
+  "orientation": "any",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ],
+  "shortcuts": [
+    {"name":"Mở Tường học tập AI","url":"/","description":"Mở bảng lớp và bài làm",
+     "icons":[{"src":"/app-icon.svg","sizes":"any","type":"image/svg+xml"}]}
+  ]
+}
