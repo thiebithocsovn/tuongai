@@ -2187,6 +2187,17 @@ html,body{max-width:100%;overflow-x:clip}
 }
 </style>
 
+<style id="student-submission-actions">
+.student-post-actions{display:flex;gap:7px;flex-wrap:wrap;margin:9px 0 1px;align-items:center}
+.student-post-actions .btn{flex:1 1 100px;min-height:36px;padding:7px 11px;font-size:12.5px;font-weight:700}
+.student-post-actions-detail{margin:10px 0;padding:10px 0;border-top:1px solid #e1e9f3}
+.student-post-locked{display:flex;align-items:center;gap:6px;margin:9px 0 1px;color:#677991;font-size:12px;line-height:1.4}
+.student-post-locked .ic{width:14px;height:14px}
+.student-edit-preview{display:flex;gap:8px;overflow-x:auto;max-width:100%;padding:5px 0 9px}
+.student-edit-preview img{width:92px;height:78px;object-fit:cover;border-radius:9px;border:1px solid #dce4f1;flex:none}
+#student-edit-form .fld small{font-size:12px;color:#63738a;line-height:1.5}
+@media(max-width:460px){.student-post-actions .btn{min-height:44px}.student-edit-preview img{width:76px;height:68px}}
+</style>
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
@@ -3208,14 +3219,19 @@ async function showJoin(code, name, cls) {
     <div class="join-cover">${cover(b.cover, b.id)}</div>
     <div><p class="eyebrow">Em được mời nộp bài</p><h1>${esc(b.name)}</h1><p class="meta">${[b.teacherName ? 'Thầy cô: ' + b.teacherName : '', b.subject, b.grade].filter(Boolean).map(esc).join(' · ')}</p></div>
     ${a.title || a.prompt ? `<div class="assign-t"><b>${esc(a.title || 'Bài tập')}</b>${a.prompt ? '\n' + esc(a.prompt) : ''}</div>` : ''}
-    <form class="form" id="jn" novalidate>
+    <button type="button" class="btn btn-brand btn-block" id="jn-open">${ic('send')}Nộp bài vào lớp này</button>
+    <form class="form" id="jn" novalidate hidden>
       <label class="fld"><span>Họ và tên của em</span><input id="jn-name" autocomplete="name" placeholder="Ví dụ: Nguyễn Văn An"></label>
       <label class="fld"><span>Lớp <em>(không bắt buộc)</em></span><input id="jn-class" autocomplete="off" placeholder="Ví dụ: 9A5"></label>
       <p class="form-err" id="jn-err" role="alert"></p>
-      <button class="btn btn-brand btn-block" type="submit" id="jn-btn">${ic('door')}Vào lớp và nộp bài</button>
+      <button class="btn btn-brand btn-block" type="submit" id="jn-btn">${ic('door')}Tiếp tục nộp bài</button>
       <p class="switch">Em không cần tài khoản. Chỉ em và thầy cô thấy bài em nộp.</p>
     </form>`;
   $('#jn-name').value = name || ''; $('#jn-class').value = cls || '';
+  $('#jn-open').onclick = () => {
+    $('#jn-open').hidden = true; $('#jn').hidden = false;
+    if (window.innerWidth > 560) $('#jn-name').focus();
+  };
   $('#jn').addEventListener('submit', async (e) => {
     e.preventDefault();
     const err = $('#jn-err'); err.textContent = '';
@@ -3233,9 +3249,8 @@ async function showJoin(code, name, cls) {
       if (!jb.demo) submitForm(jb, false);
     } catch (x) {
       err.textContent = x?.message || 'Chưa vào được lớp. Hãy thử lại.';
-    } finally { btn.disabled = false; btn.innerHTML = ic('door') + 'Vào lớp và nộp bài'; }
+    } finally { btn.disabled = false; btn.innerHTML = ic('door') + 'Tiếp tục nộp bài'; }
   });
-  if (window.innerWidth > 560) $('#jn-name').focus();
 }
 
 /* ---------- chia sẻ bảng cho học sinh (giáo viên) ---------- */
@@ -3574,6 +3589,8 @@ const allPosts = () => [...S.posts.values(), ...S.demoPosts.values()];
 const postsOf = (bid) => allPosts().filter((p) => p.boardId === bid).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 const boardByCode = (code) => { const c = String(code || '').toUpperCase(); return c === DEMO.code ? DEMO : [...S.boards.values()].find((b) => b.code === c && !b.trashed); };
 const finalScore = (p) => (p.teacher && isNum(p.teacher.score) ? p.teacher.score : p.ai && isNum(p.ai.diem) ? p.ai.diem : null);
+const studentCanEdit = (p) => !!(p && S.guest && p.by === 'hs' && p.studentAcc === S.meId &&
+  !p.ai && !p.aiAt && !p.teacher?.approvedAt && !isNum(p.teacher?.score) && !S.grading.has(p.id));
 function status(p) {
   if (S.grading.has(p.id)) return 'dang';
   if (p.teacher?.approvedAt) return 'duyet';
@@ -4027,6 +4044,7 @@ function postCard(p, studentView) {
     ${media || text ? `<button class="pmedia" data-act="open-post" data-id="${p.id}" aria-label="Xem bài của ${esc(p.studentName)}">${media}${text}</button>` : ''}
     ${linkChips(links, false)}
     <button class="btn btn-ai ai-entry" data-act="open-post" data-id="${p.id}" ${autoGrade ? 'data-grade="1"' : ''}>${aiLabel}</button>
+    ${!gv && studentCanEdit(p) ? `<div class="student-post-actions"><button class="btn btn-sm" data-act="student-edit" data-id="${p.id}">${ic('pencil','ic-sm')}Sửa bài</button><button class="btn btn-sm btn-danger" data-act="student-delete" data-id="${p.id}">${ic('trash','ic-sm')}Xóa bài</button></div>` : !gv && p.by === 'hs' && p.studentAcc === S.meId ? `<p class="student-post-locked">${ic('lock','ic-sm')}Bài đã chấm · không thể sửa hoặc xóa</p>` : ''}
     ${showFoot ? `<div class="pfoot">${gv ? `<button class="preact${liked ? ' on' : ''}" data-act="p-like" data-id="${p.id}" aria-pressed="${liked}" aria-label="Thích bài của ${esc(p.studentName)}">${ic(liked ? 'heart-f' : 'heart', 'ic-sm')}${likes.length}</button>` : `<span class="preact${likes.length ? ' on' : ''}">${ic(likes.length ? 'heart-f' : 'heart', 'ic-sm')}${likes.length}</span>`}<button class="preact" data-act="open-post" data-id="${p.id}" data-focus="cmt" aria-label="Nhận xét bài của ${esc(p.studentName)}">${ic('msg', 'ic-sm')}${comments.length}<span>Nhận xét</span></button>${fs != null ? `<span class="score-pill" title="${approved ? 'Điểm thầy cô đã duyệt' : 'Điểm AI đề xuất'}">${fmt(fs)}<small>/${max}</small></span>` : ''}</div>` : ''}
   </article>`;
 }
@@ -5422,6 +5440,8 @@ function drawSide() {
       : `<section class="blk"><h4>Lỗi sai cần sửa <span class="n">${ai.loi_sai.length}</span></h4>${ai.loi_sai.length ? `<ol class="errs">${ai.loi_sai.map((e) => `<li class="err ${e.muc_do}"><span class="where">${esc(e.vi_tri || e.cau || 'Trong bài')}<span class="sev">${sev(e)}</span></span><p>${esc(e.loi)}</p>${e.giai_thich ? `<p>${esc(e.giai_thich)}</p>` : ''}${e.sua ? `<p class="fix"><b>Sửa:</b> ${esc(e.sua)}</p>` : ''}</li>`).join('')}</ol>` : '<p class="meta">AI không thấy lỗi sai nào. Rất tốt!</p>'}</section>
       ${ai.diem_manh.length ? `<section class="blk"><h4>Em đã làm tốt</h4><ul class="goods">${ai.diem_manh.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
       ${ai.luyen_tap.length || ai.bai_tap_goi_y.length ? `<section class="blk"><h4>Định hướng luyện tập</h4><ul class="prac">${ai.luyen_tap.map((x) => `<li><b>${esc(x.ky_nang)}</b>${x.goi_y ? ' — ' + esc(x.goi_y) : ''}</li>`).join('')}</ul>${ai.bai_tap_goi_y.length ? `<div class="drills"><p class="eyebrow" style="margin-bottom:6px">Bài tập gợi ý</p><ol class="drills" style="margin-top:0">${ai.bai_tap_goi_y.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}</section>` : ''}`}`;
+  } else if (!gv && fs != null) {
+    main = `<section class="blk"><div class="grade"><div class="stampbig">${fmt(fs)}<small>/${max}</small></div><div><p class="lbl">Điểm thầy cô đã chấm</p><p class="note-t">${esc(p.teacher?.note || 'Bài đã chấm. Em xem điểm và nhận xét tại đây.')}</p></div></div></section>`;
   } else {
     main = `<div class="empty">${ic('spark')}<h3>Bài chưa được chấm</h3><p>${gv ? (aiOn() ? 'Bấm Chấm bằng AI để AI đọc bài, cho điểm và chỉ lỗi sai.' : 'Quản trị hệ thống chưa bật AI chấm bài. Thầy cô có thể chấm tay ở bên dưới.') : 'Thầy cô sẽ chấm sớm. Em quay lại sau nhé.'}</p></div>`;
   }
@@ -5430,6 +5450,7 @@ function drawSide() {
     <div class="pd-who"><div><h3>${esc(p.studentName)}</h3><p class="meta">${timeAgo(p.createdAt)} · ${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}${p.aiAt ? ' · AI chấm ' + timeAgo(p.aiAt) : ''}</p></div><div class="row-gap" style="align-items:center">${gv ? `<button class="preact${(tmeta(p).likes || []).includes(S.meId) ? ' on' : ''}" data-pd="like" aria-label="Thích bài">${ic((tmeta(p).likes || []).includes(S.meId) ? 'heart-f' : 'heart', 'ic-sm')}${(tmeta(p).likes || []).length || ''}</button>` : ''}${chip(p)}</div></div>
     ${detail.err ? `<p class="warnline">${esc(detail.err)}</p>` : ''}
     ${gv ? (grading ? main : "") : main}
+    ${!gv && studentCanEdit(p) ? `<div class="student-post-actions student-post-actions-detail"><button type="button" class="btn btn-sm" data-pd="student-edit">${ic('pencil','ic-sm')}Sửa bài đã nộp</button><button type="button" class="btn btn-sm btn-danger" data-pd="student-delete">${ic('trash','ic-sm')}Xóa bài</button></div>` : !gv && p.by === 'hs' && p.studentAcc === S.meId ? '<p class="student-post-locked">Bài đã chấm và được khóa để giữ nguyên kết quả.</p>' : ''}
     ${!gv ? studentPracticeHtml(p) : ''}
     ${!gv && detail.studentError ? `<p class="as-err" role="alert">${esc(detail.studentError)}</p>` : ''}
     ${!gv && detail.studentMessage ? `<p class="as-ok" role="status">${esc(detail.studentMessage)}</p>` : ''}
@@ -5484,6 +5505,8 @@ function aiComment(ai) {
 async function detailAct(a, src) {
   const id = detail.id; const p = getPost(id); const b = getBoard(p.boardId);
   if (a === 'close') return detail.m.close();
+  if (a === 'student-edit') { detail.m.close(); return studentEditForm(p); }
+  if (a === 'student-delete') { detail.m.close(); return studentDeletePost(p); }
   if (a === 'airtab') { const i = +src.dataset.i; detail.airTab = i; const box = $('#pd-air', detail.m.el); $$('[role=tab]', box).forEach((t, k) => t.setAttribute('aria-selected', String(k === i))); $$('.air-panel', box).forEach((x, k) => (x.hidden = k !== i)); return; }
   if (a === 'go-air') { $('#pd-air', detail.m.el)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
   if (a === 'ai-use-score') { const inp = $('#td-score', detail.m.el); if (inp && p.ai) { inp.value = p.ai.diem; detail.dirty = true; inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); inp.focus({ preventScroll: true }); toast('Đã điền điểm AI đề xuất. Hãy kiểm tra và bấm Lưu điểm để xác nhận.'); } return; }
@@ -6512,6 +6535,8 @@ document.addEventListener('click', async (e) => {
     case 'capture': if (b) submitForm(b, true, t.dataset.col); break;
     case 'submit': if (b) submitForm(b, false); break;
     case 'open-post': $('.pmenu')?.remove(); openDetail(id, t.dataset.grade === '1', t.dataset.focus); break;
+    case 'student-edit': { const post = getPost(id); if (post) studentEditForm(post); break; }
+    case 'student-delete': { const post = getPost(id); if (post) await studentDeletePost(post); break; }
     case 'grade-all': if (b) gradeAll(b); break;
     case 'stop-batch': S.batch?.ctl.abort(); break;
     case 'me-menu': meMenu('side'); break;
