@@ -2211,6 +2211,30 @@ html,body{max-width:100%;overflow-x:clip}
  #sf .sf-student-fields input{font-size:16px}
 }
 </style>
+
+<style id="submission-multiple-files">
+.attach-picker{gap:7px}
+.attach-pick-btn{display:inline-flex;align-items:center;gap:7px;cursor:pointer;padding:12px 15px;border:1.5px dashed #a7bfd8;border-radius:12px;background:#f5f9ff;color:#155184;font-weight:750}
+.attach-pick-btn input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.attach-pick-btn:focus-within{outline:3px solid #3f95d1;outline-offset:2px}
+.attach-selected{display:grid;gap:6px}
+.attach-selected-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px;border:1px solid #e3eaf3;border-radius:9px;background:#fff;min-width:0}
+.attach-selected-row>span{display:flex;align-items:center;min-width:0;gap:7px;flex:1}
+.attach-selected-row b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;font-size:12px}
+.attach-selected-row small{white-space:nowrap;color:#6a788f;font-size:11px}
+.attach-selected-row button{border:0;background:#fcebee;color:#9c2b3b;border-radius:7px;min-width:30px;min-height:30px;cursor:pointer}
+.attached-files{display:grid;gap:7px;margin:10px 0;padding:10px;border:1px solid #d9e6f1;border-radius:12px;background:#f9fcff}
+.attached-files h4{display:flex;align-items:center;gap:6px;margin:0;font-size:13px;color:#23456c}
+.attached-file{display:flex;align-items:center;gap:8px;justify-content:space-between;min-width:0;padding:7px 0;border-top:1px solid #e5eaf3}
+.attached-file>div{display:grid;gap:2px;min-width:0}
+.attached-file b{font-size:12.5px;overflow-wrap:anywhere}
+.attached-file small{font-size:11px;color:#64738a}
+.attached-file a{flex:none;display:inline-flex;align-items:center;gap:4px;padding:7px 9px;border-radius:8px;background:#e3f1ff;color:#0e5591;font-size:12px;font-weight:700}
+.attached-files video{max-width:100%;width:100%;max-height:310px;background:#0b1623;border-radius:10px}
+.attached-files audio{max-width:100%;width:100%}
+.attach-card-count{border:0;background:#eff6ff;color:#18588d;font-size:11.5px;font-weight:700;border-radius:7px;padding:7px 9px;display:flex;align-items:center;gap:5px;margin:7px 0;cursor:pointer;max-width:100%}
+@media(max-width:480px){.attach-pick-btn{min-height:46px;width:100%;justify-content:center}.attached-file{flex-wrap:wrap}.attached-file a{min-height:40px}}
+</style>
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
@@ -2853,12 +2877,14 @@ const boardToRow = (b) => ({
 const rowToPost = (r, studentAcc = null) => ({
   id: r.id, boardId: r.board_id, ownerAcc: r.owner || null, columnId: r.column_id || '', studentName: r.student_name || '', studentClass: r.student_class || '',
   studentAcc, by: r.by || 'gv', text: r.body || '', images: (r.images || []).filter((i) => i && i.path).map((i) => ({ k: 's', path: i.path })),
+  attachments: Array.isArray(r.attachments) ? r.attachments.filter(a=>a?.path && a?.name) : [],
   ai: r.ai || null, aiAt: r.ai_at ? ts(r.ai_at) : null, teacher: r.teacher || null,
   practice: r.practice || [], practiceSubmissions: r.practice_submissions || [], createdAt: ts(r.created_at),
 });
 const postToRow = (p) => ({
   id: p.id, board_id: p.boardId, owner: p.ownerAcc, column_id: p.columnId || '', student_name: p.studentName || '', student_class: p.studentClass || '',
   by: p.by || 'gv', body: p.text || '', images: (p.images || []).filter((i) => i.k === 's').map((i) => ({ path: i.path })),
+  attachments: (p.attachments || []).map(a=>({path:a.path,name:a.name,size:a.size,type:a.type})),
   ai: p.ai || null, ai_at: p.aiAt ? new Date(p.aiAt).toISOString() : null, teacher: p.teacher || null,
 });
 const pubToBoard = (b) => ({
@@ -2866,6 +2892,109 @@ const pubToBoard = (b) => ({
   columns: b.columns || [], tags: [], assignment: b.assignment || {}, autoGrade: b.auto_grade !== false, private: false, pinned: false, starred: false,
   archived: false, trashed: false, shared: true, teacherName: b.teacher || '', code: b.code, createdAt: 0, updatedAt: 0,
 });
+
+
+/* Multiple-file attachments are private: up to five files, 25 MiB each and 80 MiB total. */
+const ATT_MIME = {
+ pdf:'application/pdf',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+ xls:'application/vnd.ms-excel',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+ ppt:'application/vnd.ms-powerpoint',pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+ txt:'text/plain',csv:'text/csv',odt:'application/vnd.oasis.opendocument.text',
+ ods:'application/vnd.oasis.opendocument.spreadsheet',odp:'application/vnd.oasis.opendocument.presentation',
+ mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm',mp3:'audio/mpeg',m4a:'audio/mp4',wav:'audio/wav'
+};
+const ATT_MAX=25*1024*1024,ATT_TOTAL=80*1024*1024,ATT_COUNT=5;
+const ATT_ACCEPT=Object.keys(ATT_MIME).map(x=>'.'+x).join(',');
+function attachmentExt(name){return String(name||'').toLowerCase().match(/\.([a-z0-9]{2,5})$/)?.[1]||'';}
+const prettyBytes=n=>(n>=1024*1024?(n/(1024*1024)).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB');
+function attachmentName(v){return String(v||'').replace(/[\\/\x00-\x1f<>:"|?*]/g,'_').trim().slice(0,120);}
+function checkAttachments(files,old=[]) {
+ const totalItems=old.length+files.length;
+ const totalBytes=[...old,...files].reduce((n,f)=>n+Number(f.size||0),0);
+ if(totalItems>ATT_COUNT)throw new Error('Mỗi bài tối đa '+ATT_COUNT+' tệp.');
+ if(totalBytes>ATT_TOTAL)throw new Error('Tổng dung lượng không được vượt 80 MB.');
+ for(const file of files) {
+  if(!ATT_MIME[attachmentExt(file.name)])throw new Error('Định dạng '+file.name+' chưa được hỗ trợ.');
+  if(!file.size||file.size>ATT_MAX)throw new Error('Tệp '+file.name+' phải nhỏ hơn 25 MB.');
+ }
+}
+function attachPickerHtml(id,existing=[]) {
+ return `<div class="fld attach-picker">
+   <span>Đính kèm tệp <em>(Word, PDF, Excel, PowerPoint, video, âm thanh...)</em></span>
+   <label class="attach-pick-btn">${ic('plus','ic-sm')} Chọn nhiều tệp <input type="file" id="${esc(id)}" accept="${ATT_ACCEPT}" multiple></label>
+   <div class="attach-selected" data-selected-files aria-live="polite"></div>
+   <p class="fld-hint">Tối đa 5 tệp · 25 MB/tệp · tổng 80 MB. Hỗ trợ DOC, DOCX, PDF, XLS, XLSX, PPT, PPTX, MP4, MOV, WebM, MP3, WAV, TXT, CSV và OpenDocument.</p>
+ </div>`;
+}
+function initAttachPicker(element,initial=[]){
+ const input=element.querySelector('input[type=file]');
+ const root=element.querySelector('[data-selected-files]');
+ const state={files:[],existing:initial.slice()};
+ const redraw=()=>{
+   root.innerHTML = state.existing.map((f,i)=>`<div class="attach-selected-row"><span>${ic('check','ic-sm')}<b title="${esc(f.name)}">${esc(f.name)}</b><small>${prettyBytes(f.size)}</small></span><button type="button" data-attach-existing="${i}" aria-label="Bỏ tệp ${esc(f.name)}">×</button></div>`).join('')
+    +state.files.map((f,i)=>`<div class="attach-selected-row"><span>${ic('plus','ic-sm')}<b title="${esc(f.name)}">${esc(f.name)}</b><small>${prettyBytes(f.size)}</small></span><button type="button" data-attach-new="${i}" aria-label="Bỏ tệp ${esc(f.name)}">×</button></div>`).join('');
+   root.querySelectorAll('[data-attach-new]').forEach(b=>b.onclick=()=>{state.files.splice(Number(b.dataset.attachNew),1);redraw();});
+   root.querySelectorAll('[data-attach-existing]').forEach(b=>b.onclick=()=>{state.existing.splice(Number(b.dataset.attachExisting),1);redraw();});
+ };
+ input.onchange=()=>{
+   const incoming=Array.from(input.files||[]);
+   try{checkAttachments([...state.files,...incoming],state.existing);state.files.push(...incoming);redraw();}catch(e){alert(e.message);}
+   input.value='';
+ };
+ redraw();
+ return state;
+}
+async function uploadAttachments(board,student,files,progress,postId) {
+ checkAttachments(files);
+ const saved=[];
+ for(let i=0;i<files.length;i++){
+   const f=files[i],name=attachmentName(f.name),type=ATT_MIME[attachmentExt(name)];
+   progress('Đang tải tệp '+(i+1)+'/'+files.length+': '+name);
+   if(student){
+     const ticket=await api('student_prepare_attachment',{code:board.code,token:student.token,name,size:f.size});
+     if(!CAP.sb)throw new Error('Chưa kết nối kho tệp. Hãy kiểm tra mạng và thử lại.');
+     const {error}=await CAP.sb.storage.from('work').uploadToSignedUrl(ticket.path,ticket.token,f,{contentType:ticket.type,upsert:false});
+     if(error)throw new Error('Không tải được '+name+': '+error.message);
+     saved.push({path:ticket.path,name:ticket.name,size:f.size,type:ticket.type});
+   }else{
+     const id=crypto.randomUUID(),path=board.ownerAcc+'/'+board.id+'/'+postId+'/files/'+id+'.'+attachmentExt(name);
+     const {error}=await CAP.sb.storage.from('work').upload(path,f,{contentType:type,upsert:false});
+     if(error)throw new Error('Không tải được '+name+': '+error.message);
+     saved.push({path,name,size:f.size,type});
+   }
+ }
+ return saved;
+}
+function attachmentUrl(a) {
+ const c=SIGNED.get(a.path);
+ if(!c || c.exp<=now()){
+   if(!S.guest)queueSign(a.path);
+   return '';
+ }
+ if(!c.url)return '';
+ try{
+   const u=new URL(c.url,location.href);
+   if(!u.protocol.startsWith('https'))return '';
+   u.searchParams.set('download',attachmentName(a.name));
+   return u.href;
+ }catch(e){return '';}
+}
+function attachmentList(p,expanded=false){
+ const items=p.attachments||[];
+ if(!items.length)return '';
+ return `<section class="attached-files">
+  <h4>${ic('download','ic-sm')} ${items.length} tệp đính kèm</h4>
+  ${items.map(a=>{
+   const href=attachmentUrl(a),type=String(a.type||'');
+   return `<div class="attached-file">
+     <div><b>${esc(a.name)}</b><small>${prettyBytes(a.size)} · ${esc(attachmentExt(a.name).toUpperCase())}</small></div>
+     ${href?`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer" download="${esc(a.name)}">${ic('download','ic-sm')} Tải về</a>`:'<span>Đang tạo liên kết...</span>'}
+    </div>
+    ${expanded&&href&&type.startsWith('video/')?`<video controls preload="metadata" playsinline src="${esc(href)}"></video>`:''}
+    ${expanded&&href&&type.startsWith('audio/')?`<audio controls preload="metadata" src="${esc(href)}"></audio>`:''}`;
+  }).join('')}
+ </section>`;
+}
 
 /* ================= gọi máy chủ ================= */
 async function api(action, payload = {}, signal) {
@@ -2905,7 +3034,7 @@ async function saveBoard(b) {
 }
 async function removeBoard(id) {
   const ps = postsOf(id);
-  const paths = ps.flatMap((p) => (p.images || []).filter((i) => i.k === 's').map((i) => i.path));
+  const paths = ps.flatMap((p) => [...(p.images || []).filter((i) => i.k === 's'),...(p.attachments||[])].map(i=>i.path).filter(Boolean));
   S.boards.delete(id); ps.forEach((p) => S.posts.delete(p.id)); renderSoon();
   if (paths.length) await CAP.sb.storage.from('work').remove(paths);
   const { error } = await CAP.sb.from('boards').delete().eq('id', id);
@@ -2923,7 +3052,7 @@ async function savePost(p) {
 async function removePost(p) {
   if (p.boardId === DEMO_ID) { S.demoPosts.delete(p.id); renderSoon(); return true; }
   S.posts.delete(p.id); renderSoon();
-  const paths = (p.images || []).filter((i) => i.k === 's').map((i) => i.path);
+  const paths = [...(p.images || []).filter((i) => i.k === 's'),...(p.attachments||[])].map(i=>i.path).filter(Boolean);
   if (paths.length) await CAP.sb.storage.from('work').remove(paths);
   const { error } = await CAP.sb.from('posts').delete().eq('id', p.id);
   return dbErr(error);
@@ -4033,6 +4162,7 @@ function postCard(p, studentView) {
   return `<article class="pcard${tm.pinned ? ' pinned' : ''}"${color !== '#ffffff' ? ` style="background:${color}"` : ''}>
     <div class="pmeta-row"><span class="pav" aria-hidden="true">${esc(String(who || '?').trim().slice(0, 1) || '?')}</span><div><strong>${esc(who || 'Chưa có tên')}</strong><small title="${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}">${time}</small></div>${tm.pinned ? `<span class="ppin" title="Bài đã ghim">${ic('pin', 'ic-sm')}</span>` : ''}${gv && canManage(b) ? `<button class="icon-btn pmenu-btn" data-act="post-menu" data-id="${p.id}" aria-label="Tùy chọn bài của ${esc(p.studentName)}" aria-haspopup="true">${ic('dots')}</button>` : ''}</div>
     ${media || text ? `<button class="pmedia" data-act="open-post" data-id="${p.id}" aria-label="Xem bài của ${esc(p.studentName)}">${media}${text}</button>` : ''}
+    ${p.attachments?.length ? `<button type="button" class="attach-card-count" data-act="open-post" data-id="${p.id}">${ic('download','ic-sm')}${p.attachments.length} tệp đính kèm</button>` : ''}
     ${linkChips(links, false)}
     <button class="btn btn-ai ai-entry" data-act="open-post" data-id="${p.id}" ${autoGrade ? 'data-grade="1"' : ''}>${aiLabel}</button>
     ${!gv && studentCanEdit(p) ? `<div class="student-post-actions"><button class="btn btn-sm" data-act="student-edit" data-id="${p.id}">${ic('pencil','ic-sm')}Sửa bài</button><button class="btn btn-sm btn-danger" data-act="student-delete" data-id="${p.id}">${ic('trash','ic-sm')}Xóa bài</button></div>` : !gv && p.by === 'hs' && p.studentAcc === S.meId ? `<p class="student-post-locked">${ic('lock','ic-sm')}Bài đã chấm · không thể sửa hoặc xóa</p>` : ''}
@@ -5365,10 +5495,10 @@ function drawMedia() {
   const el = $('#pd-media', detail.m.el);
   const { text, links } = splitLinks(p.text);
   const srcs = postImageSrcs(p);
-  const key = JSON.stringify([srcs, p.text]);
+  const key = JSON.stringify([srcs, p.text, p.attachments, (p.attachments||[]).map(x=>SIGNED.get(x.path)?.url)]);
   if (el.dataset.k === key) return;
   el.dataset.k = key;
-  el.innerHTML = srcs.map((s, i) => s ? `<img src="${esc(s)}" alt="Trang ${i + 1} bài làm của ${esc(p.studentName)}" data-k="${i}" title="Bấm để phóng to, xoay ảnh">` : '<div class="empty">Đang tải ảnh…</div>').join('') + (text ? `<div class="pd-text"><p class="eyebrow" style="margin-bottom:6px">Bài gõ</p>${esc(text)}</div>` : '') + linkChips(links, true);
+  el.innerHTML = srcs.map((s, i) => s ? `<img src="${esc(s)}" alt="Trang ${i + 1} bài làm của ${esc(p.studentName)}" data-k="${i}" title="Bấm để phóng to, xoay ảnh">` : '<div class="empty">Đang tải ảnh…</div>').join('') + (text ? `<div class="pd-text"><p class="eyebrow" style="margin-bottom:6px">Bài gõ</p>${esc(text)}</div>` : '') + linkChips(links, true) + attachmentList(p,true);
   $$('img[data-k]', el).forEach((im) => (im.onclick = () => openViewer(postImageSrcs(p), +im.dataset.k)));
 }
 function refreshDetail() {
