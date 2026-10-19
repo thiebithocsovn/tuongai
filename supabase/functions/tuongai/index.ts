@@ -156,8 +156,12 @@ async function gradePost(post: any, board: any) {
   const raw = await callGemini(buildPrompt(board, post, imgs.length), imgs);
   const ai = cleanAI(raw, Number(board.assignment?.maxScore) || 10);
   const ai_at = new Date().toISOString();
-  const { error } = await db.from("posts").update({ ai, ai_at }).eq("id", post.id);
+  const { data: saved, error } = await db.rpc("grade_post_if_unchanged", {
+    p_post_id: post.id, p_expected_body: String(post.body || ""),
+    p_expected_images: post.images || [], p_ai: ai, p_ai_at: ai_at,
+  });
   if (error) throw new Fail("server", error.message, 500);
+  if (!saved) throw new Fail("stale_submission", "Bài làm đã thay đổi trong lúc AI chấm. Hãy mở lại bài và chấm phiên bản mới.", 409);
   return { ai, ai_at };
 }
 async function signed(paths: string[]) {
