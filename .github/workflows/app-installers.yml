@@ -1,0 +1,68 @@
+name: Android APK & Windows EXE (test installers)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app-packages/**'
+      - '.github/workflows/app-installers.yml'
+permissions:
+  contents: write
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Build signed debug APK for testing
+        run: gradle -p app-packages/android :app:assembleDebug --no-daemon
+      - name: Prepare downloadable APK
+        run: cp app-packages/android/app/build/outputs/apk/debug/app-debug.apk Tuong-Hoc-Tap-AI-Android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tuong-ai-android
+          path: Tuong-Hoc-Tap-AI-Android.apk
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install desktop build dependencies
+        working-directory: app-packages/windows
+        run: npm install --no-audit --no-fund
+      - name: Package unsigned Windows installer
+        working-directory: app-packages/windows
+        run: npm run dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tuong-ai-windows
+          path: app-packages/windows/dist/Tuong-Hoc-Tap-AI-Windows.exe
+  release:
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create or update verified public installer assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="app-v0.1.0"
+          repo="${{ github.repository }}"
+          if ! gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            gh release create "$tag" --repo "$repo" --title "Tường học tập AI · Bộ cài thử nghiệm 0.1.0" --notes "Android APK được ký bằng khóa debug (chỉ kiểm thử, không phải bản Play Store). Windows EXE chưa ký số (có thể hiện SmartScreen). iPhone/iPad cài qua Safari → Thêm vào Màn hình chính. Cần Internet để xử lý bài làm." --latest
+          fi
+          gh release upload "$tag" dist/Tuong-Hoc-Tap-AI-Android.apk dist/Tuong-Hoc-Tap-AI-Windows.exe --clobber --repo "$repo"
