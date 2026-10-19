@@ -17,10 +17,22 @@
     "appId": "vn.tuonghoctap.ai.desktop",
     "productName": "Tường học tập AI",
     "asar": true,
-    "files": ["main.cjs", "package.json"],
-    "directories": {"output": "../../native-artifacts"},
+    "files": [
+      "main.cjs",
+      "package.json"
+    ],
+    "directories": {
+      "output": "../../native-artifacts"
+    },
     "win": {
-      "target": [{"target": "nsis", "arch": ["x64"]}],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "../../icon-512.png"
     },
     "nsis": {
@@ -29,6 +41,12 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "artifactName": "Tuong-Hoc-Tap-AI-Windows.exe"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "../../icon-512.png",
+        "to": "icon.png"
+      }
+    ]
   }
 }
