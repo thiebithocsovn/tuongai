@@ -36,7 +36,9 @@ function createWindow() {
   ses.setPermissionRequestHandler((contents, permission, callback, details) => {
     const url = details.requestingUrl || contents.getURL();
     // Camera permission only for the official learning site, not third parties.
-    callback(isOfficial(url) && permission === 'media');
+    let sameOrigin = false;
+    try { sameOrigin = new URL(url).origin === new URL(HOME).origin; } catch {}
+    callback(permission === 'media' && isOfficial(contents.getURL()) && sameOrigin);
   });
   win.webContents.setWindowOpenHandler(({ url }) => {
     openExternal(url);
