@@ -1811,7 +1811,7 @@ html,body{max-width:100%;overflow-x:clip}
     <div class="auth-card">
       <div class="quick" id="quick" hidden>
         <button type="button" class="btn-quick" id="quick-btn"><img id="quick-av" alt=""><span class="t"><b id="quick-name">Tiếp tục với tài khoản của bạn</b><small id="quick-mail"></small></span><span class="go" data-ic="send"></span></button>
-        <p class="quick-note">Đăng nhập nhanh bằng tài khoản bạn đang dùng cho Claude. Nếu bạn đăng nhập Claude bằng Gmail, đây chính là tài khoản Google đó, không cần mật khẩu riêng.</p>
+        <p class="quick-note">Tiếp tục với tài khoản đã sử dụng trên thiết bị này. Nếu phiên đăng nhập đã hết hạn, hãy nhập email và mật khẩu.</p>
         <p class="divider">hoặc dùng tên đăng nhập</p>
       </div>
       <div class="tabs" role="tablist" aria-label="Tài khoản giáo viên">
@@ -4491,7 +4491,7 @@ const K_HIDE_DEMO = 'tuongai.hideDemo.';
 const demoHidden = () => LS.get(K_HIDE_DEMO + (S.meId || '')) === '1';
 /* Chân trang cố định: một dải chạy hết đáy màn hình */
 function footerHtml() {
-  return '<div class="sbar-in"><div class="footer-credits"><span>Bản quyền tuonghoctapAI@2026</span></div></div>';
+  return '<div class="sbar-in"><div class="footer-credits"><span><strong>Học Tập AI</strong> © 2026</span></div></div>';
 }
 function updateFoot() {
   const el = $('#site-foot'); if (!el) return;
