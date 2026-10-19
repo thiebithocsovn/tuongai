@@ -1,0 +1,38 @@
+{
+  "name": "tuong-hoc-tap-ai",
+  "productName": "Tuong Hoc Tap AI",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tường học tập AI – Truy gốc lỗi cho Windows",
+  "main": "main.js",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dist": "electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "34.5.8",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "vn.tuongai.learningwall.desktop",
+    "productName": "Tuong Hoc Tap AI",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "Tuong-Hoc-Tap-AI-Windows.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
+  }
+}
