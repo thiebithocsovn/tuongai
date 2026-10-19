@@ -1,0 +1,51 @@
+{
+  "id": "/tuongai/",
+  "name": "Tường học tập AI – Truy gốc lỗi",
+  "short_name": "Tường AI",
+  "description": "Giáo viên giao bài, học sinh nộp bài, AI phân tích lỗi và hướng dẫn luyện tập.",
+  "lang": "vi",
+  "dir": "ltr",
+  "start_url": "/tuongai/",
+  "scope": "/tuongai/",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "theme_color": "#143e73",
+  "background_color": "#f5f8fb",
+  "orientation": "any",
+  "categories": [
+    "education",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "app-icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "app-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mở Tường học tập AI",
+      "url": "/tuongai/",
+      "description": "Mở bảng lớp và bài làm",
+      "icons": [
+        {
+          "src": "app-icon.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}
