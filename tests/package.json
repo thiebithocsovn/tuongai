@@ -1,0 +1,10 @@
+{
+  "name": "tuongai-responsive-tests",
+  "private": true,
+  "scripts": {
+    "test": "node responsive.test.js"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
