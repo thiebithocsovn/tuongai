@@ -172,6 +172,59 @@ async function signed(paths: string[]) {
   return m;
 }
 
+
+/* Private learning attachments: common document, media and open-office formats. */
+const FILE_MIME: Record<string,string> = {
+ pdf:"application/pdf",doc:"application/msword",docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+ xls:"application/vnd.ms-excel",xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+ ppt:"application/vnd.ms-powerpoint",pptx:"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+ txt:"text/plain",csv:"text/csv",odt:"application/vnd.oasis.opendocument.text",
+ ods:"application/vnd.oasis.opendocument.spreadsheet",odp:"application/vnd.oasis.opendocument.presentation",
+ mp4:"video/mp4",mov:"video/quicktime",webm:"video/webm",
+ mp3:"audio/mpeg",m4a:"audio/mp4",wav:"audio/wav",
+};
+const FILE_MAX = 25 * 1024 * 1024;
+const FILE_TOTAL = 80 * 1024 * 1024;
+const FILE_COUNT = 5;
+function fileExt(name: string) { return String(name).toLowerCase().match(/\.([a-z0-9]{2,5})$/)?.[1] || ""; }
+function cleanFileLabel(name: unknown) { return str(name, 120).replace(/[\\/\x00-\x1f<>:"|?*]/g, "_").trim(); }
+async function studentFilePrefix(b: any, token: string) {
+  const input = new TextEncoder().encode(token);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256",input));
+  const hashed = Array.from(digest).map(n=>n.toString(16).padStart(2,"0")).join("").slice(0,32);
+  return `${b.owner}/${b.id}/attachments/${hashed}/`;
+}
+async function verifyStudentAttachments(b:any, token:string, input:unknown) {
+  if (!Array.isArray(input) || input.length>FILE_COUNT) throw new Fail("file_limit", "Chỉ được gửi tối đa 5 tệp.");
+  const prefix=await studentFilePrefix(b,token);
+  const names=new Set<string>();
+  const clean: {path:string,name:string,size:number,type:string}[]=[];
+  let total=0;
+  for(const a of input) {
+    const path=str(a?.path,320), name=cleanFileLabel(a?.name), size=Number(a?.size);
+    const ext=fileExt(name), type=FILE_MIME[ext];
+    if (!type || !name || !path.startsWith(prefix) || !new RegExp("^"+prefix.replace(/[.*+?^${}()|[\]\\]/g,"\\/* ---------------- học sinh ---------------- */")+"[0-9a-f-]{36}\\."+ext+"$").test(path))
+      throw new Fail("invalid_file","Tệp không hợp lệ hoặc không thuộc phiên học sinh này.",403);
+    if (!Number.isSafeInteger(size) || size<1 || size>FILE_MAX)
+      throw new Fail("file_limit","Mỗi tệp phải dưới 25 MB.");
+    total+=size;
+    if(total>FILE_TOTAL || names.has(path)) throw new Fail("file_limit","Tổng tệp không vượt 80 MB và không được trùng tệp.");
+    names.add(path);
+    clean.push({path,name,size,type});
+  }
+  if (!clean.length) return clean;
+  const {data: objects,error} = await db.schema("storage").from("objects")
+    .select("name,metadata").eq("bucket_id","work").in("name",clean.map(a=>a.path));
+  if(error) throw new Fail("server","Không xác minh được tệp tải lên: "+error.message,500);
+  const records=new Map((objects||[]).map((o:any)=>[o.name,o.metadata||{}]));
+  for(const a of clean){
+    const meta:any=records.get(a.path);
+    if(!meta || Number(meta.size)!==a.size || String(meta.mimetype||"").toLowerCase()!==a.type)
+      throw new Fail("invalid_file","Tệp chưa tải lên đầy đủ hoặc định dạng không khớp.",400);
+  }
+  return clean;
+}
+
 /* ---------------- học sinh ---------------- */
 async function boardByCode(code: string) {
   const c = str(code, 6).toUpperCase();
@@ -213,7 +266,7 @@ function studentPracticeSets(post: any) {
 }
 const publicPost = (p: any) => ({
   id: p.id, board_id: p.board_id, column_id: p.column_id, student_name: p.student_name, student_class: p.student_class,
-  by: p.by, body: p.body, images: p.images, ai: p.ai, ai_at: p.ai_at, teacher: forStudent(p.teacher), created_at: p.created_at,
+  by: p.by, body: p.body, images: p.images, attachments: p.attachments || [], ai: p.ai, ai_at: p.ai_at, teacher: forStudent(p.teacher), created_at: p.created_at,
 });
 
 /* ---------------- Trợ lý AI cho bài làm (chỉ giáo viên) ----------------
@@ -302,6 +355,18 @@ async function handle(req: Request) {
       const b = await boardByCode(body.code);
       return { board: publicBoard(b), ai: !!(await config("gemini_key")) };
     }
+    case "student_prepare_attachment": {
+      const b = await boardByCode(body.code);
+      const token = str(body.token,80), name=cleanFileLabel(body.name), size=Number(body.size);
+      const ext=fileExt(name);
+      if (token.length<16 || !name || !FILE_MIME[ext]) throw new Fail("invalid_file","Tệp này chưa được hỗ trợ.",400);
+      if(!Number.isSafeInteger(size) || size<1 || size>FILE_MAX)
+        throw new Fail("file_limit","Mỗi tệp có dung lượng tối đa 25 MB.");
+      const path=(await studentFilePrefix(b,token))+crypto.randomUUID()+"."+ext;
+      const {data,error} = await db.storage.from("work").createSignedUploadUrl(path);
+      if(error || !data?.token) throw new Fail("server","Chưa tạo được liên kết tải tệp.",500);
+      return {path,token:data.token,type:FILE_MIME[ext],name,size};
+    }
     case "student_mine": {
       const b = await boardByCode(body.code);
       const token = str(body.token, 80);
@@ -319,7 +384,7 @@ async function handle(req: Request) {
       const grouped = new Map<string, any[]>();
       for (const entry of submitted) grouped.set(entry.post_id, [...(grouped.get(entry.post_id) || []), entry]);
       for (const post of posts) post.practice_submissions = grouped.get(post.id) || [];
-      return { posts, urls: await signed(posts.flatMap((p: any) => (p.images || []).map((i: any) => i.path)).filter(Boolean)) };
+      return { posts, urls: await signed(posts.flatMap((p: any) => [...(p.images || []), ...(p.attachments || [])].map((i: any) => i.path)).filter(Boolean)) };
     }
     case "student_practice_submit": {
       // Không tin set/exercise do trình duyệt gửi. Ràng buộc với bài của token học sinh.
@@ -361,7 +426,8 @@ async function handle(req: Request) {
       const imgs: any[] = Array.isArray(body.images) ? body.images.slice(0, 4) : [];
       if (token.length < 16) throw new Fail("bad_token", "Thiếu mã thiết bị. Hãy tải lại trang.");
       if (name.length < 2) throw new Fail("bad_name", "Hãy nhập họ và tên.");
-      if (!imgs.length && !text) throw new Fail("empty", "Hãy chụp ảnh bài làm hoặc gõ câu trả lời.");
+      const attachments=await verifyStudentAttachments(b,token,body.attachments || []);
+      if (!imgs.length && !text && !attachments.length) throw new Fail("empty", "Em hãy chụp ảnh, chọn tệp hoặc gõ bài làm.");
       const id = crypto.randomUUID();
       const paths: { path: string }[] = [];
       for (let i = 0; i < imgs.length; i++) {
@@ -375,14 +441,14 @@ async function handle(req: Request) {
       const requestedColumn = str(body.column_id, 100);
       const selectedColumn = (b.columns || []).some((c: any) => c.id === requestedColumn)
         ? requestedColumn : ((b.columns?.[0]?.id as string) || "");
-      const row = { id, board_id: b.id, owner: b.owner, column_id: selectedColumn, student_name: name, student_class: cls, student_token: token, by: "hs", body: text, images: paths };
+      const row = { id, board_id: b.id, owner: b.owner, column_id: selectedColumn, student_name: name, student_class: cls, student_token: token, by: "hs", body: text, images: paths, attachments };
       const { data: post, error } = await db.from("posts").insert(row).select("*").single();
       if (error) throw new Fail("server", error.message, 500);
       let gradeError: string | null = null;
       if (b.auto_grade && (await config("gemini_key"))) {
         try { Object.assign(post, await gradePost(post, b)); } catch (e) { gradeError = e instanceof Fail ? e.message : "AI chưa chấm được."; }
       }
-      return { post: publicPost(post), urls: await signed(paths.map((p) => p.path)), gradeError };
+      return { post: publicPost(post), urls: await signed([...paths,...attachments].map((p) => p.path)), gradeError };
     }
     case "student_update": {
       const b = await boardByCode(body.code);
@@ -397,8 +463,11 @@ async function handle(req: Request) {
       const replacing = Object.prototype.hasOwnProperty.call(body, "images");
       if (replacing && (!Array.isArray(body.images) || body.images.length > 4))
         throw new Fail("invalid_images", "Chỉ chọn tối đa 4 ảnh bài làm.");
-      if (!(replacing ? body.images.length : (old.images || []).length) && !text)
-        throw new Fail("empty", "Em phải giữ ít nhất một ảnh hoặc nhập bài làm.");
+      const replacingFiles=Object.prototype.hasOwnProperty.call(body,"attachments");
+      const attachments=replacingFiles ? await verifyStudentAttachments(b,token,body.attachments) : null;
+      if (!(replacing ? body.images.length : (old.images || []).length) && !text
+         && !(replacingFiles ? attachments!.length : (old.attachments || []).length))
+        throw new Fail("empty", "Em cần giữ lại nội dung, ảnh hoặc ít nhất một tệp.");
       const uploaded: { path: string }[] = [];
       try {
         if (replacing) {
@@ -412,9 +481,9 @@ async function handle(req: Request) {
           }
         }
         // SQL makes the owner-token and not-yet-graded checks atomic with the update.
-        const { data: edited, error } = await db.rpc("student_update_ungraded_post", {
+        const { data: edited, error } = await db.rpc("student_update_ungraded_post_with_files", {
           p_post_id: postId, p_board_id: b.id, p_student_token: token,
-          p_body: text, p_images: replacing ? uploaded : null,
+          p_body: text, p_images: replacing ? uploaded : null, p_attachments: attachments,
         });
         if (error) throw new Fail("server", "Không cập nhật được bài: " + error.message, 500);
         if (!edited?.id) throw new Fail("graded_locked", "Bài vừa được chấm hoặc không còn quyền sửa. Hãy tải lại.", 409);
@@ -422,7 +491,12 @@ async function handle(req: Request) {
           const obsolete = (old.images || []).map((x: any) => x.path).filter(Boolean);
           if (obsolete.length) await db.storage.from("work").remove(obsolete);
         }
-        return { post: publicPost(edited), urls: await signed((edited.images || []).map((x: any) => x.path).filter(Boolean)) };
+        if(replacingFiles) {
+          const kept=new Set((attachments||[]).map((x:any)=>x.path));
+          const obsolete=(old.attachments||[]).map((x:any)=>x.path).filter((p:string)=>p&&!kept.has(p));
+          if(obsolete.length) await db.storage.from("work").remove(obsolete);
+        }
+        return { post: publicPost(edited), urls: await signed([...(edited.images||[]),...(edited.attachments||[])].map((x:any)=>x.path).filter(Boolean)) };
       } catch (e) {
         if (uploaded.length) await db.storage.from("work").remove(uploaded.map((x) => x.path));
         throw e;
@@ -438,7 +512,7 @@ async function handle(req: Request) {
       });
       if (error) throw new Fail("server", "Không xóa được bài: " + error.message, 500);
       if (!removed?.id) throw new Fail("graded_locked", "Chỉ được xóa bài của em khi chưa chấm.", 409);
-      const paths = (removed.images || []).map((x: any) => x.path).filter(Boolean);
+      const paths = [...(removed.images || []),...(removed.attachments || [])].map((x: any) => x.path).filter(Boolean);
       if (paths.length) await db.storage.from("work").remove(paths);
       return { ok: true, id: removed.id };
     }
