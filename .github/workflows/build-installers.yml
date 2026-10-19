@@ -18,7 +18,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  qa:
+    name: Check PWA and device compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate UI, manifest, service worker and packaging
+        run: node native/check-installation.mjs
+
   android:
+    needs: qa
     name: Android APK (debug signed)
     runs-on: ubuntu-latest
     steps:
@@ -45,6 +57,7 @@ jobs:
           if-no-files-found: error
 
   windows:
+    needs: qa
     name: Windows installer (unsigned)
     runs-on: windows-latest
     steps:
