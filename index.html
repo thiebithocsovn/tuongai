@@ -3160,7 +3160,7 @@ function deviceToken() {
   if (!t || t.length < 16) { t = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/-/g, ''); LS.set(K_DEVICE, t); SS.set(K_DEVICE, t); }
   return t;
 }
-function saveGuest() { if (S.guest) SS.set(K_GUEST, JSON.stringify(S.guest)); }
+function saveGuest() { if (S.guest && !S.guest.preview) SS.set(K_GUEST, JSON.stringify(S.guest)); }
 async function addGuestBoard(g, code) {
   if (code === DEMO.code) return DEMO;
   const r = await api('student_board', { code });
@@ -3196,63 +3196,93 @@ const shareLink = (b) => location.origin + location.pathname.replace(/index\.htm
 function joinState(icon, title, text) {
   return `<div class="join-state">${ic(icon)}<h2>${esc(title)}</h2><p>${text}</p><p class="meta">Giáo viên? <a class="link" href="${esc(location.origin + location.pathname)}">Đăng nhập Tường học tập AI</a></p></div>`;
 }
-async function showJoin(code, name, cls) {
+
+/* Đường link chia sẻ mở thẳng bảng, không cần điền họ tên trước. */
+async function showJoin(code) {
   $('#auth').hidden = true; $('#app').hidden = true; $('#join').hidden = false;
   const body = $('#join-body');
-  body.innerHTML = `<div class="join-state"><span class="spin"></span><p>Đang mở lớp…</p></div>`;
+  body.innerHTML = '<div class="join-state"><span class="spin"></span><p>Đang mở bảng lớp…</p></div>';
   await ready;
-  let b = null;
+  let board;
   try {
-    if (code === DEMO.code) b = DEMO;
-    else { const r = await api('student_board', { code }); b = pubToBoard(r.board); CAP.aiReady = !!r.ai; }
+    if (code === DEMO.code) board = DEMO;
+    else {
+      const info = await api('student_board', { code });
+      board = pubToBoard(info.board);
+      CAP.aiReady = !!info.ai;
+    }
   } catch (e) {
     body.innerHTML = e?.code === 'not_shared'
       ? joinState('lock', 'Lớp chưa mở chia sẻ', esc(e.message))
       : e?.code === 'network'
         ? joinState('x', 'Chưa kết nối được', esc(e.message) + ' <button class="link" data-act="join-retry">Thử lại</button>')
         : joinState('x', 'Không mở được lớp', esc(e?.message || 'Đường link không đúng.') + ' Em hãy xin thầy cô đường link mới.');
-    $('[data-act="join-retry"]', body)?.addEventListener('click', () => showJoin(code, name, cls));
+    $('[data-act="join-retry"]', body)?.addEventListener('click', () => showJoin(code));
     return;
   }
-  const a = b.assignment || {};
-  body.innerHTML = `
-    <div class="join-cover">${cover(b.cover, b.id)}</div>
-    <div><p class="eyebrow">Em được mời nộp bài</p><h1>${esc(b.name)}</h1><p class="meta">${[b.teacherName ? 'Thầy cô: ' + b.teacherName : '', b.subject, b.grade].filter(Boolean).map(esc).join(' · ')}</p></div>
-    ${a.title || a.prompt ? `<div class="assign-t"><b>${esc(a.title || 'Bài tập')}</b>${a.prompt ? '\n' + esc(a.prompt) : ''}</div>` : ''}
-    <button type="button" class="btn btn-brand btn-block" id="jn-open">${ic('send')}Nộp bài vào lớp này</button>
-    <form class="form" id="jn" novalidate hidden>
-      <label class="fld"><span>Họ và tên của em</span><input id="jn-name" autocomplete="name" placeholder="Ví dụ: Nguyễn Văn An"></label>
-      <label class="fld"><span>Lớp <em>(không bắt buộc)</em></span><input id="jn-class" autocomplete="off" placeholder="Ví dụ: 9A5"></label>
-      <p class="form-err" id="jn-err" role="alert"></p>
-      <button class="btn btn-brand btn-block" type="submit" id="jn-btn">${ic('door')}Tiếp tục nộp bài</button>
-      <p class="switch">Em không cần tài khoản. Bài được gắn với phiên học sinh trên thiết bị này; trên máy dùng chung, em hãy thoát lớp sau khi hoàn thành.</p>
-    </form>`;
-  $('#jn-name').value = name || ''; $('#jn-class').value = cls || '';
-  $('#jn-open').onclick = () => {
-    $('#jn-open').hidden = true; $('#jn').hidden = false;
-    if (window.innerWidth > 560) $('#jn-name').focus();
-  };
-  $('#jn').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const err = $('#jn-err'); err.textContent = '';
-    const nm = $('#jn-name').value.trim().replace(/\s+/g, ' ');
-    const cl = $('#jn-class').value.trim().toUpperCase();
-    if (nm.length < 2) { err.textContent = 'Em hãy nhập họ và tên.'; $('#jn-name').focus(); return; }
-    const btn = $('#jn-btn'); btn.disabled = true; btn.textContent = 'Đang vào lớp…';
-    try {
-      const id = guestId(nm);
-      const g = { id, name: nm, className: cl, role: 'hs', guest: true, joined: [], codes: [], token: deviceToken() + id.slice(2) };
-      const jb = await addGuestBoard(g, b.code);
-      enterGuest(g, jb.id);
-      toast('Chào ' + givenName(nm) + '! Em có thể nộp bài ngay.');
-      // Sau khi nhập tên ở liên kết mời, mở ngay biểu mẫu nộp bài thay vì bắt học sinh tìm nút +.
-      if (!jb.demo) submitForm(jb, false);
-    } catch (x) {
-      err.textContent = x?.message || 'Chưa vào được lớp. Hãy thử lại.';
-    } finally { btn.disabled = false; btn.innerHTML = ic('door') + 'Tiếp tục nộp bài'; }
-  });
+  S.boards.set(board.id, board);
+  // Chỉ hiển thị bố cục bảng công khai, không lưu phiên và không lấy bài của học sinh khác.
+  enterGuest({
+    id: 'preview_' + board.id, name: 'Khách xem lớp', className: '',
+    role: 'hs', guest: true, preview: true, token: '',
+    joined: [board.id], codes: [board.code],
+  }, board.id);
 }
 
+/* Chỉ hỏi tên trong hộp thoại sau khi học sinh nhấn Nộp bài. */
+function askStudentNameAndSubmit(board, columnId) {
+  if (!board) return;
+  const original = S.guest;
+  const known = original && !original.preview ? original : null;
+  const modal = openModal({
+    title: 'Nộp bài · ' + board.name,
+    body: `<form id="student-name-before-submit" class="modal-b" novalidate>
+      <p class="info-box">Em đang nộp bài vào <b>${esc(board.name)}</b>. Nhập họ tên để thầy cô nhận biết bài của em, không cần đăng nhập.</p>
+      <label class="fld"><span>Họ và tên học sinh <em>(bắt buộc)</em></span><input id="student-submit-name" autocomplete="name" maxlength="120" value="${esc(known?.name || '')}" placeholder="Ví dụ: Nguyễn Văn An" required></label>
+      <label class="fld"><span>Lớp <em>(không bắt buộc)</em></span><input id="student-submit-class" maxlength="30" value="${esc(known?.className || '')}" placeholder="Ví dụ: 8A4"></label>
+      <p id="student-name-error" class="form-err" role="alert"></p>
+    </form>`,
+    foot: '<button class="btn btn-ghost" data-close>Hủy</button><button class="btn btn-brand" id="student-name-next">Tiếp tục làm bài</button>',
+  });
+  const el = modal.el;
+  const proceed = async () => {
+    const error = $('#student-name-error', el);
+    error.textContent = '';
+    const name = $('#student-submit-name', el).value.trim().replace(/\s+/g, ' ');
+    const className = $('#student-submit-class', el).value.trim().toUpperCase();
+    if (name.length < 2) {
+      error.textContent = 'Em hãy nhập họ và tên.';
+      $('#student-submit-name', el).focus();
+      return;
+    }
+    const id = guestId(name);
+    const same = known && known.id === id;
+    const guest = same ? { ...known, name, className } : {
+      id, name, className, role: 'hs', guest: true,
+      joined: [], codes: [], token: deviceToken() + id.slice(2),
+    };
+    const button = $('#student-name-next', el);
+    button.disabled = true; button.textContent = 'Đang chuẩn bị nộp bài…';
+    const previous = S.posts;
+    if (!same) S.posts = new Map();
+    try {
+      const opened = await addGuestBoard(guest, board.code);
+      modal.close();
+      enterGuest(guest, opened.id);
+      submitForm(opened, false, columnId);
+    } catch (e) {
+      if (!same) S.posts = previous;
+      error.textContent = e?.message || 'Chưa vào được lớp. Em hãy thử lại.';
+    } finally {
+      button.disabled = false; button.textContent = 'Tiếp tục làm bài';
+    }
+  };
+  $('#student-name-next', el).onclick = proceed;
+  $('#student-name-before-submit', el).addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!$('#student-name-next', el).disabled) proceed();
+  });
+}
 /* ---------- chia sẻ bảng cho học sinh (giáo viên) ---------- */
 let qrLoading = null;
 function loadQR() {
@@ -3278,7 +3308,7 @@ function shareForm(b) {
         <div class="share-check"><button type="button" class="btn btn-sm btn-ghost" id="sh-test">${ic('check', 'ic-sm')}Kiểm tra đường link lớp</button><a href="${esc(link)}" class="btn btn-sm btn-ghost" target="_blank" rel="noopener noreferrer">Mở thử trang học sinh</a></div>
         <p class="meta" id="sh-test-result" role="status" aria-live="polite"></p>
         <div class="qr" id="sh-qr" role="img" aria-label="Mã QR mở đường link"><span class="spin"></span></div>
-        <p class="meta" style="text-align:center">Học sinh mở đường link hoặc quét mã QR bằng camera điện thoại, nhập họ tên là nộp được bài. Không cần tài khoản.</p>
+        <p class="meta" style="text-align:center">Học sinh mở link hoặc quét mã QR sẽ thấy bảng lớp ngay. Chỉ khi bấm Nộp bài mới cần nhập họ tên. Không cần tài khoản.</p>
       </div>
     </div>`,
     foot: '<button class="btn btn-brand" data-close>Xong</button>',
@@ -3982,7 +4012,7 @@ function renderPosts(b, ps, gv, q) {
   const lay = layoutKey(b.layout);
   const dir = ' dir-' + boardDir(b);
   const manage = canManage(b);
-  if (!ps.length && (q || lay !== 'cot' || !gv)) {
+  if (!ps.length && (q || lay !== 'cot' || (!gv && !(b.columns || []).length))) {
     return `<div class="empty pad">${ic(q ? 'search' : 'msg')}<h3>${q ? 'Chưa có bài phù hợp' : gv ? 'Bắt đầu bằng một bài làm' : 'Em chưa nộp bài ở lớp này'}</h3><p>${q ? 'Thử một từ khóa khác.' : gv ? 'Bấm Chụp bài học sinh hoặc nút + để chụp vở bằng điện thoại. Muốn học sinh tự nộp, bấm Chia sẻ để lấy đường link.' : 'Bấm Nộp bài vào lớp, chụp vở hoặc gõ câu trả lời. AI sẽ chỉ lỗi và gợi ý cách luyện.'}</p>${q ? '' : `<button class="btn" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}">${ic('plus')}${gv ? 'Thêm bài đầu tiên' : 'Nộp bài đầu tiên'}</button>`}</div>`;
   }
   const cards = (list) => list.map((p) => postCard(p, false)).join('');
@@ -4003,14 +4033,14 @@ function renderPosts(b, ps, gv, q) {
     ps.forEach((p) => { const d = p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Bài mới'; if (!days.has(d)) days.set(d, []); days.get(d).push(p); });
     return `<div class="tl">${[...days].map(([d, list]) => `<section class="tl-col"><h3 class="tl-date">${esc(d)}<span>${list.length} bài</span></h3>${cards(list)}</section>`).join('')}</div>`;
   }
-  if (lay === 'tuong' || !gv) return `<div class="wall pad${dir}">${cards(ps)}</div>`;
+  if (lay === 'tuong' || (!gv && lay !== 'cot')) return `<div class="wall pad${dir}">${cards(ps)}</div>`;
   const cols = (b.columns || []).slice();
   const ids = new Set(cols.map((c) => c.id));
   const loose = ps.filter((p) => !ids.has(p.columnId));
   const groups = [];
   if (loose.length || !cols.length) groups.push({ id: '', name: 'Bài chung', items: loose, own: false });
   cols.forEach((c) => groups.push({ id: c.id, name: c.name, items: ps.filter((p) => p.columnId === c.id), own: true }));
-  return `<div class="cols-wrap"><div class="cols${dir}">${groups.map((g) => `<section class="col" aria-label="${esc(g.name)}"><div class="col-h"><h2>${esc(g.name)}</h2><span>${g.items.length}</span>${manage && g.own ? `<button class="icon-btn" data-act="col-rename" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>` : ''}</div>${cards(g.items)}${!g.items.length && q ? '<p class="col-empty">Không có bài phù hợp.</p>' : ''}<button class="col-addpost" data-act="capture" data-id="${b.id}" data-col="${esc(g.id)}">${ic('plus')}Thêm bài</button></section>`).join('')}${manage ? `<div class="col-add-actions"><button class="col-add" data-act="add-col" data-id="${b.id}">${ic('plus')}Thêm cột</button><button class="col-add col-add-row" data-act="add-row" data-id="${b.id}">${ic('plus')}Thêm hàng</button></div>` : ''}</div></div>`;
+  return `<div class="cols-wrap"><div class="cols${dir}">${groups.map((g) => `<section class="col" aria-label="${esc(g.name)}"><div class="col-h"><h2>${esc(g.name)}</h2><span>${g.items.length}</span>${manage && g.own ? `<button class="icon-btn" data-act="col-rename" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>` : ''}</div>${cards(g.items)}${!g.items.length && q ? '<p class="col-empty">Không có bài phù hợp.</p>' : ''}<button class="col-addpost" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}" data-col="${esc(g.id)}">${ic('plus')}${gv ? 'Thêm bài' : 'Nộp bài'}</button></section>`).join('')}${manage ? `<div class="col-add-actions"><button class="col-add" data-act="add-col" data-id="${b.id}">${ic('plus')}Thêm cột</button><button class="col-add col-add-row" data-act="add-row" data-id="${b.id}">${ic('plus')}Thêm hàng</button></div>` : ''}</div></div>`;
 }
 function imgSrc(r) {
   if (!r) return '';
@@ -4599,7 +4629,7 @@ function submitForm(b, asTeacher, colId) {
 /* Editing and deleting student submissions is always authorized again on the server. */
 let studentSyncAt = 0;
 function maybeStudentSync() {
-  if (!S.guest || Date.now() - studentSyncAt < 30000) return;
+  if (!S.guest || S.guest.preview || !S.guest.token || Date.now() - studentSyncAt < 30000) return;
   studentSyncAt = Date.now();
   const guest = S.guest;
   for (const b of S.boards.values()) {
@@ -4608,7 +4638,7 @@ function maybeStudentSync() {
 }
 async function studentReloadMine(board) {
   const guest=S.guest;
-  if(!guest||!board||board.demo)return;
+  if(!guest||guest.preview||!guest.token||!board||board.demo)return;
   try{
     const result=await api('student_mine',{code:board.code,token:guest.token});
     if(!S.guest||S.guest.id!==guest.id||S.guest.token!==guest.token)return;
@@ -5052,8 +5082,8 @@ function helpForm(forTeacher = isGV()) {
     ['msg', 'Thầy cô duyệt', 'Mở bài, xem phần nhận xét AI viết sẵn, sửa nếu cần, chốt điểm rồi duyệt.'],
     ['chart', 'Theo dõi và báo cáo', 'Trình chiếu bài lên lớp, xem Tiến bộ học sinh, xuất bảng điểm Excel hoặc in PDF.'],
   ] : [
-    ['door', 'Mở đường link thầy cô gửi', 'Nhập họ tên là vào lớp, không cần tài khoản.'],
-    ['camera', 'Nộp bài', 'Bấm Nộp bài, chụp vở hoặc gõ câu trả lời.'],
+    ['door', 'Mở đường link thầy cô gửi', 'Xem bảng lớp ngay, không cần nhập họ tên hay đăng nhập.'],
+    ['camera', 'Nộp bài', 'Bấm Nộp bài, nhập họ và tên, rồi chụp vở hoặc gõ câu trả lời.'],
     ['spark', 'Xem kết quả', 'Xem điểm, lỗi sai và gợi ý luyện tập. Thầy cô duyệt điểm cuối cùng.'],
   ];
   openModal({ title: forTeacher ? 'Hướng dẫn nhanh' : 'Hướng dẫn nộp bài', body: `<div class="modal-b"><ol class="help">${steps.map(([i, t, d], k) => `<li><span class="help-n">${k + 1}</span><span class="help-ic">${ic(i)}</span><div><b>${t}</b><p>${d}</p></div></li>`).join('')}</ol></div>`, foot: '<button class="btn btn-brand" data-close>Đã hiểu</button>' });
@@ -6630,7 +6660,7 @@ document.addEventListener('click', async (e) => {
       break;
     }
     case 'capture': if (b) submitForm(b, true, t.dataset.col); break;
-    case 'submit': if (b) submitForm(b, false); break;
+    case 'submit': if (b) askStudentNameAndSubmit(b, t.dataset.col || ''); break;
     case 'open-post': $('.pmenu')?.remove(); openDetail(id, t.dataset.grade === '1', t.dataset.focus); break;
     case 'student-edit': { const post = getPost(id); if (post) studentEditForm(post); break; }
     case 'student-delete': { const post = getPost(id); if (post) await studentDeletePost(post); break; }
