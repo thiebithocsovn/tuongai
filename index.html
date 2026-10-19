@@ -1793,103 +1793,210 @@ html,body{max-width:100%;overflow-x:clip}
 </style>
 
 <style id="install-horizontal-layout">
-/* Compact install strip, expanded only on deliberate user selection. */
+/* Fluid layout adapts to available container width, browser zoom, and device rotation. */
+#auth{
+  width:100%;min-width:0;
+  padding-top:clamp(16px,3.8vh,54px);
+  padding-bottom:clamp(18px,3.5vh,32px);
+  padding-inline:max(clamp(12px,2.3vw,28px),env(safe-area-inset-left,0px))
+                 max(clamp(12px,2.3vw,28px),env(safe-area-inset-right,0px));
+}
+#auth .auth-wrap{
+  width:min(100%,1040px);max-width:100%;
+  grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);
+  column-gap:clamp(18px,3.4vw,44px);
+}
+#auth .auth-card,#auth .auth-hero{min-width:0;max-width:100%}
+#auth .auth-hero h1{font-size:clamp(26px,3.2vw,45px)}
+#auth .auth-hero .lede{font-size:clamp(14px,1.45vw,17px)}
 #auth .install-panel{
- width:min(1090px,100%);margin:16px auto 0;padding:12px 14px;box-sizing:border-box;
- background:linear-gradient(110deg,#f5f9ff 0%,#fff 78%);
- border:1px solid #dbe6f3;border-radius:16px;
- box-shadow:0 9px 22px -20px rgba(18,69,134,.4);gap:0;
+  container:install-panel / inline-size;
+  width:min(100%,1090px);max-width:100%;
+  margin:clamp(12px,2vh,18px) auto 0;
+  padding:clamp(10px,1.2vw,14px);
+  border-radius:clamp(12px,1.5vw,16px);
+  box-sizing:border-box;
+  background:linear-gradient(110deg,#f5f9ff 0%,#fff 78%);
+  border:1px solid #dbe6f3;
+  box-shadow:0 9px 22px -20px rgba(18,69,134,.4);
+  gap:0;
 }
 #auth .install-panel-top{
- display:grid;grid-template-columns:minmax(210px,258px) minmax(0,1fr);
- align-items:center;gap:14px;min-width:0;
+  display:grid;
+  grid-template-columns:minmax(0,245px) minmax(0,1fr);
+  align-items:center;gap:clamp(8px,1.2vw,14px);
+  min-width:0;
 }
-#auth .install-panel-head{display:flex;gap:10px;align-items:center;min-width:0}
+#auth .install-panel-head{display:flex;align-items:center;gap:9px;min-width:0}
 #auth .install-panel-icon{
- flex:0 0 38px;height:38px;border-radius:11px;font-size:23px;
- background:#e5f1fd;color:#1766b3;
+  flex:0 0 36px;height:36px;font-size:22px;
+  border-radius:10px;background:#e5f1fd;color:#1766b3;
 }
-#auth .install-panel h2{font-size:15px;font-weight:800;line-height:1.25;letter-spacing:-.18px}
+#auth .install-panel h2{
+  font-size:clamp(13px,1.35vw,15px);font-weight:800;
+  line-height:1.28;letter-spacing:-.15px;
+}
 #auth .install-panel-head p{font-size:11px;line-height:1.35;margin-top:3px;color:#667a92}
 #auth .install-platforms{
- display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;min-width:0;
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:clamp(5px,.65vw,9px);width:100%;min-width:0;overflow:visible;
 }
 #auth .install-platform{
- display:grid;grid-template-columns:22px minmax(0,1fr);
- grid-template-rows:auto auto;align-items:center;justify-content:start;
- min-width:0;min-height:51px;padding:8px 9px;gap:1px 7px;
- border:1px solid #dbe5f0;border-radius:11px;background:#fff;
- box-shadow:none;transition:background .15s,border-color .15s;
+  display:grid;grid-template-columns:22px minmax(0,1fr);
+  grid-template-rows:auto auto;align-items:center;min-width:0;
+  min-height:50px;padding:8px;gap:1px 6px;
+  border:1px solid #dbe5f0;border-radius:10px;
+  background:#fff;box-shadow:none;
+  transition:background .15s,border-color .15s;
 }
 #auth .install-platform>span{
- grid-column:1;grid-row:1 / span 2;align-self:center;
- font-size:20px;line-height:1;color:#25699f;
+  grid-column:1;grid-row:1 / span 2;align-self:center;justify-self:center;
+  font-size:19px;line-height:1;color:#25699f;
 }
 #auth .install-platform strong{
- grid-column:2;grid-row:1;line-height:1.2;
- font-size:12.5px;font-weight:800;color:#1d385b;
+  grid-column:2;grid-row:1;min-width:0;font-size:12.3px;line-height:1.24;
+  font-weight:800;color:#1d385b;overflow-wrap:break-word;
 }
 #auth .install-platform small{
- grid-column:2;grid-row:2;font-size:10.2px;line-height:1.25;color:#74849b;
+  grid-column:2;grid-row:2;min-width:0;font-size:10px;
+  line-height:1.28;color:#74849b;overflow-wrap:break-word;
 }
 #auth .install-platform:hover{background:#f0f7ff;border-color:#80b1e4}
 #auth .install-platform[aria-pressed="true"]{
- background:#eaf3ff;border-color:#3485cf;box-shadow:inset 0 0 0 1px #3485cf;
+  background:#eaf3ff;border-color:#3485cf;box-shadow:inset 0 0 0 1px #3485cf;
 }
 #auth .install-steps{
- display:grid;grid-template-columns:minmax(0,1fr) auto;
- align-items:center;column-gap:18px;row-gap:7px;
- margin-top:12px;padding:12px 2px 0;border-top:1px solid #e3edf5;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,max-content);
+  align-items:center;gap:8px 16px;margin-top:11px;
+  padding:11px 2px 0;border-top:1px solid #e3edf5;min-width:0;
 }
 #auth .install-detail-head{
- grid-column:1 / -1;display:flex;justify-content:space-between;
- align-items:center;gap:12px;
+  grid-column:1 / -1;display:flex;align-items:center;
+  justify-content:space-between;gap:12px;min-width:0;
 }
 #auth .install-detail-head strong{font-size:13px;color:#19476d}
-#auth .install-collapse{
- flex:none;font-size:12px;color:#24649a;background:transparent;
- padding:5px 8px;border-radius:7px;font-weight:700;
-}
+#auth .install-collapse{flex:none;font-size:12px;color:#24649a;padding:5px 8px;border-radius:7px;font-weight:700}
 #auth .install-collapse:hover{background:#e6f1fa}
-#auth #install-instructions{margin:0;font-size:12px;line-height:1.5;color:#405b75}
+#auth #install-instructions{min-width:0;font-size:12px;line-height:1.5;color:#405b75;overflow-wrap:anywhere}
 #auth .install-actions{
- display:flex;gap:8px;align-items:center;justify-content:flex-end;
- min-width:0;
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;
+  gap:8px;min-width:0;max-width:100%;
 }
 #auth .install-primary,#auth .install-download{
- width:auto;min-width:146px;max-width:300px;min-height:37px;
- padding:7px 13px;font-size:12px;border-radius:9px;text-align:center;
+  width:auto;min-width:142px;max-width:100%;min-height:38px;
+  padding:8px 12px;font-size:12px;border-radius:9px;text-align:center;
+  white-space:normal;overflow-wrap:anywhere;
 }
-#auth .install-origin-warning,#auth .install-download-state,
-#auth .install-note{grid-column:1 / -1;font-size:11px;line-height:1.45;margin:0}
+#auth .install-origin-warning,#auth .install-download-state,#auth .install-note{
+  grid-column:1 / -1;font-size:11px;line-height:1.45;margin:0;
+  min-width:0;overflow-wrap:anywhere;
+}
 #auth .install-note{color:#728299}
 #auth .install-fix-link{display:inline;margin:0;overflow-wrap:anywhere}
 #auth .install-platform:focus-visible,#auth .install-collapse:focus-visible{
- outline:3px solid #2179c3;outline-offset:2px;
+  outline:3px solid #2179c3;outline-offset:2px;
 }
-#auth .auth-metrics-wrap{margin-top:19px}
-@media(max-width:1030px){
- #auth .install-panel-top{grid-template-columns:minmax(0,1fr);gap:9px}
- #auth .install-panel-head{justify-content:flex-start}
+#auth .auth-metrics-wrap{
+  width:min(100%,1090px);max-width:100%;
+  margin:clamp(12px,2.3vh,22px) auto 10px;min-width:0;
+  container:landing-metrics / inline-size;
 }
-@media(max-width:720px){
- #auth .install-panel{width:100%;margin-top:14px;padding:11px 12px}
- #auth .install-panel-top{gap:8px}
- #auth .install-platforms{
-  grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(135px,44%);
-  overflow-x:auto;overscroll-behavior-inline:contain;
-  scrollbar-width:thin;scroll-snap-type:x proximity;
-  -webkit-overflow-scrolling:touch;padding:2px 2px 5px;gap:7px;
- }
- #auth .install-platform{scroll-snap-align:start;min-height:48px;padding:7px 8px}
- #auth .install-steps{grid-template-columns:minmax(0,1fr);padding-top:10px}
- #auth .install-actions{justify-content:flex-start}
- #auth .install-primary,#auth .install-download{min-width:0;max-width:100%;width:100%}
- #auth .auth-metrics-wrap{margin-top:16px}
+#auth .auth-metrics{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:clamp(8px,1.2vw,14px);
 }
-@media(max-width:375px){
- #auth .install-platforms{grid-auto-columns:minmax(128px,61%)}
- #auth .install-panel-icon{flex-basis:34px;height:34px}
+#auth .auth-metric{min-width:0;padding:clamp(11px,1.5vw,17px)}
+#auth .auth-metric-num{font-size:clamp(25px,3vw,36px)}
+#auth .auth-metrics-heading{font-size:clamp(19px,2vw,26px)}
+/* Container queries track the component, not the physical device model. */
+@container install-panel (max-width:900px){
+  .install-panel-top{grid-template-columns:minmax(0,1fr);gap:9px}
+}
+@container install-panel (max-width:670px){
+  .install-platforms{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .install-platform{min-height:46px}
+  .install-steps{grid-template-columns:minmax(0,1fr)}
+  .install-actions{justify-content:flex-start}
+  .install-primary,.install-download{width:100%;max-width:100%;min-width:0}
+}
+@container install-panel (max-width:380px){
+  .install-platforms{gap:6px}
+  .install-platform{grid-template-columns:19px minmax(0,1fr);gap:1px 5px;padding:7px}
+  .install-platform>span{font-size:17px}
+  .install-platform strong{font-size:12px}
+  .install-platform small{font-size:10px}
+  .install-panel-head p{font-size:10.5px}
+}
+@container landing-metrics (max-width:640px){
+  .auth-metrics-top{align-items:flex-start;flex-direction:column;gap:5px}
+  .auth-metrics-note{text-align:left}
+  .auth-metrics{grid-template-columns:minmax(0,1fr);gap:8px}
+  .auth-metric{
+    grid-template-columns:43px minmax(0,1fr);
+    align-items:center;column-gap:10px;row-gap:2px;padding:10px 12px;
+  }
+  .auth-metric-top{grid-column:1;grid-row:1 / span 3}
+  .auth-metric-num{grid-column:2;grid-row:1;font-size:27px}
+  .auth-metric-label{grid-column:2;grid-row:2}
+  .auth-metric-caption{grid-column:2;grid-row:3}
+  .auth-metric-trend{display:none}
+}
+@media(max-width:900px){
+  #auth .auth-wrap{
+    width:min(100%,620px);max-width:100%;
+    grid-template-columns:minmax(0,1fr);
+    row-gap:clamp(12px,2.4vw,19px);
+  }
+  #auth .auth-hero h1{font-size:clamp(26px,5.6vw,36px)}
+  #auth .auth-hero .lede{font-size:clamp(14px,2.3vw,16px)}
+}
+@media(max-width:560px){
+  #auth{
+    padding-top:max(16px,env(safe-area-inset-top,0px));
+    padding-bottom:max(20px,env(safe-area-inset-bottom,0px));
+    padding-inline:max(12px,env(safe-area-inset-left,0px))
+                   max(12px,env(safe-area-inset-right,0px));
+  }
+  #auth .auth-wrap{width:100%;gap:12px}
+  #auth .auth-card{padding:clamp(12px,3.6vw,17px)}
+  #auth .auth-hero .points,#auth .auth-hero .paper{display:none}
+  #auth .install-panel{margin-top:12px;padding:11px}
+  #auth .auth-metrics-wrap{margin-top:13px}
+  .auth .fld input:not([type=checkbox]):not([type=radio]),
+  .auth .pw input,.auth select,.auth textarea{font-size:16px}
+}
+@media(max-height:590px) and (min-width:901px){
+  #auth{padding-top:12px;padding-bottom:14px}
+  #auth .auth-hero .paper{display:none}
+  #auth .auth-hero{gap:10px}
+  #auth .auth-metrics-wrap{margin-top:12px}
+}
+@media(min-width:1440px){
+  #auth .auth-wrap{max-width:1040px}
+  #auth .install-panel,#auth .auth-metrics-wrap{max-width:1090px}
+}
+/* Mobile tools and dialogs must stay inside the viewport and allow scrolling. */
+#app,#app .main,#app .view{min-width:0;max-width:100%}
+#app .main{overflow-x:clip}
+#app .grid:not(.list){grid-template-columns:repeat(auto-fit,minmax(min(184px,100%),1fr))}
+#app .grid.list .bcard{min-width:0;max-width:100%}
+.modal-back{max-width:100dvw}
+.modal{max-width:calc(100dvw - 16px)}
+.modal-b{min-width:0;overflow-x:auto;overscroll-behavior:contain}
+.tbl-wrap,.mtable-wrap,.as-tbl{max-width:100%;overscroll-behavior-x:contain}
+#auth .auth-card,#auth .install-panel,#auth .auth-metric{overflow-wrap:anywhere}
+@media(max-width:760px){
+  #app .view>*,#app .view>.crumbs{max-width:calc(100% - 20px)}
+  #app .grid:not(.list){grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr))}
+  .modal{max-height:calc(100dvh - max(12px,env(safe-area-inset-top,0px)))}
+}
+@media(max-width:440px){
+  #app .grid:not(.list){grid-template-columns:minmax(0,1fr)}
+  #app .btool>.row{max-width:100%}
+}
+@media(hover:none) and (pointer:coarse){
+  #auth .install-platform{touch-action:manipulation}
+  #auth .install-platform,#auth .install-collapse{min-height:44px}
 }
 @media(prefers-reduced-motion:reduce){#auth .install-platform{transition:none}}
 </style>
