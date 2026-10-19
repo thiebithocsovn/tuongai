@@ -1,0 +1,37 @@
+name: Responsive interface smoke test
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tests/**'
+      - '.github/workflows/responsive-check.yml'
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium browser
+        working-directory: tests
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Start local website under /tuongai/
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory .. >/tmp/tuongai-server.log 2>&1 &
+          sleep 2
+      - name: Test 8 tablet, mobile and desktop layouts
+        working-directory: tests
+        run: |
+          mkdir -p screenshots
+          npm test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: device-layout-screenshots
+          path: tests/screenshots/
