@@ -4020,7 +4020,7 @@ const reviewPosts = (b) => sortPosts(boardPostList(b).filter((p) => status(p) !=
 function reviewForm(b) {
   const draw = () => {
     const list = reviewPosts(b);
-    const ungraded = list.filter((p) => !p.ai && !S.grading.has(p.id)).length;
+    const ungraded = list.filter((p) => !p.ai && !S.grading.has(p.id) && ((p.images||[]).length || String(p.text||'').trim())).length;
     const max = b.assignment?.maxScore || 10;
     return `<div class="modal-b rv">
       <p class="meta">Bài học sinh mới nộp và bài AI đã chấm nhưng thầy cô chưa duyệt điểm. Mở từng bài để xem lỗi, sửa điểm và ghi lời phê.</p>
@@ -4147,13 +4147,14 @@ function postCard(p, studentView) {
   const likes = tm.likes || [], comments = tm.comments || [];
   const liked = likes.includes(S.meId);
   const grading = S.grading.has(p.id);
-  const autoGrade = gv && !p.ai && !grading && aiOn();
+  const fileOnly = !!p.attachments?.length && !(p.images||[]).length && !String(p.text||'').trim();
+  const autoGrade = gv && !fileOnly && !p.ai && !grading && aiOn();
   const { text: body, links } = splitLinks(p.text);
   const media = img ? `<span class="pthumb">${src ? `<img src="${esc(src)}" alt="Ảnh bài làm của ${esc(p.studentName)}" loading="lazy">` : ''}${p.images.length > 1 ? `<span class="more">${p.images.length} ảnh</span>` : ''}</span>` : '';
   const text = body ? `<span class="ptext">${esc(body)}</span>` : '';
   const approved = !!tm.approvedAt;
   const aiLabel = grading ? '✨ AI đang phân tích…'
-    : gv ? '✨ Phân tích AI' + (approved ? ' · Đã duyệt' : p.ai ? ' · Chờ duyệt' : '')
+    : gv ? (fileOnly ? '📎 Xem tệp · Chấm thủ công' : '✨ Phân tích AI' + (approved ? ' · Đã duyệt' : p.ai ? ' · Chờ duyệt' : ''))
     : p.practice?.length ? '📚 Làm bài luyện tập (' + p.practice.reduce((n, v) => n + (v.exercises?.length || 0), 0) + ' bài)'
     : p.ai || tm.note ? '✨ Xem nhận xét' : 'Xem bài đã nộp';
   const color = postColor(p);
@@ -5412,8 +5413,8 @@ async function gradePost(id, signal) {
   } finally { S.grading.delete(id); renderSoon(); }
 }
 async function gradeAll(b) {
-  const pend = postsOf(b.id).filter((p) => !p.ai && !S.grading.has(p.id));
-  if (!pend.length) { toast('Không còn bài nào chờ chấm.'); return; }
+  const pend = postsOf(b.id).filter((p) => !p.ai && !S.grading.has(p.id) && ((p.images||[]).length || String(p.text||'').trim()));
+  if (!pend.length) { toast('Không có ảnh hoặc bài gõ để AI chấm. Tệp Word, PDF, video cần thầy cô xem và chấm thủ công.'); return; }
   const ctl = new AbortController();
   S.batch = { boardId: b.id, done: 0, total: pend.length, ctl };
   render();
