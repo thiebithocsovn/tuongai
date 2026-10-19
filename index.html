@@ -3225,7 +3225,7 @@ async function showJoin(code, name, cls) {
       <label class="fld"><span>Lớp <em>(không bắt buộc)</em></span><input id="jn-class" autocomplete="off" placeholder="Ví dụ: 9A5"></label>
       <p class="form-err" id="jn-err" role="alert"></p>
       <button class="btn btn-brand btn-block" type="submit" id="jn-btn">${ic('door')}Tiếp tục nộp bài</button>
-      <p class="switch">Em không cần tài khoản. Chỉ em và thầy cô thấy bài em nộp.</p>
+      <p class="switch">Em không cần tài khoản. Bài được gắn với phiên học sinh trên thiết bị này; trên máy dùng chung, em hãy thoát lớp sau khi hoàn thành.</p>
     </form>`;
   $('#jn-name').value = name || ''; $('#jn-class').value = cls || '';
   $('#jn-open').onclick = () => {
@@ -3806,6 +3806,7 @@ function boardCard(b) {
 /* ---------- bài em đã nộp (học sinh) ---------- */
 function renderMyWork() {
   homeKey = '';
+  maybeStudentSync();
   const me = ME();
   const ps = allPosts().filter((p) => p.studentAcc === me.id).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   $('#view').innerHTML = `
@@ -3840,6 +3841,7 @@ function boardPostsHtml(b) {
 function renderBoard(b) {
   homeKey = '';
   const me = ME(); const gv = me.role === 'gv'; const manage = canManage(b);
+  if (!gv) maybeStudentSync();
   const ps = boardPostList(b);
   const a = b.assignment || {};
   const review = gv ? reviewPosts(b).length : 0;
@@ -3872,7 +3874,7 @@ function renderBoard(b) {
         ${b.demo ? `<p class="bcount">Bảng mẫu: thử chấm thật, không lưu lại.</p>` : ''}
       </div>
     </section>
-    ${!gv ? `<div class="gbanner" role="status"><div><strong>Nộp bài vào lớp, không cần đăng nhập</strong><p>Chụp ảnh vở hoặc gõ bài rồi gửi cho thầy cô. ${b.autoGrade !== false && aiOn() ? 'AI chấm ngay, chỉ lỗi sai và gợi ý luyện tập. ' : ''}Chỉ em và thầy cô thấy bài em nộp.</p></div><button class="btn btn-brand" data-act="submit" data-id="${b.id}">${ic('send')}Nộp bài vào lớp</button></div>` : ''}
+    ${!gv ? `<div class="gbanner" role="status"><div><strong>Nộp bài vào lớp, không cần đăng nhập</strong><p>Chụp ảnh vở hoặc gõ bài rồi gửi cho thầy cô. ${b.autoGrade !== false && aiOn() ? 'AI chấm ngay, chỉ lỗi sai và gợi ý luyện tập. ' : ''}Bảng chỉ hiển thị bài thuộc phiên của em.</p></div><button class="btn btn-brand" data-act="submit" data-id="${b.id}">${ic('send')}Nộp bài vào lớp</button></div>` : ''}
     ${S.batch && S.batch.boardId === b.id ? `<div class="batch" role="status"><span class="spin"></span><span>AI đang chấm bài ${Math.min(S.batch.done + 1, S.batch.total)}/${S.batch.total}</span><span class="bar"><i style="width:${(S.batch.done / S.batch.total) * 100}%"></i></span><button class="btn btn-sm btn-ghost" data-act="stop-batch">${ic('stop', 'ic-sm')}Dừng</button></div>` : ''}
     ${!aiOn() && !b.demo && isAdmin() ? `<div class="warnline row-between"><span>AI chấm bài chưa bật. Dán một khóa Gemini để mọi giáo viên dùng chung.</span><button class="btn btn-sm btn-navy" data-act="ai-settings">${ic('spark', 'ic-sm')}Bật AI chấm bài</button></div>` : ''}
     <div class="btool" role="toolbar" aria-label="Công cụ quản lý lớp">
@@ -4595,6 +4597,15 @@ function submitForm(b, asTeacher, colId) {
 
 
 /* Editing and deleting student submissions is always authorized again on the server. */
+let studentSyncAt = 0;
+function maybeStudentSync() {
+  if (!S.guest || Date.now() - studentSyncAt < 30000) return;
+  studentSyncAt = Date.now();
+  const guest = S.guest;
+  for (const b of S.boards.values()) {
+    if (guest.codes.includes(b.code)) studentReloadMine(b);
+  }
+}
 async function studentReloadMine(board) {
   const guest=S.guest;
   if(!guest||!board||board.demo)return;
