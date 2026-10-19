@@ -1,0 +1,107 @@
+name: Build Android APK and Windows EXE
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'native/**'
+      - 'index.html'
+      - 'manifest.webmanifest'
+      - '.github/workflows/build-installers.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tuongai-installers
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android APK (debug signed)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Install Android SDK
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+      - name: Build debug APK
+        working-directory: native/android
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Prepare artifact
+        run: cp native/android/app/build/outputs/apk/debug/app-debug.apk Tuong-Hoc-Tap-AI-Android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-android
+          path: Tuong-Hoc-Tap-AI-Android.apk
+          if-no-files-found: error
+
+  windows:
+    name: Windows installer (unsigned)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install packaging dependencies
+        working-directory: native/windows
+        run: npm install --no-audit --no-fund
+      - name: Package Windows EXE
+        working-directory: native/windows
+        run: npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Prepare artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-files | Out-Null
+          $file = Get-ChildItem -Path native-artifacts -Recurse -Filter "*.exe" | Where-Object { $_.Name -notmatch "uninstall" } | Select-Object -First 1
+          if (-not $file) { throw "Windows installer was not generated" }
+          Copy-Item $file.FullName "release-files/Tuong-Hoc-Tap-AI-Windows.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-windows
+          path: release-files/Tuong-Hoc-Tap-AI-Windows.exe
+          if-no-files-found: error
+
+  publish:
+    name: Publish verified installers
+    runs-on: ubuntu-latest
+    needs: [android, windows]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installer-*
+          path: release-files
+          merge-multiple: true
+      - name: Check both downloadable files
+        run: |
+          test -s release-files/Tuong-Hoc-Tap-AI-Android.apk
+          test -s release-files/Tuong-Hoc-Tap-AI-Windows.exe
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0-installers
+          name: Tường học tập AI – Bộ cài Android và Windows
+          prerelease: false
+          make_latest: true
+          generate_release_notes: false
+          body: |
+            Android: APK bản thử nghiệm, ký bằng khóa debug (chưa phải bản ký phát hành).
+            Windows: EXE bản thử nghiệm chưa ký Authenticode; SmartScreen có thể cảnh báo.
+            iPhone/iPad: Cài trực tiếp qua Safari → Chia sẻ → Thêm vào Màn hình chính.
+            Chỉ truy cập website chính thức https://thiebithocsovn.github.io/tuongai/
+            Cần kết nối Internet để truy cập tài khoản và chấm AI.
+          files: |
+            release-files/Tuong-Hoc-Tap-AI-Android.apk
+            release-files/Tuong-Hoc-Tap-AI-Windows.exe
+          fail_on_unmatched_files: true
