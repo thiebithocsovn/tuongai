@@ -1742,6 +1742,50 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;scroll-padding-top:env(
 @media(prefers-reduced-motion:reduce){.install-platform,.install-primary{transition:none!important}}
 
 </style>
+
+<style id="multi-device-polish">
+html,body{max-width:100%;overflow-x:clip}
+#auth,#auth .auth-card,#auth .auth-hero,#auth .install-panel{box-sizing:border-box}
+#auth .auth-wrap{min-width:0}
+.install-platform:focus-visible,.install-download:focus-visible,#install-main:focus-visible{outline:3px solid #1575ca;outline-offset:3px}
+.install-download-state{font-size:12px;line-height:1.5;color:#63758a;margin:0}
+@media(max-width:1024px) and (min-width:761px){#auth .auth-wrap{gap:clamp(18px,3vw,32px)}.auth-hero .paper{max-width:100%}.auth-hero h1{font-size:clamp(27px,3.5vw,38px)}.auth-hero .points li{font-size:14.5px}}
+@media(max-width:760px){
+ #auth{padding-inline:max(14px,env(safe-area-inset-left,0px)) max(14px,env(safe-area-inset-right,0px))}
+ #auth .auth-wrap{width:min(580px,100%);gap:14px}
+ #auth .auth-hero{gap:10px}
+ .auth-hero .paper{display:none}
+ .auth-hero .lede{max-width:58ch;line-height:1.5}
+ .install-platform{min-height:64px}
+ .auth-card .tabs button{min-height:44px}
+ .auth .fld input:focus{scroll-margin-top:22vh}
+ .modal-back{padding-bottom:env(safe-area-inset-bottom,0px)}
+}
+@media(max-width:480px){
+ .auth-hero .points{display:none}
+ #auth .auth-hero h1{font-size:clamp(25px,7.5vw,32px);line-height:1.2}
+ #auth .auth-hero .lede{font-size:14px}
+ #auth .auth-card{padding:clamp(12px,4vw,18px)}
+ #auth .install-panel{padding:clamp(11px,3vw,14px)}
+ .install-platforms{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .install-platform{min-height:66px;padding:9px;gap:2px 7px}
+ .install-platform strong{font-size:13px;line-height:1.2}
+ .auth-metrics-wrap{margin-top:22px}
+}
+@media(max-width:355px){
+ #auth{padding-inline:10px}
+ .auth-card .grid2{grid-template-columns:minmax(0,1fr)}
+ .install-platform{grid-template-columns:20px minmax(0,1fr);padding:8px 6px}
+ .install-platform>span{font-size:17px}
+ .install-platform strong{font-size:12px}
+ .install-platform small{font-size:10.5px}
+}
+@media(max-height:500px) and (orientation:landscape){
+ #auth{padding-top:12px}
+ #auth .auth-hero .paper,.auth-hero .points{display:none}
+}
+@media(hover:none),(pointer:coarse){#auth button,#auth a.install-download{touch-action:manipulation}}
+</style>
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
@@ -1825,6 +1869,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;scroll-padding-top:env(
             Không cài từ liên kết bản xem thử hoặc tên miền Vercel.</p>
           <button type="button" class="btn btn-brand install-primary" id="install-main" hidden>Cài ứng dụng</button>
           <a id="install-native" class="install-download" hidden rel="noopener noreferrer"></a>
+          <p id="install-download-state" class="install-download-state" role="status" hidden></p>
         </div>
         <p class="install-note">Nếu biểu tượng ứng dụng cũ mở ra “404 NOT_FOUND”, hãy gỡ ứng dụng đã cài, mở
           <a class="install-fix-link" href="https://thiebithocsovn.github.io/tuongai/" rel="noopener noreferrer">website chính thức của Tường AI</a>
@@ -6102,13 +6147,14 @@ init();
   const intro=ui.querySelector('#install-steps p');
   const installButton=ui.querySelector('#install-main');
   const native=ui.querySelector('#install-native');
+  const downloadState=ui.querySelector('#install-download-state');
   const originWarning=ui.querySelector('#install-origin-warning');
   const OFFICIAL_URL='https://thiebithocsovn.github.io/tuongai/';
   const isOfficial=window.location.origin==='https://thiebithocsovn.github.io' &&
     (window.location.pathname==='/tuongai/'||window.location.pathname==='/tuongai/index.html');
   const platforms=[...ui.querySelectorAll('[data-install-os]')];
   let deferred=null,selected='',assets={};
-  const standalone=()=>window.matchMedia('(display-mode: standalone)').matches||!!window.navigator.standalone;
+  const standalone=()=>window.matchMedia('(display-mode: standalone)').matches||!!window.navigator.standalone||navigator.userAgent.includes('Electron/')||navigator.userAgent.includes('; wv');
   const isIOS=()=>/iPad|iPhone|iPod/.test(navigator.userAgent)||(/Mac/.test(navigator.platform)&&navigator.maxTouchPoints>1);
   const detect=()=>isIOS()?'ios':/Android/i.test(navigator.userAgent)?'android':/Win/i.test(navigator.platform)?'windows':/Mac/i.test(navigator.platform)?'mac':'windows';
   const messages={
@@ -6128,6 +6174,8 @@ init();
     native.hidden=true;
     if(!isOfficial)return;
     const name=platform==='android'?'Tuong-Hoc-Tap-AI-Android.apk':platform==='windows'?'Tuong-Hoc-Tap-AI-Windows.exe':'';
+    downloadState.hidden=!!assets[name]||!name;
+    downloadState.textContent=name?'Nếu chưa có nút tải bộ cài, gói '+(platform==='android'?'APK':'EXE')+' chưa được phát hành hoặc chưa xác minh. Có thể cài bản web trực tiếp theo hướng dẫn ở trên.':'';
     if(name&&assets[name]){
       native.href=assets[name];native.textContent=platform==='android'?'Tải APK Android (bản thử nghiệm)':'Tải bộ cài Windows (chưa ký số)';
       native.hidden=false;
