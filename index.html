@@ -4770,6 +4770,7 @@ function studentEditForm(post){
   const board=getBoard(post.boardId);
   if(!board)return;
   const previews=(postImageSrcs(post)||[]).filter(Boolean);
+  let fileState;
   const m=openModal({
     title:'Sửa bài đã nộp · '+board.name,
     body:`<form id="student-edit-form" class="modal-b" novalidate>
@@ -4778,11 +4779,13 @@ function studentEditForm(post){
       <label class="fld"><span>Nội dung bài làm</span><textarea id="student-edit-text" rows="6" maxlength="8000" placeholder="Nhập bài làm của em…">${esc(post.text||'')}</textarea></label>
       <label class="fld"><span>Thay ảnh bài làm (tối đa 4 ảnh)</span><input type="file" id="student-edit-images" accept="image/*" multiple><small>Chọn ảnh mới sẽ thay toàn bộ ảnh cũ. Không chọn thì ảnh cũ được giữ.</small></label>
       ${(post.images||[]).length?'<label class="chk"><input type="checkbox" id="student-edit-remove"> Xóa các ảnh cũ nếu không chọn ảnh mới</label>':''}
+      ${attachPickerHtml('student-edit-files',post.attachments||[])}
       <p class="form-err" id="student-edit-error" role="alert"></p>
     </form>`,
     foot:`<button class="btn btn-ghost" data-close>Hủy</button><button class="btn btn-brand" id="student-edit-save">${ic('check')}Lưu bài đã sửa</button>`
   });
   const el=m.el;
+  fileState=initAttachPicker(el.querySelector('.attach-picker'),post.attachments||[]);
   $('#student-edit-form',el).addEventListener('submit',ev=>ev.preventDefault());
   $('#student-edit-save',el).onclick=async()=>{
     const error=$('#student-edit-error',el);
@@ -4791,8 +4794,9 @@ function studentEditForm(post){
     const files=Array.from($('#student-edit-images',el).files||[]);
     if(files.length>4){error.textContent='Em chỉ được chọn tối đa 4 ảnh.';return;}
     const replace=files.length>0||!!$('#student-edit-remove',el)?.checked;
-    if(!text&&(replace?!files.length:!(post.images||[]).length)){
-      error.textContent='Em phải giữ ít nhất một ảnh hoặc nhập nội dung bài làm.';return;
+    try{checkAttachments(fileState.files,fileState.existing);}catch(e){error.textContent=e.message;return;}
+    if(!text&&(replace?!files.length:!(post.images||[]).length)&&!fileState.existing.length&&!fileState.files.length){
+      error.textContent='Em cần ít nhất một ảnh, một tệp hoặc nhập nội dung bài làm.';return;
     }
     const btn=$('#student-edit-save',el);
     btn.disabled=true;btn.textContent='Đang cập nhật bài…';
@@ -4807,6 +4811,12 @@ function studentEditForm(post){
           if(!blob)throw new Error('Không thể đọc ảnh. Em chọn ảnh khác nhé.');
           payload.images.push({data:await blobB64(blob)});
         }
+      }
+      const original=(post.attachments||[]).map(x=>x.path).join('|');
+      const current=fileState.existing.map(x=>x.path).join('|');
+      if(fileState.files.length||original!==current){
+        const newer=await uploadAttachments(board,S.guest,fileState.files,m=>{btn.textContent=m;},post.id);
+        payload.attachments=[...fileState.existing,...newer];
       }
       const updated=await api('student_update',payload);
       rememberUrls(updated.urls);
