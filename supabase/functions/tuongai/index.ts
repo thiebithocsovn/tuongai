@@ -372,7 +372,10 @@ async function handle(req: Request) {
         if (error) throw new Fail("server", "Không lưu được ảnh: " + error.message, 500);
         paths.push({ path });
       }
-      const row = { id, board_id: b.id, owner: b.owner, column_id: (b.columns?.[0]?.id as string) || "", student_name: name, student_class: cls, student_token: token, by: "hs", body: text, images: paths };
+      const requestedColumn = str(body.column_id, 100);
+      const selectedColumn = (b.columns || []).some((c: any) => c.id === requestedColumn)
+        ? requestedColumn : ((b.columns?.[0]?.id as string) || "");
+      const row = { id, board_id: b.id, owner: b.owner, column_id: selectedColumn, student_name: name, student_class: cls, student_token: token, by: "hs", body: text, images: paths };
       const { data: post, error } = await db.from("posts").insert(row).select("*").single();
       if (error) throw new Fail("server", error.message, 500);
       let gradeError: string | null = null;
