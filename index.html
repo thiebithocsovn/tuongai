@@ -4534,10 +4534,11 @@ function submitForm(b, asTeacher, colId) {
   const names = new Set(postsOf(b.id).map((p) => p.studentName).filter(Boolean));
   S.auth.accounts.filter((a) => a.role === 'hs' && (a.joined || []).includes(b.id)).forEach((a) => names.add(a.name));
   const cols = b.columns || [];
+  const selectedColumn = cols.find((c) => c.id === colId);
   const m = openModal({
     title: asTeacher ? 'Chụp bài học sinh' : 'Nộp bài · ' + b.name,
     body: `<form class="modal-b" id="sf" novalidate>
-      ${asTeacher ? `<label class="fld"><span>Họ tên học sinh</span><input id="sf-name" list="sf-names" autocomplete="off" placeholder="Gõ hoặc chọn tên học sinh"><datalist id="sf-names">${[...names].map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist></label>` : `<p class="info-box">Em nộp với tên <b>${esc(me.name)}</b>${me.className ? ', lớp ' + esc(me.className) : ''}.${b.assignment?.title ? ' Bài: ' + esc(b.assignment.title) + '.' : ''}</p>`}
+      ${asTeacher ? `<label class="fld"><span>Họ tên học sinh</span><input id="sf-name" list="sf-names" autocomplete="off" placeholder="Gõ hoặc chọn tên học sinh"><datalist id="sf-names">${[...names].map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist></label>` : `<p class="info-box">Em nộp với tên <b>${esc(me.name)}</b>${me.className ? ', lớp ' + esc(me.className) : ''}.${selectedColumn ? ' Cột: ' + esc(selectedColumn.name) + '.' : ''}${b.assignment?.title ? ' Bài: ' + esc(b.assignment.title) + '.' : ''}</p>`}
       ${asTeacher && b.layout !== 'tuong' && cols.length ? `<label class="fld"><span>Cột</span><select id="sf-col">${cols.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}<option value="">Bài chung</option></select></label>` : ''}
       <div class="fld"><span>Ảnh bài làm <em>(tối đa ${maxShots} trang)</em></span>
         <div class="shots" id="sf-shots"></div>
@@ -4585,7 +4586,7 @@ function submitForm(b, asTeacher, colId) {
         btn.textContent = 'Đang nộp bài…';
         const images = await Promise.all(shots.map(async (s) => ({ data: await blobB64(s.blob) })));
         if (images.length || text) btn.textContent = images.length && b.autoGrade !== false && aiOn() ? 'Đang nộp, AI đang chấm…' : 'Đang nộp bài…';
-        const r = await api('student_submit', { code: b.code, name: me.name, class: me.className || '', token: me.token, text, images });
+        const r = await api('student_submit', { code: b.code, name: me.name, class: me.className || '', token: me.token, column_id: selectedColumn?.id || '', text, images });
         rememberUrls(r.urls);
         const np = rowToPost(r.post, me.id); S.posts.set(np.id, np);
         m.close();
