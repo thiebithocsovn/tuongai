@@ -1910,36 +1910,36 @@ html,body{max-width:100%;overflow-x:clip}
 #auth .auth-metrics-heading{font-size:clamp(19px,2vw,26px)}
 /* Container queries track the component, not the physical device model. */
 @container install-panel (max-width:900px){
-  .install-panel-top{grid-template-columns:minmax(0,1fr);gap:9px}
+  #auth .install-panel-top{grid-template-columns:minmax(0,1fr);gap:9px}
 }
 @container install-panel (max-width:670px){
-  .install-platforms{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-  .install-platform{min-height:46px}
-  .install-steps{grid-template-columns:minmax(0,1fr)}
-  .install-actions{justify-content:flex-start}
-  .install-primary,.install-download{width:100%;max-width:100%;min-width:0}
+  #auth .install-platforms{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  #auth .install-platform{min-height:46px}
+  #auth .install-steps{grid-template-columns:minmax(0,1fr)}
+  #auth .install-actions{justify-content:flex-start}
+  #auth .install-primary,#auth .install-download{width:100%;max-width:100%;min-width:0}
 }
 @container install-panel (max-width:380px){
-  .install-platforms{gap:6px}
-  .install-platform{grid-template-columns:19px minmax(0,1fr);gap:1px 5px;padding:7px}
-  .install-platform>span{font-size:17px}
-  .install-platform strong{font-size:12px}
-  .install-platform small{font-size:10px}
-  .install-panel-head p{font-size:10.5px}
+  #auth .install-platforms{gap:6px}
+  #auth .install-platform{grid-template-columns:19px minmax(0,1fr);gap:1px 5px;padding:7px}
+  #auth .install-platform>span{font-size:17px}
+  #auth .install-platform strong{font-size:12px}
+  #auth .install-platform small{font-size:10px}
+  #auth .install-panel-head p{font-size:10.5px}
 }
 @container landing-metrics (max-width:640px){
-  .auth-metrics-top{align-items:flex-start;flex-direction:column;gap:5px}
-  .auth-metrics-note{text-align:left}
-  .auth-metrics{grid-template-columns:minmax(0,1fr);gap:8px}
-  .auth-metric{
+  #auth .auth-metrics-top{align-items:flex-start;flex-direction:column;gap:5px}
+  #auth .auth-metrics-note{text-align:left}
+  #auth .auth-metrics{grid-template-columns:minmax(0,1fr);gap:8px}
+  #auth .auth-metric{
     grid-template-columns:43px minmax(0,1fr);
     align-items:center;column-gap:10px;row-gap:2px;padding:10px 12px;
   }
-  .auth-metric-top{grid-column:1;grid-row:1 / span 3}
-  .auth-metric-num{grid-column:2;grid-row:1;font-size:27px}
-  .auth-metric-label{grid-column:2;grid-row:2}
-  .auth-metric-caption{grid-column:2;grid-row:3}
-  .auth-metric-trend{display:none}
+  #auth .auth-metric-top{grid-column:1;grid-row:1 / span 3}
+  #auth .auth-metric-num{grid-column:2;grid-row:1;font-size:27px}
+  #auth .auth-metric-label{grid-column:2;grid-row:2}
+  #auth .auth-metric-caption{grid-column:2;grid-row:3}
+  #auth .auth-metric-trend{display:none}
 }
 @media(max-width:900px){
   #auth .auth-wrap{
