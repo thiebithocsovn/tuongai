@@ -4631,7 +4631,7 @@ function studentEditForm(post){
       ${previews.length?`<div class="fld"><span>Ảnh hiện tại (${previews.length} ảnh)</span><div class="student-edit-preview">${previews.map((src,i)=>`<img src="${esc(src)}" alt="Ảnh cũ trang ${i+1}" loading="lazy">`).join('')}</div></div>`:''}
       <label class="fld"><span>Nội dung bài làm</span><textarea id="student-edit-text" rows="6" maxlength="8000" placeholder="Nhập bài làm của em…">${esc(post.text||'')}</textarea></label>
       <label class="fld"><span>Thay ảnh bài làm (tối đa 4 ảnh)</span><input type="file" id="student-edit-images" accept="image/*" multiple><small>Chọn ảnh mới sẽ thay toàn bộ ảnh cũ. Không chọn thì ảnh cũ được giữ.</small></label>
-      ${previews.length?'<label class="chk"><input type="checkbox" id="student-edit-remove"> Xóa các ảnh cũ nếu không chọn ảnh mới</label>':''}
+      ${(post.images||[]).length?'<label class="chk"><input type="checkbox" id="student-edit-remove"> Xóa các ảnh cũ nếu không chọn ảnh mới</label>':''}
       <p class="form-err" id="student-edit-error" role="alert"></p>
     </form>`,
     foot:`<button class="btn btn-ghost" data-close>Hủy</button><button class="btn btn-brand" id="student-edit-save">${ic('check')}Lưu bài đã sửa</button>`
