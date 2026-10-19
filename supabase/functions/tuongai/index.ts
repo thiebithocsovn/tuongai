@@ -377,6 +377,64 @@ async function handle(req: Request) {
       }
       return { post: publicPost(post), urls: await signed(paths.map((p) => p.path)), gradeError };
     }
+    case "student_update": {
+      const b = await boardByCode(body.code);
+      const token = str(body.token, 80), postId = str(body.post_id, 60);
+      const text = str(body.text, 8000);
+      if (token.length < 16) throw new Fail("bad_token", "Phiên học sinh không hợp lệ. Hãy vào lại lớp.", 403);
+      const { data: old } = await db.from("posts").select("*")
+        .eq("id", postId).eq("board_id", b.id).eq("student_token", token).eq("by", "hs").maybeSingle();
+      if (!old) throw new Fail("forbidden", "Em không có quyền sửa bài này.", 403);
+      if (old.ai != null || old.ai_at || old.teacher?.approvedAt || old.teacher?.score != null)
+        throw new Fail("graded_locked", "Bài đã được chấm điểm nên không thể sửa. Em hãy liên hệ thầy cô.", 409);
+      const replacing = Object.prototype.hasOwnProperty.call(body, "images");
+      if (replacing && (!Array.isArray(body.images) || body.images.length > 4))
+        throw new Fail("invalid_images", "Chỉ chọn tối đa 4 ảnh bài làm.");
+      if (!(replacing ? body.images.length : (old.images || []).length) && !text)
+        throw new Fail("empty", "Em phải giữ ít nhất một ảnh hoặc nhập bài làm.");
+      const uploaded: { path: string }[] = [];
+      try {
+        if (replacing) {
+          for (let i = 0; i < body.images.length; i++) {
+            const bytes = decodeBase64(String(body.images[i]?.data || ""));
+            if (!bytes.length || bytes.length > 3_000_000) throw new Fail("too_large", "Ảnh cần nhỏ hơn 3 MB.");
+            const path = `${b.owner}/${b.id}/${postId}/revision-${crypto.randomUUID()}-${i + 1}.jpg`;
+            const { error } = await db.storage.from("work").upload(path, bytes, { contentType: "image/jpeg", upsert: false });
+            if (error) throw new Fail("server", "Không thể tải ảnh mới lên.", 500);
+            uploaded.push({ path });
+          }
+        }
+        // SQL makes the owner-token and not-yet-graded checks atomic with the update.
+        const { data: edited, error } = await db.rpc("student_update_ungraded_post", {
+          p_post_id: postId, p_board_id: b.id, p_student_token: token,
+          p_body: text, p_images: replacing ? uploaded : null,
+        });
+        if (error) throw new Fail("server", "Không cập nhật được bài: " + error.message, 500);
+        if (!edited?.id) throw new Fail("graded_locked", "Bài vừa được chấm hoặc không còn quyền sửa. Hãy tải lại.", 409);
+        if (replacing) {
+          const obsolete = (old.images || []).map((x: any) => x.path).filter(Boolean);
+          if (obsolete.length) await db.storage.from("work").remove(obsolete);
+        }
+        return { post: publicPost(edited), urls: await signed((edited.images || []).map((x: any) => x.path).filter(Boolean)) };
+      } catch (e) {
+        if (uploaded.length) await db.storage.from("work").remove(uploaded.map((x) => x.path));
+        throw e;
+      }
+    }
+    case "student_delete": {
+      const b = await boardByCode(body.code);
+      const token = str(body.token, 80), postId = str(body.post_id, 60);
+      if (token.length < 16) throw new Fail("bad_token", "Phiên học sinh không hợp lệ. Hãy vào lại lớp.", 403);
+      // Only returns a row if the student's token matches and neither AI nor teacher has graded it.
+      const { data: removed, error } = await db.rpc("student_delete_ungraded_post", {
+        p_post_id: postId, p_board_id: b.id, p_student_token: token,
+      });
+      if (error) throw new Fail("server", "Không xóa được bài: " + error.message, 500);
+      if (!removed?.id) throw new Fail("graded_locked", "Chỉ được xóa bài của em khi chưa chấm.", 409);
+      const paths = (removed.images || []).map((x: any) => x.path).filter(Boolean);
+      if (paths.length) await db.storage.from("work").remove(paths);
+      return { ok: true, id: removed.id };
+    }
     case "student_grade": {
       const b = await boardByCode(body.code);
       const token = str(body.token, 80);
