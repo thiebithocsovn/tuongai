@@ -152,6 +152,10 @@ async function imagesOf(post: any) {
   return out;
 }
 async function gradePost(post: any, board: any) {
+  // AI currently evaluates typed text and images, not Word/PDF/video file bytes.
+  if (!(post.images || []).length && !String(post.body || "").trim()) {
+    throw new Fail("no_grade_input", "Bài chỉ có tệp Word/PDF/video. Thầy cô cần xem tệp và chấm thủ công; AI chưa đọc trực tiếp các tệp này.", 422);
+  }
   const imgs = await imagesOf(post);
   const raw = await callGemini(buildPrompt(board, post, imgs.length), imgs);
   const ai = cleanAI(raw, Number(board.assignment?.maxScore) || 10);
@@ -439,7 +443,7 @@ async function handle(req: Request) {
       const { data: post, error } = await db.from("posts").insert(row).select("*").single();
       if (error) throw new Fail("server", error.message, 500);
       let gradeError: string | null = null;
-      if (b.auto_grade && (await config("gemini_key"))) {
+      if (b.auto_grade && (imgs.length || text) && (await config("gemini_key"))) {
         try { Object.assign(post, await gradePost(post, b)); } catch (e) { gradeError = e instanceof Fail ? e.message : "AI chưa chấm được."; }
       }
       return { post: publicPost(post), urls: await signed([...paths,...attachments].map((p) => p.path)), gradeError };
