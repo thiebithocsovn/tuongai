@@ -2198,6 +2198,19 @@ html,body{max-width:100%;overflow-x:clip}
 #student-edit-form .fld small{font-size:12px;color:#63738a;line-height:1.5}
 @media(max-width:460px){.student-post-actions .btn{min-height:44px}.student-edit-preview img{width:76px;height:68px}}
 </style>
+
+<style id="student-direct-submit-layout">
+/* Single-step student submission: image/text editor and attribution in one dialog. */
+#sf .sf-submission-info{display:flex;gap:6px;align-items:flex-start;font-size:12px;line-height:1.45;color:#42627d;margin:0 0 7px}
+#sf .sf-submission-info .ic{flex:none;width:16px;height:16px;margin-top:1px}
+#sf .sf-student-fields{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:10px;align-items:start}
+#sf .sf-student-fields .fld{min-width:0}
+#sf .sf-student-fields input{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+@media(max-width:480px){
+ #sf .sf-student-fields{grid-template-columns:minmax(0,1fr);gap:8px}
+ #sf .sf-student-fields input{font-size:16px}
+}
+</style>
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
@@ -3229,60 +3242,6 @@ async function showJoin(code) {
   }, board.id);
 }
 
-/* Chỉ hỏi tên trong hộp thoại sau khi học sinh nhấn Nộp bài. */
-function askStudentNameAndSubmit(board, columnId) {
-  if (!board) return;
-  const original = S.guest;
-  const known = original && !original.preview ? original : null;
-  const modal = openModal({
-    title: 'Nộp bài · ' + board.name,
-    body: `<form id="student-name-before-submit" class="modal-b" novalidate>
-      <p class="info-box">Em đang nộp bài vào <b>${esc(board.name)}</b>. Nhập họ tên để thầy cô nhận biết bài của em, không cần đăng nhập.</p>
-      <label class="fld"><span>Họ và tên học sinh <em>(bắt buộc)</em></span><input id="student-submit-name" autocomplete="name" maxlength="120" value="${esc(known?.name || '')}" placeholder="Ví dụ: Nguyễn Văn An" required></label>
-      <label class="fld"><span>Lớp <em>(không bắt buộc)</em></span><input id="student-submit-class" maxlength="30" value="${esc(known?.className || '')}" placeholder="Ví dụ: 8A4"></label>
-      <p id="student-name-error" class="form-err" role="alert"></p>
-    </form>`,
-    foot: '<button class="btn btn-ghost" data-close>Hủy</button><button class="btn btn-brand" id="student-name-next">Tiếp tục làm bài</button>',
-  });
-  const el = modal.el;
-  const proceed = async () => {
-    const error = $('#student-name-error', el);
-    error.textContent = '';
-    const name = $('#student-submit-name', el).value.trim().replace(/\s+/g, ' ');
-    const className = $('#student-submit-class', el).value.trim().toUpperCase();
-    if (name.length < 2) {
-      error.textContent = 'Em hãy nhập họ và tên.';
-      $('#student-submit-name', el).focus();
-      return;
-    }
-    const id = guestId(name);
-    const same = known && known.id === id;
-    const guest = same ? { ...known, name, className } : {
-      id, name, className, role: 'hs', guest: true,
-      joined: [], codes: [], token: deviceToken() + id.slice(2),
-    };
-    const button = $('#student-name-next', el);
-    button.disabled = true; button.textContent = 'Đang chuẩn bị nộp bài…';
-    const previous = S.posts;
-    if (!same) S.posts = new Map();
-    try {
-      const opened = await addGuestBoard(guest, board.code);
-      modal.close();
-      enterGuest(guest, opened.id);
-      submitForm(opened, false, columnId);
-    } catch (e) {
-      if (!same) S.posts = previous;
-      error.textContent = e?.message || 'Chưa vào được lớp. Em hãy thử lại.';
-    } finally {
-      button.disabled = false; button.textContent = 'Tiếp tục làm bài';
-    }
-  };
-  $('#student-name-next', el).onclick = proceed;
-  $('#student-name-before-submit', el).addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (!$('#student-name-next', el).disabled) proceed();
-  });
-}
 /* ---------- chia sẻ bảng cho học sinh (giáo viên) ---------- */
 let qrLoading = null;
 function loadQR() {
@@ -4531,6 +4490,7 @@ function submitForm(b, asTeacher, colId) {
   const me = ME();
   const shots = [];
   const maxShots = 4;
+  const knownStudent = !asTeacher && me?.guest && !me?.preview ? me : null;
   const names = new Set(postsOf(b.id).map((p) => p.studentName).filter(Boolean));
   S.auth.accounts.filter((a) => a.role === 'hs' && (a.joined || []).includes(b.id)).forEach((a) => names.add(a.name));
   const cols = b.columns || [];
@@ -4538,12 +4498,16 @@ function submitForm(b, asTeacher, colId) {
   const m = openModal({
     title: asTeacher ? 'Chụp bài học sinh' : 'Nộp bài · ' + b.name,
     body: `<form class="modal-b" id="sf" novalidate>
-      ${asTeacher ? `<label class="fld"><span>Họ tên học sinh</span><input id="sf-name" list="sf-names" autocomplete="off" placeholder="Gõ hoặc chọn tên học sinh"><datalist id="sf-names">${[...names].map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist></label>` : `<p class="info-box">Em nộp với tên <b>${esc(me.name)}</b>${me.className ? ', lớp ' + esc(me.className) : ''}.${selectedColumn ? ' Cột: ' + esc(selectedColumn.name) + '.' : ''}${b.assignment?.title ? ' Bài: ' + esc(b.assignment.title) + '.' : ''}</p>`}
+      ${asTeacher ? `<label class="fld"><span>Họ tên học sinh</span><input id="sf-name" list="sf-names" autocomplete="off" placeholder="Gõ hoặc chọn tên học sinh"><datalist id="sf-names">${[...names].map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist></label>` : `<p class="sf-submission-info">${ic('book','ic-sm')} ${selectedColumn ? 'Nộp vào ' + esc(selectedColumn.name) + '. ' : ''}${b.assignment?.title ? 'Bài: ' + esc(b.assignment.title) + '. ' : ''}Chụp ảnh hoặc gõ bài, rồi điền tên để gửi cho thầy cô.</p>`}
       ${asTeacher && b.layout !== 'tuong' && cols.length ? `<label class="fld"><span>Cột</span><select id="sf-col">${cols.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}<option value="">Bài chung</option></select></label>` : ''}
       <div class="fld"><span>Ảnh bài làm <em>(tối đa ${maxShots} trang)</em></span>
         <div class="shots" id="sf-shots"></div>
       </div>
       <label class="fld"><span>${asTeacher ? 'Ghi chú hoặc bài gõ' : 'Hoặc gõ bài làm'} <em>(không bắt buộc)</em></span><textarea id="sf-text" rows="4" placeholder="${asTeacher ? 'Có thể dán bài làm dạng chữ ở đây.' : 'Em có thể gõ câu trả lời ở đây nếu không chụp ảnh.'}"></textarea></label>
+      ${!asTeacher ? `<div class="sf-student-fields">
+        <label class="fld"><span>Họ và tên học sinh <em>(bắt buộc)</em></span><input id="sf-student-name" autocomplete="name" maxlength="120" value="${esc(knownStudent?.name || '')}" placeholder="Ví dụ: Nguyễn Văn An" required></label>
+        <label class="fld"><span>Lớp <em>(không bắt buộc)</em></span><input id="sf-student-class" maxlength="30" value="${esc(knownStudent?.className || '')}" placeholder="Ví dụ: 8A4"></label>
+      </div>` : ''}
       <label class="fld"><span>Liên kết đính kèm <em>(YouTube, Google Drive…, không bắt buộc)</em></span><input id="sf-link" type="url" inputmode="url" autocomplete="off" placeholder="https://…"></label>
       ${asTeacher ? `<label class="chk"><input type="checkbox" id="sf-ai" ${aiOn() ? 'checked' : 'disabled'}> AI chấm ngay sau khi lưu</label>` : ''}
       <p class="form-err" id="sf-err" role="alert"></p>
@@ -4572,12 +4536,13 @@ function submitForm(b, asTeacher, colId) {
   $('#sf', el).addEventListener('submit', (e) => e.preventDefault());
   $('#sf-save', el).onclick = async () => {
     const err = $('#sf-err', el); err.textContent = '';
-    const name = asTeacher ? $('#sf-name', el).value.trim().replace(/\s+/g, ' ') : me.name;
+    const name = (asTeacher ? $('#sf-name', el) : $('#sf-student-name', el)).value.trim().replace(/\s+/g, ' ');
+    const className = asTeacher ? '' : $('#sf-student-class', el).value.trim().toUpperCase();
     const linkRaw = $('#sf-link', el).value.trim();
     const links = linkRaw ? linkRaw.split(/\s+/).map(safeUrl) : [];
     if (links.some((u) => !u)) { err.textContent = 'Liên kết cần bắt đầu bằng https:// hoặc http://.'; $('#sf-link', el).focus(); return; }
     const text = [$('#sf-text', el).value.trim(), ...links.slice(0, 3).map((u) => '🔗 ' + u)].filter(Boolean).join('\n');
-    if (asTeacher && !name) { err.textContent = 'Hãy nhập họ tên học sinh.'; $('#sf-name', el).focus(); return; }
+    if (name.length < 2) { err.textContent = 'Hãy nhập họ và tên học sinh.'; (asTeacher ? $('#sf-name', el) : $('#sf-student-name', el)).focus(); return; }
     if (!shots.length && !text) { err.textContent = asTeacher ? 'Hãy chụp ít nhất một ảnh bài làm.' : 'Em hãy chụp ảnh bài làm hoặc gõ câu trả lời.'; return; }
     const btn = $('#sf-save', el); btn.disabled = true;
     try {
@@ -4586,12 +4551,25 @@ function submitForm(b, asTeacher, colId) {
         btn.textContent = 'Đang nộp bài…';
         const images = await Promise.all(shots.map(async (s) => ({ data: await blobB64(s.blob) })));
         if (images.length || text) btn.textContent = images.length && b.autoGrade !== false && aiOn() ? 'Đang nộp, AI đang chấm…' : 'Đang nộp bài…';
-        const r = await api('student_submit', { code: b.code, name: me.name, class: me.className || '', token: me.token, column_id: selectedColumn?.id || '', text, images });
+        // Create a student session only when submitting; browsing a shared board stays anonymous.
+        const studentId = guestId(name);
+        const currentStudent = S.guest && !S.guest.preview && S.guest.id === studentId ? S.guest : null;
+        const student = currentStudent ? { ...currentStudent, name, className } : {
+          id: studentId, name, className, role: 'hs', guest: true,
+          joined: [], codes: [], token: deviceToken() + studentId.slice(2),
+        };
+        if (!student.joined.includes(b.id)) student.joined.push(b.id);
+        if (!student.codes.includes(b.code)) student.codes.push(b.code);
+        const r = await api('student_submit', { code: b.code, name, class: className, token: student.token, column_id: selectedColumn?.id || '', text, images });
         rememberUrls(r.urls);
-        const np = rowToPost(r.post, me.id); S.posts.set(np.id, np);
+        if (S.meId !== student.id) S.posts = new Map();
+        const np = rowToPost(r.post, student.id);
+        S.posts.set(np.id, np);
         m.close();
+        enterGuest(student, b.id);
         toast(r.post.ai ? 'Em đã nộp bài. AI đã chấm xong!' : 'Em đã nộp bài thành công!');
         if (r.gradeError) setTimeout(() => toast(r.gradeError), 3500);
+        studentReloadMine(b);
         openDetail(np.id, false);
         return;
       }
@@ -6661,7 +6639,7 @@ document.addEventListener('click', async (e) => {
       break;
     }
     case 'capture': if (b) submitForm(b, true, t.dataset.col); break;
-    case 'submit': if (b) askStudentNameAndSubmit(b, t.dataset.col || ''); break;
+    case 'submit': if (b) submitForm(b, false, t.dataset.col || ''); break;
     case 'open-post': $('.pmenu')?.remove(); openDetail(id, t.dataset.grade === '1', t.dataset.focus); break;
     case 'student-edit': { const post = getPost(id); if (post) studentEditForm(post); break; }
     case 'student-delete': { const post = getPost(id); if (post) await studentDeletePost(post); break; }
