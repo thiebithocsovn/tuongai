@@ -213,15 +213,9 @@ async function verifyStudentAttachments(b:any, token:string, input:unknown) {
     clean.push({path,name,size,type});
   }
   if (!clean.length) return clean;
-  const {data: objects,error} = await db.schema("storage").from("objects")
-    .select("name,metadata").eq("bucket_id","work").in("name",clean.map(a=>a.path));
-  if(error) throw new Fail("server","Không xác minh được tệp tải lên: "+error.message,500);
-  const records=new Map((objects||[]).map((o:any)=>[o.name,o.metadata||{}]));
-  for(const a of clean){
-    const meta:any=records.get(a.path);
-    if(!meta || Number(meta.size)!==a.size || String(meta.mimetype||"").toLowerCase()!==a.type)
-      throw new Fail("invalid_file","Tệp chưa tải lên đầy đủ hoặc định dạng không khớp.",400);
-  }
+  const {data: valid,error} = await db.rpc("work_file_uploads_verified", {p_files: clean});
+  if(error) throw new Fail("server","Không kiểm tra được tệp: "+error.message,500);
+  if(!valid) throw new Fail("invalid_file","Có tệp chưa tải lên hoàn chỉnh hoặc định dạng không hợp lệ.",400);
   return clean;
 }
 
