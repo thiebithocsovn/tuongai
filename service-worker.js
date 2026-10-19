@@ -1,6 +1,6 @@
 /* Tường học tập AI PWA: tuyệt đối không cache API, auth, bài làm hay phản hồi cá nhân. */
-const CACHE='tuongai-public-shell-v1';
-const SAFE_ASSETS=['/tuongai/offline.html','/tuongai/app-icon.svg','/tuongai/manifest.webmanifest'];
+const CACHE='tuongai-public-shell-v2';
+const SAFE_ASSETS=['/tuongai/offline.html','/tuongai/app-icon.svg','/tuongai/icon-180.png','/tuongai/icon-192.png','/tuongai/icon-512.png','/tuongai/manifest.webmanifest'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SAFE_ASSETS)));self.skipWaiting();});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{for(const key of await caches.keys()){if(key.startsWith('tuongai-public-shell-')&&key!==CACHE)await caches.delete(key);}await self.clients.claim();})());});
 self.addEventListener('fetch',event=>{
