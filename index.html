@@ -2965,7 +2965,7 @@ async function uploadAttachments(board,student,files,progress,postId) {
  }
  return saved;
 }
-function attachmentUrl(a) {
+function attachmentUrl(a,download=false) {
  const c=SIGNED.get(a.path);
  if(!c || c.exp<=now()){
    if(!S.guest)queueSign(a.path);
@@ -2975,7 +2975,7 @@ function attachmentUrl(a) {
  try{
    const u=new URL(c.url,location.href);
    if(!u.protocol.startsWith('https'))return '';
-   u.searchParams.set('download',attachmentName(a.name));
+   if(download)u.searchParams.set('download',attachmentName(a.name));
    return u.href;
  }catch(e){return '';}
 }
@@ -2985,10 +2985,10 @@ function attachmentList(p,expanded=false){
  return `<section class="attached-files">
   <h4>${ic('download','ic-sm')} ${items.length} tệp đính kèm</h4>
   ${items.map(a=>{
-   const href=attachmentUrl(a),type=String(a.type||'');
+   const href=attachmentUrl(a),downloadHref=attachmentUrl(a,true),type=String(a.type||'');
    return `<div class="attached-file">
      <div><b>${esc(a.name)}</b><small>${prettyBytes(a.size)} · ${esc(attachmentExt(a.name).toUpperCase())}</small></div>
-     ${href?`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer" download="${esc(a.name)}">${ic('download','ic-sm')} Tải về</a>`:'<span>Đang tạo liên kết...</span>'}
+     ${href?`<a href="${esc(downloadHref)}" target="_blank" rel="noopener noreferrer" download="${esc(a.name)}">${ic('download','ic-sm')} Tải về</a>`:'<span>Đang tạo liên kết...</span>'}
     </div>
     ${expanded&&href&&type.startsWith('video/')?`<video controls preload="metadata" playsinline src="${esc(href)}"></video>`:''}
     ${expanded&&href&&type.startsWith('audio/')?`<audio controls preload="metadata" src="${esc(href)}"></audio>`:''}`;
