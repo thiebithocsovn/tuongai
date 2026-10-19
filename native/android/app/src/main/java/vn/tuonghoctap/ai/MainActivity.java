@@ -27,6 +27,11 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> upload;
     private PermissionRequest cameraPermission;
 
+    private boolean isTrustedOrigin(Uri u) {
+        return u != null && "https".equalsIgnoreCase(u.getScheme())
+                && "thiebithocsovn.github.io".equalsIgnoreCase(u.getHost());
+    }
+
     private boolean isTrusted(Uri u) {
         return u != null && "https".equalsIgnoreCase(u.getScheme())
                 && "thiebithocsovn.github.io".equalsIgnoreCase(u.getHost())
@@ -90,7 +95,7 @@ public class MainActivity extends Activity {
             }
             @Override public void onPermissionRequest(PermissionRequest request) {
                 runOnUiThread(() -> {
-                    if (!isTrusted(request.getOrigin())) {
+                    if (!isTrustedOrigin(request.getOrigin()) || !isTrusted(Uri.parse(web.getUrl() == null ? "" : web.getUrl()))) {
                         request.deny();
                         return;
                     }
