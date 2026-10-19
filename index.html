@@ -1793,65 +1793,103 @@ html,body{max-width:100%;overflow-x:clip}
 </style>
 
 <style id="install-horizontal-layout">
-/* Install panel spans the entire login landing page, not just the login form. */
+/* Compact install strip, expanded only on deliberate user selection. */
 #auth .install-panel{
-  width:min(1090px,100%);margin:clamp(20px,3.3vw,36px) auto 0;
-  padding:clamp(16px,2.2vw,24px);box-sizing:border-box;
-  background:linear-gradient(135deg,#f6fbff,#ffffff 75%);
-  border:1px solid #d6e4f2;border-radius:20px;
-  box-shadow:0 14px 36px -28px rgba(20,62,115,.38);
+ width:min(1090px,100%);margin:16px auto 0;padding:12px 14px;box-sizing:border-box;
+ background:linear-gradient(110deg,#f5f9ff 0%,#fff 78%);
+ border:1px solid #dbe6f3;border-radius:16px;
+ box-shadow:0 9px 22px -20px rgba(18,69,134,.4);gap:0;
 }
-#auth .install-panel-head{gap:14px}
-#auth .install-panel-icon{flex-basis:46px;height:46px;border-radius:14px}
-#auth .install-panel h2{font-size:clamp(17px,2vw,21px);line-height:1.3}
+#auth .install-panel-top{
+ display:grid;grid-template-columns:minmax(210px,258px) minmax(0,1fr);
+ align-items:center;gap:14px;min-width:0;
+}
+#auth .install-panel-head{display:flex;gap:10px;align-items:center;min-width:0}
+#auth .install-panel-icon{
+ flex:0 0 38px;height:38px;border-radius:11px;font-size:23px;
+ background:#e5f1fd;color:#1766b3;
+}
+#auth .install-panel h2{font-size:15px;font-weight:800;line-height:1.25;letter-spacing:-.18px}
+#auth .install-panel-head p{font-size:11px;line-height:1.35;margin-top:3px;color:#667a92}
 #auth .install-platforms{
-  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:12px;width:100%;overflow:visible;
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;min-width:0;
 }
 #auth .install-platform{
-  grid-template-columns:32px minmax(0,1fr);
-  grid-template-rows:auto auto;
-  min-height:78px;padding:12px 11px;gap:4px 10px;
-  border-radius:14px;box-shadow:0 3px 10px -10px rgba(19,47,91,.3);
-  transition:background .18s ease,border-color .18s ease,box-shadow .18s ease;
+ display:grid;grid-template-columns:22px minmax(0,1fr);
+ grid-template-rows:auto auto;align-items:center;justify-content:start;
+ min-width:0;min-height:51px;padding:8px 9px;gap:1px 7px;
+ border:1px solid #dbe5f0;border-radius:11px;background:#fff;
+ box-shadow:none;transition:background .15s,border-color .15s;
 }
 #auth .install-platform>span{
-  font-size:24px;line-height:1;grid-column:1;grid-row:1 / span 2;
-  align-self:center;justify-self:center;
+ grid-column:1;grid-row:1 / span 2;align-self:center;
+ font-size:20px;line-height:1;color:#25699f;
 }
 #auth .install-platform strong{
-  grid-column:2;grid-row:1;font-size:14.5px;
-  color:#143150;white-space:normal;overflow-wrap:normal;
+ grid-column:2;grid-row:1;line-height:1.2;
+ font-size:12.5px;font-weight:800;color:#1d385b;
 }
 #auth .install-platform small{
-  grid-column:2;grid-row:2;font-size:11.8px;
-  color:#617991;white-space:normal;
+ grid-column:2;grid-row:2;font-size:10.2px;line-height:1.25;color:#74849b;
 }
+#auth .install-platform:hover{background:#f0f7ff;border-color:#80b1e4}
 #auth .install-platform[aria-pressed="true"]{
-  background:#e9f3ff;border-color:#2177cb;
-  box-shadow:0 0 0 1px #2177cb,0 6px 16px -12px #125ea6;
+ background:#eaf3ff;border-color:#3485cf;box-shadow:inset 0 0 0 1px #3485cf;
 }
-#auth .install-steps{padding-top:14px}
-#auth .install-primary,#auth .install-download{max-width:100%;box-sizing:border-box}
-#auth .install-note{font-size:12px;line-height:1.6}
-#auth .install-scroll-tip{display:none;color:#627b94;font-size:12px}
+#auth .install-steps{
+ display:grid;grid-template-columns:minmax(0,1fr) auto;
+ align-items:center;column-gap:18px;row-gap:7px;
+ margin-top:12px;padding:12px 2px 0;border-top:1px solid #e3edf5;
+}
+#auth .install-detail-head{
+ grid-column:1 / -1;display:flex;justify-content:space-between;
+ align-items:center;gap:12px;
+}
+#auth .install-detail-head strong{font-size:13px;color:#19476d}
+#auth .install-collapse{
+ flex:none;font-size:12px;color:#24649a;background:transparent;
+ padding:5px 8px;border-radius:7px;font-weight:700;
+}
+#auth .install-collapse:hover{background:#e6f1fa}
+#auth #install-instructions{margin:0;font-size:12px;line-height:1.5;color:#405b75}
+#auth .install-actions{
+ display:flex;gap:8px;align-items:center;justify-content:flex-end;
+ min-width:0;
+}
+#auth .install-primary,#auth .install-download{
+ width:auto;min-width:146px;max-width:300px;min-height:37px;
+ padding:7px 13px;font-size:12px;border-radius:9px;text-align:center;
+}
+#auth .install-origin-warning,#auth .install-download-state,
+#auth .install-note{grid-column:1 / -1;font-size:11px;line-height:1.45;margin:0}
+#auth .install-note{color:#728299}
+#auth .install-fix-link{display:inline;margin:0;overflow-wrap:anywhere}
+#auth .install-platform:focus-visible,#auth .install-collapse:focus-visible{
+ outline:3px solid #2179c3;outline-offset:2px;
+}
+#auth .auth-metrics-wrap{margin-top:19px}
+@media(max-width:1030px){
+ #auth .install-panel-top{grid-template-columns:minmax(0,1fr);gap:9px}
+ #auth .install-panel-head{justify-content:flex-start}
+}
 @media(max-width:720px){
- #auth .install-panel{width:100%;padding:14px;margin-top:19px}
+ #auth .install-panel{width:100%;margin-top:14px;padding:11px 12px}
+ #auth .install-panel-top{gap:8px}
  #auth .install-platforms{
-   display:grid;grid-template-columns:none;
-   grid-auto-flow:column;grid-auto-columns:minmax(164px,60%);
-   gap:9px;overflow-x:auto;overflow-y:hidden;
-   padding:2px 3px 10px;scroll-snap-type:x mandatory;
-   scrollbar-width:thin;overscroll-behavior-inline:contain;
-   -webkit-overflow-scrolling:touch;
+  grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(135px,44%);
+  overflow-x:auto;overscroll-behavior-inline:contain;
+  scrollbar-width:thin;scroll-snap-type:x proximity;
+  -webkit-overflow-scrolling:touch;padding:2px 2px 5px;gap:7px;
  }
- #auth .install-platform{min-width:0;scroll-snap-align:start;padding:10px;min-height:72px}
- #auth .install-scroll-tip{display:block;margin:-6px 0 -3px}
+ #auth .install-platform{scroll-snap-align:start;min-height:48px;padding:7px 8px}
+ #auth .install-steps{grid-template-columns:minmax(0,1fr);padding-top:10px}
+ #auth .install-actions{justify-content:flex-start}
+ #auth .install-primary,#auth .install-download{min-width:0;max-width:100%;width:100%}
+ #auth .auth-metrics-wrap{margin-top:16px}
 }
-@media(max-width:420px){
- #auth .install-platforms{grid-auto-columns:minmax(157px,80%)}
- #auth .install-panel-head{gap:10px}
- #auth .install-panel-icon{flex-basis:40px;height:40px}
+@media(max-width:375px){
+ #auth .install-platforms{grid-auto-columns:minmax(128px,61%)}
+ #auth .install-panel-icon{flex-basis:34px;height:34px}
 }
 @media(prefers-reduced-motion:reduce){#auth .install-platform{transition:none}}
 </style>
@@ -1929,27 +1967,33 @@ html,body{max-width:100%;overflow-x:clip}
     </div>
   </div>
   <section class="install-panel" id="install-panel" aria-labelledby="install-title">
-        <div class="install-panel-head"><span class="install-panel-icon" aria-hidden="true">⬇</span><div><h2 id="install-title">Cài Tường học tập AI</h2><p>Dùng như ứng dụng trên điện thoại, máy tính bảng và máy tính.</p></div></div>
-        <div class="install-platforms" role="group" aria-label="Chọn thiết bị cài đặt">
-          <button type="button" class="install-platform" data-install-os="android"><span aria-hidden="true">◉</span><strong>Android</strong><small>Điện thoại · Tablet</small></button>
-          <button type="button" class="install-platform" data-install-os="ios"><span aria-hidden="true">●</span><strong>iPhone · iPad</strong><small>iOS · iPadOS</small></button>
-          <button type="button" class="install-platform" data-install-os="windows"><span aria-hidden="true">▦</span><strong>Windows</strong><small>Máy tính · Laptop</small></button>
-          <button type="button" class="install-platform" data-install-os="mac"><span aria-hidden="true">⌘</span><strong>MacBook</strong><small>macOS</small></button>
+    <div class="install-panel-top">
+      <div class="install-panel-head">
+        <span class="install-panel-icon" aria-hidden="true">↓</span>
+        <div>
+          <h2 id="install-title">Cài Tường học tập AI</h2>
+          <p>Chọn thiết bị để xem cách cài hoặc tải ứng dụng.</p>
         </div>
-        <p class="install-scroll-tip" aria-hidden="true">Vuốt ngang để chọn thiết bị phù hợp →</p>
-        <div class="install-steps" id="install-steps" aria-live="polite">
-          <p>Chọn loại thiết bị ở trên để xem cách cài đặt.</p>
-          <p class="install-origin-warning" id="install-origin-warning" hidden>Để tránh lỗi 404 sau khi cài, hãy chỉ cài từ website chính thức:
-            <a href="https://tuonghoctap.vercel.app/" rel="noopener noreferrer">tuonghoctap.vercel.app</a>.
-            Không cài từ tên miền lạ hoặc bản xem thử không thuộc hệ thống.</p>
-          <button type="button" class="btn btn-brand install-primary" id="install-main" hidden>Cài ứng dụng</button>
-          <a id="install-native" class="install-download" hidden rel="noopener noreferrer"></a>
-          <p id="install-download-state" class="install-download-state" role="status" hidden></p>
-        </div>
-        <p class="install-note">Nếu ứng dụng đã cài trước đây mở ra “404 NOT_FOUND”, hãy gỡ phiên bản cũ và mở
-          <a class="install-fix-link" href="https://tuonghoctap.vercel.app/" rel="noopener noreferrer">website chính thức của Tường AI</a>
-          bằng Chrome hoặc Safari để cài lại; bản Vercel có thể cài từ trang này. Cần Internet để nộp bài và sử dụng AI.</p>
-      </section>
+      </div>
+      <div class="install-platforms" role="group" aria-label="Chọn thiết bị cài đặt">
+        <button type="button" class="install-platform" data-install-os="android" aria-expanded="false" aria-controls="install-steps"><span aria-hidden="true">◉</span><strong>Android</strong><small>Điện thoại · Tablet</small></button>
+        <button type="button" class="install-platform" data-install-os="ios" aria-expanded="false" aria-controls="install-steps"><span aria-hidden="true">●</span><strong>iPhone · iPad</strong><small>iOS · iPadOS</small></button>
+        <button type="button" class="install-platform" data-install-os="windows" aria-expanded="false" aria-controls="install-steps"><span aria-hidden="true">▦</span><strong>Windows</strong><small>Máy tính · Laptop</small></button>
+        <button type="button" class="install-platform" data-install-os="mac" aria-expanded="false" aria-controls="install-steps"><span aria-hidden="true">⌘</span><strong>MacBook</strong><small>macOS</small></button>
+      </div>
+    </div>
+    <div class="install-steps" id="install-steps" aria-live="polite" hidden>
+      <div class="install-detail-head"><strong id="install-detail-title">Hướng dẫn cài đặt</strong><button type="button" class="install-collapse" id="install-collapse" aria-label="Thu gọn hướng dẫn">Thu gọn ↑</button></div>
+      <p id="install-instructions">Chọn nền tảng để xem hướng dẫn.</p>
+      <p class="install-origin-warning" id="install-origin-warning" hidden>Chỉ cài từ địa chỉ được hỗ trợ: <a href="https://tuonghoctap.vercel.app/" rel="noopener noreferrer">tuonghoctap.vercel.app</a>.</p>
+      <div class="install-actions">
+        <button type="button" class="btn btn-brand install-primary" id="install-main" hidden>Cài ứng dụng</button>
+        <a id="install-native" class="install-download" hidden rel="noopener noreferrer"></a>
+      </div>
+      <p id="install-download-state" class="install-download-state" role="status" hidden></p>
+      <p class="install-note">Nếu ứng dụng cũ mở ra lỗi 404, hãy gỡ bản cũ rồi cài lại từ <a class="install-fix-link" href="https://tuonghoctap.vercel.app/" rel="noopener noreferrer">website chính thức</a>. Cần Internet để nộp bài và dùng AI.</p>
+    </div>
+  </section>
   <section class="auth-metrics-wrap" aria-labelledby="landing-metrics-title">
     <div class="auth-metrics-top"><div><p class="auth-metrics-kicker">Tường học tập AI - Truy gốc lỗi · Dữ liệu thực tế</p><h2 class="auth-metrics-heading" id="landing-metrics-title">Cộng đồng học tập đang phát triển</h2></div><p class="auth-metrics-note">Thống kê tổng hợp từ hệ thống, tự động cập nhật</p></div>
     <div class="auth-metrics">
@@ -6216,7 +6260,10 @@ init();
   'use strict';
   const ui=document.getElementById('install-panel');
   if(!ui) return;
-  const intro=ui.querySelector('#install-steps p');
+  const details=ui.querySelector('#install-steps');
+  const intro=ui.querySelector('#install-instructions');
+  const detailTitle=ui.querySelector('#install-detail-title');
+  const collapse=ui.querySelector('#install-collapse');
   const installButton=ui.querySelector('#install-main');
   const native=ui.querySelector('#install-native');
   const downloadState=ui.querySelector('#install-download-state');
@@ -6238,9 +6285,15 @@ init();
     windows:'Trên Microsoft Edge hoặc Chrome, chọn “Cài ứng dụng”. Nếu không hiện, mở menu ⋯ → Ứng dụng → Cài đặt trang web này như một ứng dụng.',
     mac:'Trên MacBook, dùng Safari → Tệp → Thêm vào Dock (macOS mới), hoặc Chrome/Edge → menu → Cài đặt ứng dụng.'
   };
-  function choose(platform) {
+  function choose(platform, expand=false) {
+    if(expand) details.hidden = selected === platform && !details.hidden;
     selected=platform;
-    platforms.forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.installOs===platform)));
+    platforms.forEach(x=>{
+      x.setAttribute('aria-pressed',String(x.dataset.installOs===platform));
+      x.setAttribute('aria-expanded',String(!details.hidden && x.dataset.installOs===platform));
+    });
+    const labels={android:'Android',ios:'iPhone / iPad',windows:'Windows',mac:'MacBook'};
+    detailTitle.textContent='Cài ứng dụng trên '+labels[platform];
     intro.textContent=!isOfficial
       ? 'Bạn đang mở bản sao không được hỗ trợ cài đặt. Hãy dùng website chính thức được liên kết bên dưới.'
       : standalone()?'Ứng dụng đã được mở dưới dạng đã cài đặt. '+messages[platform]:messages[platform];
@@ -6256,7 +6309,11 @@ init();
       native.hidden=false;
     }
   }
-  platforms.forEach(btn=>btn.addEventListener('click',()=>choose(btn.dataset.installOs)));
+  platforms.forEach(btn=>btn.addEventListener('click',()=>choose(btn.dataset.installOs,true)));
+  collapse.addEventListener('click',()=>{
+    details.hidden=true;
+    choose(selected||detect());
+  });
   installButton.addEventListener('click',async()=>{
     if(!isOfficial){location.assign(OFFICIAL_URL);return;}
     if(!deferred){choose(selected||detect());return;}
