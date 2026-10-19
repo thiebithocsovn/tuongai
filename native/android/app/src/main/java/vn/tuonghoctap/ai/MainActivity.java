@@ -3,6 +3,10 @@ package vn.tuonghoctap.ai;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.ClipData;
+import android.provider.MediaStore;
+import androidx.core.content.FileProvider;
+import java.io.File;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
@@ -23,9 +27,46 @@ public class MainActivity extends Activity {
     private static final String HOME = "https://thiebithocsovn.github.io/tuongai/";
     private static final int FILE_REQUEST = 311;
     private static final int CAMERA_REQUEST = 312;
+    private static final int PICKER_CAMERA_REQUEST = 313;
     private WebView web;
     private ValueCallback<Uri[]> upload;
     private PermissionRequest cameraPermission;
+    private Uri cameraFileUri;
+    private WebChromeClient.FileChooserParams pendingChooser;
+
+    private boolean supportsPhoto(WebChromeClient.FileChooserParams params) {
+        String[] types = params.getAcceptTypes();
+        if (types == null || types.length == 0) return true;
+        for (String type : types) {
+            if (type == null || type.isEmpty() || "*/*".equals(type) || type.toLowerCase(Locale.ROOT).contains("image"))
+                return true;
+        }
+        return params.isCaptureEnabled();
+    }
+
+    private void launchFilePicker(WebChromeClient.FileChooserParams params) {
+        try {
+            Intent picker = params.createIntent();
+            Intent chooser = Intent.createChooser(picker, "Chọn ảnh hoặc bài làm");
+            cameraFileUri = null;
+            if (supportsPhoto(params) && checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                File folder = new File(getCacheDir(), "camera");
+                if (!folder.exists()) folder.mkdirs();
+                File photo = File.createTempFile("tuongai_", ".jpg", folder);
+                cameraFileUri = FileProvider.getUriForFile(this, getPackageName() + ".files", photo);
+                Intent camera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                camera.putExtra(MediaStore.EXTRA_OUTPUT, cameraFileUri);
+                camera.setClipData(ClipData.newUri(getContentResolver(), "Bài làm", cameraFileUri));
+                camera.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{camera});
+            }
+            startActivityForResult(chooser, FILE_REQUEST);
+        } catch (Exception error) {
+            if (upload != null) upload.onReceiveValue(null);
+            upload = null;
+            cameraFileUri = null;
+        }
+    }
 
     private boolean isTrustedOrigin(Uri u) {
         return u != null && "https".equalsIgnoreCase(u.getScheme())
@@ -83,13 +124,12 @@ public class MainActivity extends Activity {
             @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
                 if (upload != null) upload.onReceiveValue(null);
                 upload = callback;
-                try {
-                    Intent chooser = params.createIntent();
-                    startActivityForResult(chooser, FILE_REQUEST);
-                } catch (Exception error) {
-                    upload.onReceiveValue(null);
-                    upload = null;
-                    return false;
+                if (supportsPhoto(params) && Build.VERSION.SDK_INT >= 23
+                        && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                    pendingChooser = params;
+                    requestPermissions(new String[]{Manifest.permission.CAMERA}, PICKER_CAMERA_REQUEST);
+                } else {
+                    launchFilePicker(params);
                 }
                 return true;
             }
@@ -119,13 +159,24 @@ public class MainActivity extends Activity {
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
         super.onActivityResult(requestCode, resultCode, intent);
         if (requestCode == FILE_REQUEST && upload != null) {
-            upload.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, intent));
+            Uri[] results = WebChromeClient.FileChooserParams.parseResult(resultCode, intent);
+            if ((results == null || results.length == 0) && resultCode == RESULT_OK && cameraFileUri != null)
+                results = new Uri[]{cameraFileUri};
+            upload.onReceiveValue(results);
             upload = null;
+            cameraFileUri = null;
         }
     }
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == PICKER_CAMERA_REQUEST && pendingChooser != null) {
+            WebChromeClient.FileChooserParams params = pendingChooser;
+            pendingChooser = null;
+            // Denying camera still allows selecting a file from the device.
+            if (upload != null) launchFilePicker(params);
+            return;
+        }
         if (requestCode == CAMERA_REQUEST && cameraPermission != null) {
             if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED)
                 cameraPermission.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
@@ -145,6 +196,8 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        pendingChooser = null;
+        cameraFileUri = null;
         if (upload != null) { upload.onReceiveValue(null); upload = null; }
         if (web != null) web.destroy();
         super.onDestroy();
