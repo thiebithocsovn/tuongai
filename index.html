@@ -12,7 +12,12 @@
 <meta name="apple-mobile-web-app-title" content="Tường AI">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
-<link rel="manifest" href="./manifest.webmanifest">
+<link rel="manifest" href="./manifest.webmanifest" id="platform-manifest">
+<script>
+  if (location.origin === 'https://tuonghoctap.vercel.app') {
+    document.getElementById('platform-manifest').href = './manifest-vercel.webmanifest';
+  }
+</script>
 <link rel="canonical" href="https://thiebithocsovn.github.io/tuongai/">
 <link rel="apple-touch-icon" sizes="180x180" href="./icon-180.png">
 <meta property="og:type" content="website">
@@ -1786,6 +1791,71 @@ html,body{max-width:100%;overflow-x:clip}
 }
 @media(hover:none),(pointer:coarse){#auth button,#auth a.install-download{touch-action:manipulation}}
 </style>
+
+<style id="install-horizontal-layout">
+/* Install panel spans the entire login landing page, not just the login form. */
+#auth .install-panel{
+  width:min(1090px,100%);margin:clamp(20px,3.3vw,36px) auto 0;
+  padding:clamp(16px,2.2vw,24px);box-sizing:border-box;
+  background:linear-gradient(135deg,#f6fbff,#ffffff 75%);
+  border:1px solid #d6e4f2;border-radius:20px;
+  box-shadow:0 14px 36px -28px rgba(20,62,115,.38);
+}
+#auth .install-panel-head{gap:14px}
+#auth .install-panel-icon{flex-basis:46px;height:46px;border-radius:14px}
+#auth .install-panel h2{font-size:clamp(17px,2vw,21px);line-height:1.3}
+#auth .install-platforms{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;width:100%;overflow:visible;
+}
+#auth .install-platform{
+  grid-template-columns:32px minmax(0,1fr);
+  grid-template-rows:auto auto;
+  min-height:78px;padding:12px 11px;gap:4px 10px;
+  border-radius:14px;box-shadow:0 3px 10px -10px rgba(19,47,91,.3);
+  transition:background .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+#auth .install-platform>span{
+  font-size:24px;line-height:1;grid-column:1;grid-row:1 / span 2;
+  align-self:center;justify-self:center;
+}
+#auth .install-platform strong{
+  grid-column:2;grid-row:1;font-size:14.5px;
+  color:#143150;white-space:normal;overflow-wrap:normal;
+}
+#auth .install-platform small{
+  grid-column:2;grid-row:2;font-size:11.8px;
+  color:#617991;white-space:normal;
+}
+#auth .install-platform[aria-pressed="true"]{
+  background:#e9f3ff;border-color:#2177cb;
+  box-shadow:0 0 0 1px #2177cb,0 6px 16px -12px #125ea6;
+}
+#auth .install-steps{padding-top:14px}
+#auth .install-primary,#auth .install-download{max-width:100%;box-sizing:border-box}
+#auth .install-note{font-size:12px;line-height:1.6}
+#auth .install-scroll-tip{display:none;color:#627b94;font-size:12px}
+@media(max-width:720px){
+ #auth .install-panel{width:100%;padding:14px;margin-top:19px}
+ #auth .install-platforms{
+   display:grid;grid-template-columns:none;
+   grid-auto-flow:column;grid-auto-columns:minmax(164px,60%);
+   gap:9px;overflow-x:auto;overflow-y:hidden;
+   padding:2px 3px 10px;scroll-snap-type:x mandatory;
+   scrollbar-width:thin;overscroll-behavior-inline:contain;
+   -webkit-overflow-scrolling:touch;
+ }
+ #auth .install-platform{min-width:0;scroll-snap-align:start;padding:10px;min-height:72px}
+ #auth .install-scroll-tip{display:block;margin:-6px 0 -3px}
+}
+@media(max-width:420px){
+ #auth .install-platforms{grid-auto-columns:minmax(157px,80%)}
+ #auth .install-panel-head{gap:10px}
+ #auth .install-panel-icon{flex-basis:40px;height:40px}
+}
+@media(prefers-reduced-motion:reduce){#auth .install-platform{transition:none}}
+</style>
+
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
@@ -1854,7 +1924,11 @@ html,body{max-width:100%;overflow-x:clip}
       </form>
 
       <p class="store-note" id="store-note"><span data-ic="shield"></span><span id="store-note-t">Đang kết nối kho dữ liệu…</span></p>
-      <section class="install-panel" id="install-panel" aria-labelledby="install-title">
+
+
+    </div>
+  </div>
+  <section class="install-panel" id="install-panel" aria-labelledby="install-title">
         <div class="install-panel-head"><span class="install-panel-icon" aria-hidden="true">⬇</span><div><h2 id="install-title">Cài Tường học tập AI</h2><p>Dùng như ứng dụng trên điện thoại, máy tính bảng và máy tính.</p></div></div>
         <div class="install-platforms" role="group" aria-label="Chọn thiết bị cài đặt">
           <button type="button" class="install-platform" data-install-os="android"><span aria-hidden="true">◉</span><strong>Android</strong><small>Điện thoại · Tablet</small></button>
@@ -1862,22 +1936,20 @@ html,body{max-width:100%;overflow-x:clip}
           <button type="button" class="install-platform" data-install-os="windows"><span aria-hidden="true">▦</span><strong>Windows</strong><small>Máy tính · Laptop</small></button>
           <button type="button" class="install-platform" data-install-os="mac"><span aria-hidden="true">⌘</span><strong>MacBook</strong><small>macOS</small></button>
         </div>
+        <p class="install-scroll-tip" aria-hidden="true">Vuốt ngang để chọn thiết bị phù hợp →</p>
         <div class="install-steps" id="install-steps" aria-live="polite">
           <p>Chọn loại thiết bị ở trên để xem cách cài đặt.</p>
           <p class="install-origin-warning" id="install-origin-warning" hidden>Để tránh lỗi 404 sau khi cài, hãy chỉ cài từ website chính thức:
             <a href="https://thiebithocsovn.github.io/tuongai/" rel="noopener noreferrer">thiebithocsovn.github.io/tuongai/</a>.
-            Không cài từ liên kết bản xem thử hoặc tên miền Vercel.</p>
+            Không cài từ tên miền lạ hoặc bản xem thử không thuộc hệ thống.</p>
           <button type="button" class="btn btn-brand install-primary" id="install-main" hidden>Cài ứng dụng</button>
           <a id="install-native" class="install-download" hidden rel="noopener noreferrer"></a>
           <p id="install-download-state" class="install-download-state" role="status" hidden></p>
         </div>
-        <p class="install-note">Nếu biểu tượng ứng dụng cũ mở ra “404 NOT_FOUND”, hãy gỡ ứng dụng đã cài, mở
+        <p class="install-note">Nếu ứng dụng đã cài trước đây mở ra “404 NOT_FOUND”, hãy gỡ phiên bản cũ và mở
           <a class="install-fix-link" href="https://thiebithocsovn.github.io/tuongai/" rel="noopener noreferrer">website chính thức của Tường AI</a>
-          bằng Chrome hoặc Safari rồi cài lại từ chính trang đó. Cần Internet để nộp bài và sử dụng AI.</p>
+          bằng Chrome hoặc Safari để cài lại; bản Vercel có thể cài từ trang này. Cần Internet để nộp bài và sử dụng AI.</p>
       </section>
-
-    </div>
-  </div>
   <section class="auth-metrics-wrap" aria-labelledby="landing-metrics-title">
     <div class="auth-metrics-top"><div><p class="auth-metrics-kicker">Tường học tập AI - Truy gốc lỗi · Dữ liệu thực tế</p><h2 class="auth-metrics-heading" id="landing-metrics-title">Cộng đồng học tập đang phát triển</h2></div><p class="auth-metrics-note">Thống kê tổng hợp từ hệ thống, tự động cập nhật</p></div>
     <div class="auth-metrics">
@@ -6150,8 +6222,11 @@ init();
   const downloadState=ui.querySelector('#install-download-state');
   const originWarning=ui.querySelector('#install-origin-warning');
   const OFFICIAL_URL='https://thiebithocsovn.github.io/tuongai/';
-  const isOfficial=window.location.origin==='https://thiebithocsovn.github.io' &&
-    (window.location.pathname==='/tuongai/'||window.location.pathname==='/tuongai/index.html');
+  const isGithub=window.location.origin==='https://thiebithocsovn.github.io'
+    && (window.location.pathname==='/tuongai/'||window.location.pathname==='/tuongai/index.html');
+  const isVercel=window.location.origin==='https://tuonghoctap.vercel.app'
+    && (window.location.pathname==='/'||window.location.pathname==='/index.html');
+  const isOfficial=isGithub||isVercel;
   const platforms=[...ui.querySelectorAll('[data-install-os]')];
   let deferred=null,selected='',assets={};
   const standalone=()=>window.matchMedia('(display-mode: standalone)').matches||!!window.navigator.standalone||navigator.userAgent.includes('Electron/')||navigator.userAgent.includes('; wv');
@@ -6167,7 +6242,7 @@ init();
     selected=platform;
     platforms.forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.installOs===platform)));
     intro.textContent=!isOfficial
-      ? 'Bạn đang mở bản web từ một địa chỉ không chính thức. Cài tại đây có thể tạo ứng dụng mở sai địa chỉ (404). Hãy mở link chính thức bên dưới để cài.'
+      ? 'Bạn đang mở bản sao không được hỗ trợ cài đặt. Hãy dùng website chính thức được liên kết bên dưới.'
       : standalone()?'Ứng dụng đã được mở dưới dạng đã cài đặt. '+messages[platform]:messages[platform];
     originWarning.hidden=isOfficial;
     installButton.hidden=!isOfficial||standalone()||platform==='ios'||!deferred;
@@ -6196,7 +6271,13 @@ init();
   window.addEventListener('appinstalled',()=>{deferred=null;choose(selected||detect());});
   choose(detect());
   if(isOfficial&&'serviceWorker' in navigator&&location.protocol==='https:'){
-    window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js',{scope:'/tuongai/'}).catch(()=>{}));
+    window.addEventListener('load',()=>{
+      const script=isVercel?'./service-worker-vercel.js':'./service-worker.js';
+      const scope=isVercel?'/':'/tuongai/';
+      navigator.serviceWorker.register(script,{scope}).catch(err=>{
+        console.warn('Không đăng ký được ứng dụng ngoại tuyến:',err);
+      });
+    });
   }
   // Chỉ hiển thị liên kết tải bộ cài nếu tài sản đã xuất bản thật trên GitHub Release.
   fetch('https://api.github.com/repos/thiebithocsovn/tuongai/releases/latest',{headers:{Accept:'application/vnd.github+json'},cache:'no-store'})
