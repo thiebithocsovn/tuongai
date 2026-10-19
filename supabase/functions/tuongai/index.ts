@@ -203,7 +203,7 @@ async function verifyStudentAttachments(b:any, token:string, input:unknown) {
   for(const a of input) {
     const path=str(a?.path,320), name=cleanFileLabel(a?.name), size=Number(a?.size);
     const ext=fileExt(name), type=FILE_MIME[ext];
-    if (!type || !name || !path.startsWith(prefix) || !new RegExp("^"+prefix.replace(/[.*+?^${}()|[\]\\]/g,"\\/* ---------------- học sinh ---------------- */")+"[0-9a-f-]{36}\\."+ext+"$").test(path))
+    if (!type || !name || !path.startsWith(prefix) || !new RegExp("^[0-9a-f-]{36}\\."+ext+"$").test(path.slice(prefix.length)))
       throw new Fail("invalid_file","Tệp không hợp lệ hoặc không thuộc phiên học sinh này.",403);
     if (!Number.isSafeInteger(size) || size<1 || size>FILE_MAX)
       throw new Fail("file_limit","Mỗi tệp phải dưới 25 MB.");
