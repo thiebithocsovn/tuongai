@@ -4619,6 +4619,7 @@ async function blobFor(r) {
 function submitForm(b, asTeacher, colId) {
   const me = ME();
   const shots = [];
+  let attachState;
   const maxShots = 4;
   const knownStudent = !asTeacher && me?.guest && !me?.preview ? me : null;
   const names = new Set(postsOf(b.id).map((p) => p.studentName).filter(Boolean));
@@ -4634,6 +4635,7 @@ function submitForm(b, asTeacher, colId) {
         <div class="shots" id="sf-shots"></div>
       </div>
       <label class="fld"><span>${asTeacher ? 'Ghi chú hoặc bài gõ' : 'Hoặc gõ bài làm'} <em>(không bắt buộc)</em></span><textarea id="sf-text" rows="4" placeholder="${asTeacher ? 'Có thể dán bài làm dạng chữ ở đây.' : 'Em có thể gõ câu trả lời ở đây nếu không chụp ảnh.'}"></textarea></label>
+      ${attachPickerHtml('sf-attachment-input')}
       ${!asTeacher ? `<div class="sf-student-fields">
         <label class="fld"><span>Họ và tên học sinh <em>(bắt buộc)</em></span><input id="sf-student-name" autocomplete="name" maxlength="120" value="${esc(knownStudent?.name || '')}" placeholder="Ví dụ: Nguyễn Văn An" required></label>
         <label class="fld"><span>Lớp <em>(không bắt buộc)</em></span><input id="sf-student-class" maxlength="30" value="${esc(knownStudent?.className || '')}" placeholder="Ví dụ: 8A4"></label>
@@ -4646,6 +4648,7 @@ function submitForm(b, asTeacher, colId) {
     onClose: () => shots.forEach((s) => URL.revokeObjectURL(s.url)),
   });
   const el = m.el;
+  attachState=initAttachPicker(el.querySelector('.attach-picker'));
   if (colId != null && $('#sf-col', el)) $('#sf-col', el).value = colId;
   const draw = () => {
     $('#sf-shots', el).innerHTML = shots.map((s, i) => `<div class="shot"><img src="${s.url}" alt="Trang ${i + 1}"><button type="button" class="rm" data-rm="${i}" aria-label="Bỏ ảnh trang ${i + 1}">${ic('x', 'ic-sm')}</button></div>`).join('')
@@ -4673,7 +4676,8 @@ function submitForm(b, asTeacher, colId) {
     if (links.some((u) => !u)) { err.textContent = 'Liên kết cần bắt đầu bằng https:// hoặc http://.'; $('#sf-link', el).focus(); return; }
     const text = [$('#sf-text', el).value.trim(), ...links.slice(0, 3).map((u) => '🔗 ' + u)].filter(Boolean).join('\n');
     if (name.length < 2) { err.textContent = 'Hãy nhập họ và tên học sinh.'; (asTeacher ? $('#sf-name', el) : $('#sf-student-name', el)).focus(); return; }
-    if (!shots.length && !text) { err.textContent = asTeacher ? 'Hãy chụp ít nhất một ảnh bài làm.' : 'Em hãy chụp ảnh bài làm hoặc gõ câu trả lời.'; return; }
+    if (!shots.length && !text && !attachState.files.length) { err.textContent = 'Em hãy chụp ảnh, chọn tệp hoặc nhập nội dung bài làm.'; return; }
+    try{checkAttachments(attachState.files);}catch(e){err.textContent=e.message;return;}
     const btn = $('#sf-save', el); btn.disabled = true;
     try {
       const pid = uuid();
@@ -4690,7 +4694,9 @@ function submitForm(b, asTeacher, colId) {
         };
         if (!student.joined.includes(b.id)) student.joined.push(b.id);
         if (!student.codes.includes(b.code)) student.codes.push(b.code);
-        const r = await api('student_submit', { code: b.code, name, class: className, token: student.token, column_id: selectedColumn?.id || '', text, images });
+        const attachments = await uploadAttachments(b,student,attachState.files,(m)=>{btn.textContent=m;},pid);
+        btn.textContent='Đang lưu bài làm…';
+        const r = await api('student_submit', { code: b.code, name, class: className, token: student.token, column_id: selectedColumn?.id || '', text, images, attachments });
         rememberUrls(r.urls);
         if (S.meId !== student.id) S.posts = new Map();
         const np = rowToPost(r.post, student.id);
@@ -4704,6 +4710,7 @@ function submitForm(b, asTeacher, colId) {
         return;
       }
       const refs = [];
+      const uploadedFiles = b.demo ? [] : await uploadAttachments(b,null,attachState.files,(m)=>{btn.textContent=m;},pid);
       for (let i = 0; i < shots.length; i++) {
         btn.textContent = shots.length > 1 ? `Đang tải ảnh ${i + 1}/${shots.length}…` : 'Đang tải ảnh…';
         const s = shots[i];
@@ -4718,7 +4725,7 @@ function submitForm(b, asTeacher, colId) {
       const p = {
         id: pid, boardId: b.id, ownerAcc: b.ownerAcc, columnId: colSel ? colSel.value : (cols[0]?.id || ''),
         studentName: name, studentClass: '', studentAcc: null,
-        by: asTeacher ? 'gv' : 'hs', images: refs, text, createdAt: now(),
+        by: asTeacher ? 'gv' : 'hs', images: refs, attachments: uploadedFiles, text, createdAt: now(),
       };
       btn.textContent = 'Đang lưu bài…';
       const ok = await savePost(p);
@@ -4727,7 +4734,7 @@ function submitForm(b, asTeacher, colId) {
       if (b.demo) toast('Bảng mẫu chỉ để thử, bài sẽ mất khi tải lại trang.');
       else toast(asTeacher ? 'Đã lưu bài của ' + name + '.' : 'Em đã nộp bài thành công!');
       const wantAI = asTeacher ? $('#sf-ai', el)?.checked : b.autoGrade !== false;
-      if (wantAI && aiOn() && !(me.guest && b.demo)) openDetail(p.id, true);
+      if (wantAI && aiOn() && (shots.length || text.trim()) && !(me.guest && b.demo)) openDetail(p.id, true);
     } catch (e) {
       err.textContent = e?.message || 'Chưa lưu được bài. Hãy thử lại.';
     } finally { btn.disabled = false; btn.innerHTML = asTeacher ? ic('check') + 'Lưu bài' : ic('send') + 'Nộp bài'; }
