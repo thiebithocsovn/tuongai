@@ -2001,6 +2001,192 @@ html,body{max-width:100%;overflow-x:clip}
 @media(prefers-reduced-motion:reduce){#auth .install-platform{transition:none}}
 </style>
 
+<style id="compact-board-cards">
+/*
+ * Classroom dashboard cards: avoid giant covers when a teacher/student has
+ * only one or two boards. The empty tracks of auto-fit collapse and cards
+ * remain centered. This only applies to #grid, not posts inside a board.
+ */
+#app #grid.grid:not(.list) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 315px));
+  justify-content: center;
+  align-items: stretch;
+  gap: clamp(12px, 1.3vw, 18px);
+  width: 100%;
+  min-width: 0;
+}
+#app #grid.grid:not(.list) > .bcard {
+  width: 100%;
+  max-width: 315px;
+  min-width: 0;
+  justify-self: center;
+}
+#app #grid .bcard {
+  overflow: visible;
+  border-radius: 12px;
+  box-shadow: 0 4px 18px -12px rgba(25, 49, 86, .26);
+}
+#app #grid .bcard:hover {
+  box-shadow: 0 9px 25px -14px rgba(25, 49, 86, .28);
+}
+#app #grid.grid:not(.list) .bcover {
+  aspect-ratio: 16 / 8.15;
+  height: auto;
+  min-height: 0;
+  border-radius: 11px 11px 0 0;
+}
+#app #grid .bcover .cover-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#app #grid .bbody {
+  padding: 10px 11px 11px;
+}
+#app #grid .bname {
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 750;
+}
+#app #grid .bdesc {
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  -webkit-line-clamp: 2;
+}
+#app #grid .bmeta {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+  align-items: center;
+  gap: 7px;
+}
+#app #grid .bmeta span {
+  max-width: 75%;
+  min-width: 0;
+}
+#app #grid .bmeta .ic {
+  width: 14px;
+  height: 14px;
+}
+#app #grid .bactions {
+  gap: 7px;
+  padding-top: 9px;
+}
+#app #grid .bactions .btn {
+  min-height: 35px;
+  padding: 7px 9px;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: normal;
+}
+#app #grid .bactions .btn .ic {
+  width: 16px;
+  height: 16px;
+}
+#app #grid .cbadges {
+  top: 7px;
+  left: 7px;
+  right: 7px;
+}
+#app #grid .chip2 {
+  font-size: 11.5px;
+  padding: 4px 7px;
+}
+#app #grid .chip2 .ic {
+  width: 13px;
+  height: 13px;
+}
+#app #grid .kebab {
+  width: 30px;
+  height: 28px;
+}
+/* The vertical/list view remains a horizontal row, but no longer spans 1000px. */
+#app #grid.grid.list {
+  grid-template-columns: minmax(0, min(100%, 825px));
+  justify-content: center;
+  gap: 12px;
+}
+#app #grid.grid.list .bcard {
+  display: grid;
+  grid-template-columns: minmax(155px, 195px) minmax(0, 1fr);
+  width: 100%;
+}
+#app #grid.grid.list .bcover {
+  aspect-ratio: auto;
+  height: 100%;
+  min-height: 135px;
+  border-radius: 11px 0 0 11px;
+}
+#app #grid.grid.list .cbadges {
+  width: 179px;
+  right: auto;
+}
+#app #grid.grid.list .kebab,
+#app #grid.grid.list .menu {
+  left: 158px;
+  right: auto;
+}
+#app #grid.grid.list .bactions {
+  max-width: 300px;
+}
+/* At narrow widths use one or two smaller cards without horizontal overflow. */
+@media (max-width: 760px) {
+  #app #grid.grid:not(.list) {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 235px), 315px));
+    gap: 12px;
+  }
+  #app #grid.grid:not(.list) .bcover {
+    aspect-ratio: 16 / 8.5;
+  }
+}
+@media (max-width: 540px) {
+  #app #grid.grid:not(.list) {
+    grid-template-columns: minmax(0, min(100%, 340px));
+  }
+  #app #grid.grid:not(.list) > .bcard {
+    max-width: 340px;
+  }
+  #app #grid.grid.list .bcard {
+    grid-template-columns: minmax(100px, 33%) minmax(0, 1fr);
+  }
+  #app #grid.grid.list .bcover {
+    min-height: 150px;
+  }
+  #app #grid.grid.list .cbadges {
+    max-width: calc(33% - 8px);
+  }
+  #app #grid.grid.list .kebab,
+  #app #grid.grid.list .menu {
+    left: auto;
+    right: 7px;
+  }
+}
+@media (max-width: 365px) {
+  #app #grid.grid.list .bcard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #app #grid.grid.list .bcover {
+    aspect-ratio: 16 / 8.5;
+    height: auto;
+    min-height: 0;
+    border-radius: 11px 11px 0 0;
+  }
+  #app #grid.grid.list .cbadges {
+    width: auto;
+    max-width: none;
+    right: 7px;
+  }
+  #app #grid.grid.list .kebab,
+  #app #grid.grid.list .menu {
+    left: auto;
+    right: 7px;
+  }
+}
+</style>
+
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
