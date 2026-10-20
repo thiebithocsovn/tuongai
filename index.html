@@ -2386,6 +2386,55 @@ body.board-column-dragging,body.board-column-dragging *{
  .app.board-open .cols.dir-h .col-post-rail {transition:none}
 }
 </style>
+
+<style id="dashboard-card-dnd">
+/* Drag only from the clearly identified grip; other board actions remain clickable. */
+#app #grid .btitle{align-items:center;min-width:0}
+#app #grid .board-drag-handle{
+  display:inline-flex;align-items:center;justify-content:center;
+  flex:0 0 32px;width:32px;height:32px;min-height:32px;padding:0;
+  border:1px solid #d8e6f0;border-radius:9px;
+  background:#eff6fd;color:#47718e;cursor:grab;
+  touch-action:none;user-select:none;-webkit-user-select:none;
+  transition:background .15s,border-color .15s,color .15s;
+}
+#app #grid .board-drag-handle span{
+  font-size:20px;line-height:1;font-weight:800;pointer-events:none;
+}
+#app #grid .board-drag-handle:hover{
+  background:#dcedfc;border-color:#93c4e9;color:#1764a1;
+}
+#app #grid .board-drag-handle:active{cursor:grabbing}
+#app #grid .board-drag-handle:focus-visible{
+  outline:3px solid #438fcb;outline-offset:2px;
+}
+body.dashboard-drag-active,body.dashboard-drag-active *{
+  cursor:grabbing!important;user-select:none!important;-webkit-user-select:none!important;
+}
+body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
+#app #grid .bcard.is-board-dragging{
+  opacity:.40;transform:none!important;pointer-events:none;
+  outline:2px dashed #187caa;outline-offset:3px;
+  box-shadow:0 0 0 4px rgba(28,135,184,.08);
+}
+#app #grid .bcard.is-board-dragging .board-drag-handle{cursor:grabbing}
+.dashboard-drag-ghost{
+  position:fixed;z-index:10000;top:0;left:0;pointer-events:none;
+  display:flex;align-items:center;gap:9px;max-width:245px;
+  padding:10px 14px;border-radius:12px;
+  background:linear-gradient(120deg,#185a93,#138b94);color:#fff;
+  font-weight:750;font-size:13px;white-space:nowrap;
+  box-shadow:0 14px 35px rgba(22,69,109,.29);
+}
+.dashboard-drag-ghost .glyph{font-size:18px;flex:none}
+.dashboard-drag-ghost .name{min-width:0;max-width:190px;overflow:hidden;text-overflow:ellipsis}
+@media(hover:none),(pointer:coarse){
+  #app #grid .board-drag-handle{flex-basis:42px;width:42px;min-height:42px;height:42px}
+}
+@media(prefers-reduced-motion:reduce){
+  #app #grid .board-drag-handle{transition:none}
+}
+</style>
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
@@ -3957,6 +4006,7 @@ function updateNavCounts() {
 }
 
 function render() {
+  if(dashboardDragCleanup){dashboardDragCleanup();dashboardDragCleanup=null;}
   if(columnPostScrollCleanup){columnPostScrollCleanup();columnPostScrollCleanup=null;}
   if(columnDragCleanup){columnDragCleanup();columnDragCleanup=null;}
   if (!S.meId || !ME()) return;
@@ -3981,6 +4031,176 @@ function render() {
     const el = document.getElementById(keep.id);
     if (el && el !== document.activeElement) { el.focus(); try { if (keep.a != null) el.setSelectionRange(keep.a, keep.b); } catch (e) {} }
   }
+}
+
+
+/* Dashboard order is a personal display preference; it never modifies class data. */
+const BOARD_ORDER_STORAGE='tuongai.dashboard.order.v1:';
+let dashboardDragCleanup=null;
+function boardOrderKey(){
+  return BOARD_ORDER_STORAGE+[S.meId||'none',S.view.tab||'mine',S.view.owner||'all'].join(':');
+}
+function orderedDashboardBoards(tab){
+  const boards=visibleBoards(tab);
+  let ids=[];
+  try{
+    const saved=JSON.parse(LS.get(boardOrderKey())||'[]');
+    if(Array.isArray(saved))ids=saved.filter(x=>typeof x==='string'&&x.length<130).slice(0,3000);
+  }catch(e){}
+  if(!ids.length)return boards;
+  const priorities=new Map(ids.map((id,i)=>[id,i]));
+  return boards.slice().sort((a,b)=>{
+    const pa=priorities.get(a.id),pb=priorities.get(b.id);
+    if(pa!==undefined && pb!==undefined)return pa-pb;
+    if(pa!==undefined)return 1;
+    if(pb!==undefined)return -1;
+    return 0;
+  });
+}
+function saveDashboardOrder(ids,visibleIds){
+  const tab=S.view.tab;
+  const all=orderedDashboardBoards(tab).map(b=>b.id);
+  const available=new Set(visibleIds);
+  // Keep the position of boards hidden by the search filter.
+  const positions=ids.filter(id=>available.has(id));
+  let pointer=0;
+  const merged=all.map(id=>available.has(id)?positions[pointer++]:id);
+  LS.set(boardOrderKey(),JSON.stringify(merged));
+}
+function setupDashboardDragging(){
+  if(dashboardDragCleanup){dashboardDragCleanup();dashboardDragCleanup=null;}
+  const grid=$('#grid');
+  if(!grid)return;
+  const handles=[...grid.querySelectorAll('.board-drag-handle')];
+  if(handles.length<2)return;
+  const tab=S.view.tab,viewer=S.meId,owner=S.view.owner||'';
+  const scopeIsCurrent=()=>grid.isConnected&&S.view.name==='home'&&S.view.tab===tab&&S.meId===viewer&&(S.view.owner||'')===owner;
+  const items=()=>[...grid.querySelectorAll(':scope > .bcard[data-board-id]')];
+  const ids=()=>items().map(el=>el.dataset.boardId);
+  let drag=null,scrollRaf=0;
+  function restore(order){
+    const map=new Map(items().map(card=>[card.dataset.boardId,card]));
+    order.forEach(id=>{if(map.has(id))grid.appendChild(map.get(id));});
+  }
+  function stop(){
+    if(scrollRaf){cancelAnimationFrame(scrollRaf);scrollRaf=0;}
+    if(drag?.handle&&drag.pointer!==undefined){
+      try{
+        if(drag.handle.hasPointerCapture(drag.pointer))drag.handle.releasePointerCapture(drag.pointer);
+      }catch(e){}
+    }
+    drag?.card?.classList.remove('is-board-dragging');
+    drag?.ghost?.remove();
+    document.body.classList.remove('dashboard-drag-active');
+    drag=null;
+  }
+  function hitTest(x,y){
+    if(!drag?.active||!scopeIsCurrent())return;
+    const bounds=grid.getBoundingClientRect();
+    if(x<bounds.left-18||x>bounds.right+18||y<bounds.top-32||y>bounds.bottom+32)return;
+    let target=document.elementFromPoint(x,y)?.closest('.bcard[data-board-id]');
+    if(!target||!grid.contains(target)||target===drag.card){
+      const candidates=items().filter(el=>el!==drag.card);
+      if(!candidates.length)return;
+      let best=Infinity;
+      for(const el of candidates){
+        const r=el.getBoundingClientRect();
+        const dx=Math.max(r.left-x,0,x-r.right),dy=Math.max(r.top-y,0,y-r.bottom);
+        const distance=dx*dx+dy*dy;
+        if(distance<best){best=distance;target=el;}
+      }
+    }
+    if(!target||target===drag.card)return;
+    const r=target.getBoundingClientRect();
+    const list=grid.classList.contains('list');
+    const insertBefore=list?y<r.top+r.height/2:
+      y<r.top?true:y>r.bottom?false:x<r.left+r.width/2;
+    const next=insertBefore?target:target.nextElementSibling;
+    if(next===drag.card||(!next&&grid.lastElementChild===drag.card))return;
+    grid.insertBefore(drag.card,next);
+  }
+  function scrollPage(){
+    scrollRaf=0;if(!drag?.active||!scopeIsCurrent())return;
+    const nearTop=drag.y<95,nearBottom=drag.y>window.innerHeight-92;
+    if(nearTop||nearBottom){
+      const amount=nearTop?-15:15;
+      const main=grid.closest('.main');
+      const scrollHost=main&&main.scrollHeight>main.clientHeight+6?main:document.scrollingElement;
+      if(scrollHost)scrollHost.scrollTop+=amount;
+      hitTest(drag.x,drag.y);
+    }
+    scrollRaf=requestAnimationFrame(scrollPage);
+  }
+  function start(e){
+    if(drag||(e.pointerType==='mouse'&&e.button!==0)||!scopeIsCurrent())return;
+    const handle=e.currentTarget,card=handle.closest('.bcard[data-board-id]');
+    if(!card)return;
+    drag={pointer:e.pointerId,handle,card,
+      name:card.querySelector('.bname')?.textContent||'Lớp học',
+      x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,
+      initial:ids(),active:false,ghost:null};
+    try{handle.setPointerCapture(e.pointerId);}catch(err){}
+  }
+  function move(e){
+    if(!drag||e.pointerId!==drag.pointer)return;
+    drag.x=e.clientX;drag.y=e.clientY;
+    if(!drag.active&&Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)<7)return;
+    if(!drag.active){
+      drag.active=true;drag.card.classList.add('is-board-dragging');
+      document.body.classList.add('dashboard-drag-active');
+      const ghost=document.createElement('div');ghost.className='dashboard-drag-ghost';
+      const symbol=document.createElement('span');symbol.className='glyph';symbol.textContent='⠿';
+      const name=document.createElement('span');name.className='name';name.textContent=drag.name;
+      ghost.append(symbol,name);document.body.appendChild(ghost);drag.ghost=ghost;
+      scrollRaf=requestAnimationFrame(scrollPage);
+    }
+    e.preventDefault();
+    drag.ghost.style.transform='translate('+Math.round(e.clientX+16)+'px,'+Math.round(e.clientY+13)+'px)';
+    hitTest(e.clientX,e.clientY);
+  }
+  function complete(oldOrder,newOrder,name){
+    if(oldOrder.join('|')===newOrder.join('|')||!scopeIsCurrent())return;
+    saveDashboardOrder(newOrder,oldOrder);
+    $('#board-order-status')?.replaceChildren(document.createTextNode('Đã sắp xếp '+name+'.'));
+    toast('Đã lưu vị trí lớp '+name+' trên thiết bị này.');
+  }
+  function finish(e){
+    if(!drag||e.pointerId!==drag.pointer)return;
+    const old=drag.initial,after=ids(),active=drag.active,name=drag.name;
+    if(!active||e.type==='pointercancel')restore(old);
+    stop();
+    if(active&&e.type==='pointerup')complete(old,after,name);
+  }
+  function keyboard(e){
+    if(!e.altKey||!scopeIsCurrent())return;
+    const moves={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1};
+    const direction=moves[e.key];
+    if(!direction)return;
+    const old=ids(),handle=e.currentTarget,id=handle.closest('.bcard')?.dataset.boardId;
+    const index=old.indexOf(id),to=index+direction;
+    if(index<0||to<0||to>=old.length)return;
+    e.preventDefault();
+    const next=old.slice();[next[index],next[to]]=[next[to],next[index]];
+    restore(next);complete(old,next,handle.closest('.bcard')?.querySelector('.bname')?.textContent||'lớp');
+    handle.focus();
+  }
+  handles.forEach(handle=>{
+    handle.addEventListener('pointerdown',start);
+    handle.addEventListener('keydown',keyboard);
+  });
+  window.addEventListener('pointermove',move,{passive:false});
+  window.addEventListener('pointerup',finish);
+  window.addEventListener('pointercancel',finish);
+  dashboardDragCleanup=()=>{
+    handles.forEach(handle=>{
+      handle.removeEventListener('pointerdown',start);
+      handle.removeEventListener('keydown',keyboard);
+    });
+    window.removeEventListener('pointermove',move);
+    window.removeEventListener('pointerup',finish);
+    window.removeEventListener('pointercancel',finish);
+    stop();
+  };
 }
 
 /* ---------- trang chủ ---------- */
@@ -4010,6 +4230,7 @@ function renderHome() {
         <span class="count" id="count"></span>
         ${gv && tab === 'trash' ? `<button class="btn btn-sm btn-danger" data-act="empty-trash">${ic('trash', 'ic-sm')}Xóa sạch thùng rác</button>` : ''}
       </div>
+      <p id="board-order-status" class="sr" role="status" aria-live="polite"></p>
       <div id="grid" class="grid"></div>`;
     $('#q').addEventListener('input', (e) => { S.view.q = e.target.value; renderGrid(); });
   }
@@ -4031,9 +4252,10 @@ function renderSummary() {
     : `<span class="sum"><i style="background:#8a63a6"></i>Bài đã nộp <b>${ps.length}</b></span><span class="sum"><i style="background:#3f8a55"></i>Đã có điểm <b>${c.ai + c.duyet}</b></span>`;
 }
 function renderGrid() {
+  if(dashboardDragCleanup){dashboardDragCleanup();dashboardDragCleanup=null;}
   const g = $('#grid'); if (!g) return;
   const q = S.view.q.trim().toLowerCase();
-  const list = visibleBoards(S.view.tab).filter((b) => !q || b.name.toLowerCase().includes(q));
+  const list = orderedDashboardBoards(S.view.tab).filter((b) => !q || b.name.toLowerCase().includes(q));
   g.className = 'grid' + (S.layout === 'list' ? ' list' : '');
   $('#count').textContent = list.filter((b) => !b.demo).length + ' bảng';
   if (!list.length) {
@@ -4042,6 +4264,7 @@ function renderGrid() {
     return;
   }
   g.innerHTML = list.map(boardCard).join('');
+  setupDashboardDragging();
 }
 function boardCard(b) {
   const me = ME(); const ps = postsOf(b.id);
@@ -4061,12 +4284,12 @@ function boardCard(b) {
   else if (b.trashed) actions = manage ? `<button class="btn btn-gray" data-act="restore-board" data-id="${b.id}">${ic('restore')}Khôi phục</button><button class="btn btn-danger" data-act="purge-board" data-id="${b.id}">${ic('trash')}Xóa hẳn</button>` : '';
   else if (manage) actions = `<button class="btn btn-gray" data-act="edit-board" data-id="${b.id}">${ic('pencil')}Sửa</button><button class="btn btn-gray b-del" data-act="trash-board" data-id="${b.id}" aria-label="Xóa bảng ${esc(b.name)}">${ic('trash')}Xóa</button>`;
   const desc = hs ? `${esc(b.subject || 'Lớp học')} • Em đã nộp ${mine.length} bài` : `${(b.columns || []).length} cột • ${ps.length} bài đăng`;
-  return `<article class="bcard${kebab ? ' has-kebab' : ''}">
+  return `<article class="bcard${kebab ? ' has-kebab' : ''}" data-board-id="${esc(b.id)}">
     <button class="bcover" data-act="open-board" data-id="${b.id}" aria-label="Mở bảng ${esc(b.name)}" ${b.trashed ? 'disabled' : ''}>${cover(b.cover, b.id)}${pend ? `<span class="chip2 pend">${ic('spark')}${pend} bài chờ chấm</span>` : ''}</button>
     <div class="cbadges"><span>${left}</span><span class="chip2 status ${st[2]}">${ic(st[0])}${st[1]}</span></div>
     ${kebab ? `<button class="kebab" data-act="board-menu" data-id="${b.id}" aria-label="Tùy chọn bảng ${esc(b.name)}" aria-haspopup="true">${ic('dots')}</button>` : ''}
     <div class="bbody">
-      <div class="btitle">${b.assignment?.icon ? `<span class="btitle-symbol" aria-hidden="true">${boardIcon(b)}</span>` : ''}<button class="bname" data-act="open-board" data-id="${b.id}" ${b.trashed ? 'disabled' : ''}>${esc(b.name)}</button></div>
+      <div class="btitle">${b.assignment?.icon ? `<span class="btitle-symbol" aria-hidden="true">${boardIcon(b)}</span>` : ''}<button class="bname" data-act="open-board" data-id="${b.id}" ${b.trashed ? 'disabled' : ''}>${esc(b.name)}</button><button type="button" class="board-drag-handle" title="Giữ chuột trái hoặc ngón tay để di chuyển lớp" aria-label="Di chuyển lớp ${esc(b.name)}. Nhấn giữ và kéo, hoặc dùng Alt và phím mũi tên"><span aria-hidden="true">⠿</span></button></div>
       <p class="bdesc">${desc}</p>
       <div class="bmeta"><span>${ic('user')}${esc(hs ? 'Thầy cô: ' + ownerLabel(b) : ownerLabel(b))}</span><span>${layoutName(b.layout)}</span></div>
       ${actions ? `<div class="bactions">${actions}</div>` : ''}
