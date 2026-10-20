@@ -47,7 +47,7 @@ function frontend(){
   const storage=()=>{const m=new Map();return{get:k=>m.get(k)||null,set:(k,v)=>m.set(k,v),del:k=>m.delete(k)}};
   const listeners={};
   const context={LS:storage(),SS:storage(),K_GUEST:'tuongai.guest',S:{posts:new Map(),boards:new Map(),grading:new Set(),meId:'a',guest:{id:'a'}},
-    ts:v=>Date.parse(v)||0,isNum:v=>typeof v==='number'&&Number.isFinite(v),rememberUrls:()=>{},pubToBoard:b=>b,
+    ts:v=>Date.parse(v)||0,isNum:v=>typeof v==='number'&&Number.isFinite(v),rememberUrls:()=>{},pubToBoard:b=>b,SIGNED:new Map(),now:()=>Date.now(),
     document:{addEventListener:(name,fn)=>listeners[name]=fn},window:{getSelection:()=>null},Element:class{},
     $:()=>null,$$:()=>[],detail:null,getPost:()=>null,listeners};
   const code=section('const rowToPost =','const postToRow =')+'\n'+section('function readGuest()','async function addGuestBoard')+'\n'+section('const finalScore =','function status(p)')+'\n({readGuest,saveGuest,applyStudentFeed,rowToPost,finalScore,studentCanEdit,peerPost})';
@@ -71,6 +71,7 @@ test('Feed refresh retains own identity and removes posts no longer approved',()
   m.applyStudentFeed({posts:[{...studentPost(pending,true)},{...studentPost(approved,false)}]},c.S.guest,{id:'class'});
   assert.equal(c.S.posts.has('old'),false);assert.equal(c.S.posts.has('other'),true);
   assert.equal(c.S.posts.get('a').studentAcc,'a');assert.equal(c.S.posts.get('b').studentAcc,null);
+  assert.equal(m.applyStudentFeed({posts:[{...studentPost(pending,true)},{...studentPost(approved,false)}]},c.S.guest,{id:'class'}),false);
   assert.equal(m.finalScore(c.S.posts.get('a')),null);assert.equal(m.finalScore(c.S.posts.get('b')),null);
   assert.equal(m.studentCanEdit(c.S.posts.get('a')),false);
   const ownApproved=m.rowToPost(studentPost({...approved,id:'a'},true),'a');

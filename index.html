@@ -3658,11 +3658,42 @@ async function openStudentLink(code) {
   if (g) { try { if (await restoreGuest(g, code)) return; } catch (e) { /* keep identity for retry */ } }
   await showJoin(code);
 }
+function recoverStudentForm(board) {
+  const modal=openModal({title:'Tìm bài em đã nộp',body:`<form class="modal-b" id="student-recover-form"><p class="meta">Dùng trình duyệt đã nộp bài và nhập đúng họ tên trước đây để tìm lại bài của em.</p><label class="fld"><span>Họ và tên khi nộp bài</span><input id="student-recover-name" autocomplete="name" maxlength="120" required></label><p class="form-err" id="student-recover-error" role="alert"></p></form>`,foot:'<button class="btn btn-ghost" data-close>Hủy</button><button type="button" class="btn btn-brand" id="student-recover-go">Tìm bài của em</button>'});
+  const go=async()=>{
+    const name=$('#student-recover-name',modal.el).value.trim().replace(/\s+/g,' '),error=$('#student-recover-error',modal.el),button=$('#student-recover-go',modal.el);
+    error.textContent='';
+    if(name.length<2){error.textContent='Em hãy nhập họ và tên đã dùng khi nộp bài.';return;}
+    button.disabled=true;
+    try {
+      const id=guestId(name),token=deviceToken()+id.slice(2);
+      const result=await api('student_mine',{code:board.code,token});
+      if(!result.posts?.length){error.textContent='Chưa tìm thấy bài với tên này trên trình duyệt này. Em kiểm tra lại họ tên hoặc dùng thiết bị đã nộp bài.';return;}
+      const first=result.posts[0];
+      const guest={id,token,name:first.student_name||name,className:first.student_class||'',role:'hs',guest:true,joined:[],codes:[]};
+      await addGuestBoard(guest,board.code);
+      modal.close();enterGuest(guest,board.id);toast('Đã tìm lại bài của em.');
+    }catch(e){error.textContent=e.message||'Chưa tìm được bài. Hãy thử lại.';}
+    finally{button.disabled=false;}
+  };
+  $('#student-recover-go',modal.el).onclick=go;
+  $('#student-recover-form',modal.el).onsubmit=e=>{e.preventDefault();go();};
+}
 function applyStudentFeed(result, guest, board) {
-  for (const p of S.posts.values()) if (p.boardId === board.id) S.posts.delete(p.id);
+  const incoming=(result.posts||[]).map(p=>rowToPost(p,p.visibility==='mine'?guest.id:null));
+  const current=[...S.posts.values()].filter(p=>p.boardId===board.id);
+  const stable=posts=>JSON.stringify(posts.slice().sort((a,b)=>a.id.localeCompare(b.id)));
+  const changed=stable(current)!==stable(incoming);
+  const renewed=Object.keys(result.urls||{}).some(path=>!(SIGNED.get(path)?.exp>now()+60000));
   rememberUrls(result.urls);
-  for (const p of result.posts || []) S.posts.set(p.id, rowToPost(p, p.visibility === 'mine' ? guest.id : null));
-  if (result.board) S.boards.set(board.id, pubToBoard(result.board));
+  if(changed){
+    for (const p of current) S.posts.delete(p.id);
+    for (const p of incoming) S.posts.set(p.id,p);
+  }
+  const nextBoard=result.board?pubToBoard(result.board):null;
+  const boardChanged=!!nextBoard&&JSON.stringify(S.boards.get(board.id))!==JSON.stringify(nextBoard);
+  if(boardChanged)S.boards.set(board.id,nextBoard);
+  return changed||renewed||boardChanged;
 }
 async function addGuestBoard(g, code) {
   if (code === DEMO.code) return DEMO;
@@ -4838,7 +4869,7 @@ function renderBoard(b) {
         ${b.demo ? `<p class="bcount">Bảng mẫu: thử chấm thật, không lưu lại.</p>` : ''}
       </div>
     </section>
-    ${!gv ? `<div class="gbanner" role="status"><div><strong>Bài của em và bài đã duyệt trong lớp</strong><p>Quay lại bằng trình duyệt này để xem bài và nhận xét của thầy cô. Điểm chỉ hiển thị cho chủ bài sau khi duyệt. Bài của bạn chỉ được xem, không có nút tải hoặc sao chép.</p></div><button class="btn btn-brand" data-act="submit" data-id="${b.id}">${ic('send')}Nộp bài vào lớp</button></div>` : ''}
+    ${!gv ? `<div class="gbanner" role="status"><div><strong>Bài của em và bài đã duyệt trong lớp</strong><p>Quay lại bằng trình duyệt này để xem bài và nhận xét của thầy cô. Điểm chỉ hiển thị cho chủ bài sau khi duyệt. Bài của bạn chỉ được xem, không có nút tải hoặc sao chép.</p>${S.guest?.preview&&!b.demo?`<button class="btn btn-sm" data-act="student-restore" data-id="${b.id}">${ic('restore','ic-sm')}Tìm bài em đã nộp</button>`:''}</div><button class="btn btn-brand" data-act="submit" data-id="${b.id}">${ic('send')}Nộp bài vào lớp</button></div>` : ''}
     ${S.batch && S.batch.boardId === b.id ? `<div class="batch" role="status"><span class="spin"></span><span>AI đang chấm bài ${Math.min(S.batch.done + 1, S.batch.total)}/${S.batch.total}</span><span class="bar"><i style="width:${(S.batch.done / S.batch.total) * 100}%"></i></span><button class="btn btn-sm btn-ghost" data-act="stop-batch">${ic('stop', 'ic-sm')}Dừng</button></div>` : ''}
     ${!aiOn() && !b.demo && isAdmin() ? `<div class="warnline row-between"><span>AI chấm bài chưa bật. Dán một khóa Gemini để mọi giáo viên dùng chung.</span><button class="btn btn-sm btn-navy" data-act="ai-settings">${ic('spark', 'ic-sm')}Bật AI chấm bài</button></div>` : ''}
     <div class="btool" role="toolbar" aria-label="Công cụ quản lý lớp">
@@ -5635,8 +5666,7 @@ async function studentReloadMine(board) {
     try {
       const result=await api('student_feed',{code:board.code,token:guest.token || ''});
       if(S.guest!==guest)return;
-      applyStudentFeed(result,guest,board);
-      renderSoon();
+      if(applyStudentFeed(result,guest,board))renderSoon();
     } catch(e) {
       if(S.guest!==guest)return;
       if (e.code === 'not_shared' || e.code === 'not_found') {
@@ -7679,6 +7709,7 @@ document.addEventListener('click', async (e) => {
     }
     case 'capture': if (b) submitForm(b, true, t.dataset.col); break;
     case 'submit': if (b) submitForm(b, false, t.dataset.col || ''); break;
+    case 'student-restore': if (b && S.guest?.preview) recoverStudentForm(b); break;
     case 'open-post': $('.pmenu')?.remove(); openDetail(id, t.dataset.grade === '1', t.dataset.focus); break;
     case 'student-edit': { const post = getPost(id); if (post) studentEditForm(post); break; }
     case 'student-delete': { const post = getPost(id); if (post) await studentDeletePost(post); break; }
