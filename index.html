@@ -2132,6 +2132,28 @@ html,body{max-width:100%;overflow-x:clip}
 #app #grid.grid.list .bactions {
   max-width: 300px;
 }
+/* Dashboard: 2 columns of horizontal classroom cards on desktop.
+   Preserve the current single-column view for laptops/tablets/phones. */
+@media (min-width: 1221px) {
+  #app #grid.grid.list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+    align-items: stretch;
+    gap: 14px;
+  }
+  #app #grid.grid.list .bcard {
+    grid-template-columns: minmax(125px, 29%) minmax(0, 1fr);
+    min-width: 0;
+  }
+  #app #grid.grid.list .cbadges {
+    width: calc(29% - 14px);
+  }
+  #app #grid.grid.list .kebab,
+  #app #grid.grid.list .menu {
+    left: calc(29% - 39px);
+    right: auto;
+  }
+}
 /* At narrow widths use one or two smaller cards without horizontal overflow. */
 @media (max-width: 760px) {
   #app #grid.grid:not(.list) {
@@ -4112,8 +4134,10 @@ function setupDashboardDragging(){
     }
     if(!target||target===drag.card)return;
     const r=target.getBoundingClientRect();
+    // In two-column list mode, use row/column hit testing rather than a vertical-only midpoint.
     const list=grid.classList.contains('list');
-    const insertBefore=list?y<r.top+r.height/2:
+    const columnCount=getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length;
+    const insertBefore=(list&&columnCount===1)?y<r.top+r.height/2:
       y<r.top?true:y>r.bottom?false:x<r.left+r.width/2;
     const next=insertBefore?target:target.nextElementSibling;
     if(next===drag.card||(!next&&grid.lastElementChild===drag.card))return;
