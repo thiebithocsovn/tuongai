@@ -2315,6 +2315,77 @@ body.board-column-dragging,body.board-column-dragging *{
  font-size:13px;font-weight:750;box-shadow:0 10px 26px #20485744;
 }
 </style>
+
+<style id="board-column-post-scroll">
+/* Padlet-like independent vertical post scrolling, only in horizontal column layouts. */
+.app.board-open .cols.dir-h > .col {
+  display:flex;flex-direction:column;
+  height:clamp(330px,calc(100dvh - 300px),720px);
+  max-height:none;min-height:0;
+}
+.app.board-open .cols.dir-h > .col > .col-h {
+  flex:0 0 auto;position:relative;
+}
+.app.board-open .cols.dir-h > .col > .col-addpost {
+  flex:0 0 auto;margin-top:9px;
+}
+.app.board-open .cols.dir-h .col-post-viewport {
+  position:relative;display:flex;flex:1 1 auto;
+  min-height:0;min-width:0;overflow:hidden;
+}
+.app.board-open .cols.dir-h .col-post-scroll {
+  flex:1 1 auto;min-width:0;min-height:0;
+  height:100%;overflow-y:auto;overflow-x:hidden;
+  scrollbar-width:none;-ms-overflow-style:none;
+  overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;
+  padding-right:6px;
+}
+.app.board-open .cols.dir-h .col-post-scroll::-webkit-scrollbar {
+  display:none;width:0;
+}
+.app.board-open .cols.dir-h .col-post-scroll:focus-visible {
+  outline:2px solid #3992a0;outline-offset:-3px;border-radius:10px;
+}
+.app.board-open .cols.dir-h .col-post-content { min-width:0; }
+.app.board-open .cols.dir-h .col-post-rail{
+  position:absolute;top:3px;right:1px;bottom:3px;
+  width:9px;z-index:5;border-radius:99px;
+  background:rgba(44,105,121,.12);
+  opacity:0;pointer-events:none;touch-action:none;
+  transition:opacity .17s ease;
+}
+.app.board-open .cols.dir-h .col-post-thumb{
+  position:absolute;top:0;left:1px;width:7px;
+  min-height:28px;border-radius:99px;
+  background:linear-gradient(180deg,#72c5c9,#3d909e);
+  border:1px solid rgba(18,94,114,.22);box-sizing:border-box;
+  transform:translateY(0);
+  box-shadow:0 1px 5px rgba(11,72,82,.25);
+}
+@media(hover:hover) and (pointer:fine) {
+ .app.board-open .cols.dir-h .col:hover .col-post-viewport[data-overflow="1"] .col-post-rail,
+ .app.board-open .cols.dir-h .col-post-viewport[data-overflow="1"]:focus-within .col-post-rail {
+   opacity:1;pointer-events:auto;cursor:grab;
+ }
+ .app.board-open .cols.dir-h .col-post-rail:active{cursor:grabbing}
+}
+@media(hover:none),(pointer:coarse) {
+ .app.board-open .cols.dir-h .col-post-viewport[data-overflow="1"].is-post-scrolling .col-post-rail,
+ .app.board-open .cols.dir-h .col-post-viewport[data-overflow="1"]:focus-within .col-post-rail {
+   opacity:1;pointer-events:auto;
+ }
+}
+@media(max-width:760px){
+ .app.board-open .cols.dir-h > .col {
+   height:clamp(300px,calc(100dvh - 285px),610px);
+ }
+ .app.board-open .cols.dir-h .col-post-rail {width:8px;right:0}
+ .app.board-open .cols.dir-h .col-post-thumb {width:6px}
+}
+@media(prefers-reduced-motion:reduce){
+ .app.board-open .cols.dir-h .col-post-rail {transition:none}
+}
+</style>
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
@@ -3886,6 +3957,7 @@ function updateNavCounts() {
 }
 
 function render() {
+  if(columnPostScrollCleanup){columnPostScrollCleanup();columnPostScrollCleanup=null;}
   if(columnDragCleanup){columnDragCleanup();columnDragCleanup=null;}
   if (!S.meId || !ME()) return;
   const ae = document.activeElement;
@@ -4163,6 +4235,93 @@ function setupColumnDragging(){
   };
 }
 
+
+/* Each column has its own scrolling post list; hover reveals the slim draggable rail. */
+const columnPostScrollPositions=new Map();
+let columnPostScrollCleanup=null;
+function setupColumnPostScroll(){
+  if(columnPostScrollCleanup){columnPostScrollCleanup();columnPostScrollCleanup=null;}
+  const root=$('#posts .cols.dir-h');
+  if(!root)return;
+  const boardId=S.view.boardId;
+  const release=[];
+  for(const col of root.querySelectorAll(':scope > .col')){
+    const viewport=col.querySelector('.col-post-viewport');
+    const scroller=viewport?.querySelector('.col-post-scroll');
+    const inner=scroller?.querySelector('.col-post-content');
+    const rail=viewport?.querySelector('.col-post-rail');
+    const thumb=rail?.querySelector('.col-post-thumb');
+    if(!viewport||!scroller||!inner||!rail||!thumb)continue;
+    const key=boardId+':'+(col.dataset.colId||'common');
+    const previous=columnPostScrollPositions.get(key);
+    if(previous!=null)scroller.scrollTop=previous;
+    let frame=0,observer=null,dragging=false,hideTimer=0;
+    const limit=()=>Math.max(0,scroller.scrollHeight-scroller.clientHeight);
+    const refresh=()=>{
+      frame=0;
+      if(!viewport.isConnected)return;
+      const max=limit(),available=rail.clientHeight;
+      viewport.dataset.overflow=max>4?'1':'0';
+      if(max<=4||available<1)return;
+      const thumbHeight=Math.min(available,Math.max(28,available*scroller.clientHeight/scroller.scrollHeight));
+      thumb.style.height=thumbHeight+'px';
+      thumb.style.transform='translateY('+Math.max(0,Math.min(max,scroller.scrollTop))/max*(available-thumbHeight)+'px)';
+    };
+    const redraw=()=>{if(!frame)frame=requestAnimationFrame(refresh);};
+    const mobileIndicator=()=>{
+      if(window.matchMedia('(hover:hover) and (pointer:fine)').matches)return;
+      viewport.classList.add('is-post-scrolling');
+      if(hideTimer)clearTimeout(hideTimer);
+      hideTimer=setTimeout(()=>{if(!dragging)viewport.classList.remove('is-post-scrolling');},900);
+    };
+    const scroll=()=>{
+      columnPostScrollPositions.set(key,scroller.scrollTop);
+      redraw();mobileIndicator();
+    };
+    const scrollToPointer=y=>{
+      const bounds=rail.getBoundingClientRect();
+      const travel=bounds.height-thumb.offsetHeight;
+      const frac=travel>0?Math.min(1,Math.max(0,(y-bounds.top-thumb.offsetHeight/2)/travel)):0;
+      scroller.scrollTop=limit()*frac;
+      redraw();
+    };
+    const down=event=>{
+      if(event.pointerType==='mouse'&&event.button!==0)return;
+      dragging=true;
+      rail.setPointerCapture(event.pointerId);
+      scrollToPointer(event.clientY);
+      event.preventDefault();
+    };
+    const move=event=>{if(dragging){scrollToPointer(event.clientY);event.preventDefault();}};
+    const up=event=>{
+      dragging=false;
+      if(rail.hasPointerCapture(event.pointerId))rail.releasePointerCapture(event.pointerId);
+      mobileIndicator();
+    };
+    scroller.addEventListener('scroll',scroll,{passive:true});
+    rail.addEventListener('pointerdown',down);
+    rail.addEventListener('pointermove',move);
+    rail.addEventListener('pointerup',up);
+    rail.addEventListener('pointercancel',up);
+    if(typeof ResizeObserver!=='undefined'){
+      observer=new ResizeObserver(redraw);
+      observer.observe(scroller);observer.observe(inner);observer.observe(rail);
+    }
+    redraw();
+    release.push(()=>{
+      if(frame)cancelAnimationFrame(frame);
+      if(hideTimer)clearTimeout(hideTimer);
+      observer?.disconnect();
+      scroller.removeEventListener('scroll',scroll);
+      rail.removeEventListener('pointerdown',down);
+      rail.removeEventListener('pointermove',move);
+      rail.removeEventListener('pointerup',up);
+      rail.removeEventListener('pointercancel',up);
+    });
+  }
+  columnPostScrollCleanup=()=>{release.forEach(fn=>fn());};
+}
+
 /* Horizontal column slider stays synchronized with touch scrolling, mouse wheels, and the viewport. */
 const columnScrollPositions = new Map();
 let columnScrollObserver = null;
@@ -4294,10 +4453,11 @@ function renderBoard(b) {
   $('#bq').addEventListener('input', (e) => {
     S.view.pq = e.target.value;
     const box = $('#posts');
-    if (box) { box.innerHTML = boardPostsHtml(b); setupColumnScroll(); setupColumnDragging(); }
+    if (box) { box.innerHTML = boardPostsHtml(b); setupColumnScroll(); setupColumnDragging(); setupColumnPostScroll(); }
   });
   setupColumnScroll();
   setupColumnDragging();
+  setupColumnPostScroll();
 }
 /* Bài chờ thầy cô duyệt: chưa chấm, đang chấm hoặc AI đã chấm nhưng thầy cô chưa duyệt điểm. */
 const reviewPosts = (b) => sortPosts(boardPostList(b).filter((p) => status(p) !== 'duyet'), 'old');
@@ -4417,7 +4577,7 @@ function renderPosts(b, ps, gv, q) {
   const groups = [];
   if (loose.length || !cols.length) groups.push({ id: '', name: 'Bài chung', items: loose, own: false });
   cols.forEach((c) => groups.push({ id: c.id, name: c.name, items: ps.filter((p) => p.columnId === c.id), own: true }));
-  return `<div class="cols-wrap"><div class="cols${dir}">${groups.map((g) => `<section class="col" data-col-id="${g.own ? esc(g.id) : ''}" aria-label="${esc(g.name)}"><div class="col-h"${g.own ? ` data-col-drag="${esc(g.id)}"` : ''}>${g.own ? '<span class="col-drag-grip" aria-hidden="true">⠿</span>' : ''}<h2${g.own ? ` tabindex="0" title="Giữ chuột trái để kéo cột, hoặc nhấn Alt và phím mũi tên" aria-label="Di chuyển cột ${esc(g.name)} bằng chuột hoặc Alt và mũi tên"` : ''}>${esc(g.name)}</h2><span>${g.items.length}</span>${manage && g.own ? `<button class="icon-btn" data-act="col-rename" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>` : ''}</div>${cards(g.items)}${!g.items.length && q ? '<p class="col-empty">Không có bài phù hợp.</p>' : ''}<button class="col-addpost" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}" data-col="${esc(g.id)}">${ic('plus')}${gv ? 'Thêm bài' : 'Nộp bài'}</button></section>`).join('')}${manage ? `<div class="col-add-actions"><button class="col-add" data-act="add-col" data-id="${b.id}">${ic('plus')}Thêm cột</button><button class="col-add col-add-row" data-act="add-row" data-id="${b.id}">${ic('plus')}Thêm hàng</button></div>` : ''}</div></div>`;
+  return `<div class="cols-wrap"><div class="cols${dir}">${groups.map((g) => `<section class="col" data-col-id="${g.own ? esc(g.id) : ''}" aria-label="${esc(g.name)}"><div class="col-h"${g.own ? ` data-col-drag="${esc(g.id)}"` : ''}>${g.own ? '<span class="col-drag-grip" aria-hidden="true">⠿</span>' : ''}<h2${g.own ? ` tabindex="0" title="Giữ chuột trái để kéo cột, hoặc nhấn Alt và phím mũi tên" aria-label="Di chuyển cột ${esc(g.name)} bằng chuột hoặc Alt và mũi tên"` : ''}>${esc(g.name)}</h2><span>${g.items.length}</span>${manage && g.own ? `<button class="icon-btn" data-act="col-rename" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>` : ''}</div><div class="col-post-viewport" data-overflow="0"><div class="col-post-scroll" role="region" tabindex="0" aria-label="Xem bài làm trong ${esc(g.name)}"><div class="col-post-content">${cards(g.items)}${!g.items.length && q ? '<p class="col-empty">Không có bài phù hợp.</p>' : ''}</div></div><div class="col-post-rail" aria-hidden="true"><div class="col-post-thumb"></div></div></div><button class="col-addpost" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}" data-col="${esc(g.id)}">${ic('plus')}${gv ? 'Thêm bài' : 'Nộp bài'}</button></section>`).join('')}${manage ? `<div class="col-add-actions"><button class="col-add" data-act="add-col" data-id="${b.id}">${ic('plus')}Thêm cột</button><button class="col-add col-add-row" data-act="add-row" data-id="${b.id}">${ic('plus')}Thêm hàng</button></div>` : ''}</div></div>`;
 }
 function imgSrc(r) {
   if (!r) return '';
@@ -7100,7 +7260,7 @@ document.addEventListener('change', async (e) => {
   const t = e.target.closest('[data-chg]'); if (!t) return;
   if (t.dataset.chg === 'psort') {
     S.psort = t.value; const b = getBoard(S.view.boardId); const box = $('#posts');
-    if (b && box) { box.innerHTML = boardPostsHtml(b); setupColumnScroll(); setupColumnDragging(); }
+    if (b && box) { box.innerHTML = boardPostsHtml(b); setupColumnScroll(); setupColumnDragging(); setupColumnPostScroll(); }
   }
   else if (t.dataset.chg === 'blayout') { const b = getBoard(t.dataset.id); if (b && canManage(b)) { await saveBoard({ ...b, layout: layoutKey(t.value) }); toast('Đã đổi sang bố cục ' + layoutName(t.value) + '.'); } }
 });
