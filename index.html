@@ -2132,9 +2132,9 @@ html,body{max-width:100%;overflow-x:clip}
 #app #grid.grid.list .bactions {
   max-width: 300px;
 }
-/* Dashboard: 2 columns of horizontal classroom cards on desktop.
-   Preserve the current single-column view for laptops/tablets/phones. */
-@media (min-width: 1221px) {
+/* Dashboard: 2 columns of horizontal classroom cards on desktop and laptops.
+   Preserve a single-column layout for smaller tablets and phones. */
+@media (min-width: 1024px) {
   #app #grid.grid.list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     justify-content: stretch;
