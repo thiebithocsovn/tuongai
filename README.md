@@ -9,7 +9,9 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 ## Ai dùng thế nào
 
 - **Giáo viên** đăng ký bằng email. Tài khoản dùng được sau khi Quản trị hệ thống duyệt. Mỗi giáo viên chỉ thấy bảng và bài làm của mình.
-- **Học sinh** không cần tài khoản. Thầy cô mở **Chia sẻ** trên một bảng, bật "Cho học sinh nộp bài qua đường link", rồi gửi đường link hoặc mã QR. Học sinh mở link, nhập họ tên là nộp được bài. Em chỉ thấy bài của mình. Thầy cô tắt chia sẻ thì đường link ngừng hoạt động ngay.
+- **Học sinh** không cần tài khoản. Thầy cô mở **Chia sẻ** trên một bảng, bật "Cho học sinh nộp bài qua đường link", rồi gửi đường link hoặc mã QR. Học sinh mở link, nhập họ tên là nộp được bài. Phiên học sinh được lưu trên trình duyệt: đóng tab rồi mở lại vẫn nhận đúng bài của em. Khi dùng máy chung, chọn **Thoát lớp** để xóa phiên đã lưu. Thầy cô tắt chia sẻ thì đường link ngừng hoạt động.
+- **Xem bài trong lớp:** Bài chưa duyệt chỉ chủ bài và giáo viên xem được. Sau khi duyệt, cả lớp xem được bài cùng nhận xét của giáo viên; điểm chỉ chủ bài xem được. API không trả điểm, kết quả AI hay bài luyện tập cá nhân của bạn khác, và không trả điểm hoặc nhận xét nháp trước khi duyệt. Cả lớp đồng bộ lại mỗi 20 giây và khi quay lại tab.
+- **Chế độ chỉ xem bài của bạn:** Ẩn liên kết tải và tệp gốc, chặn chọn chữ, sao chép, kéo ảnh, menu chuột phải và phím lưu/in trong vùng bài của bạn; ảnh phóng to có dấu Chỉ xem. PDF, DOCX (phần văn bản), XLS/XLSX, TXT/CSV, video và âm thanh có bản xem trực tiếp. Các định dạng khác hiển thị thông tin tệp; chủ bài và giáo viên vẫn tải được. Đây là hạn chế thao tác trong giao diện, không thể ngăn tuyệt đối ảnh chụp màn hình hoặc việc trích xuất dữ liệu đã hiển thị trên trình duyệt.
 - **Ảnh đại diện:** Giáo viên và quản trị viên bấm ảnh tài khoản hoặc vào menu tài khoản → **Đổi ảnh đại diện**, chọn ảnh JPG/PNG/WebP (tối đa 8 MB). Ảnh tự căn vuông, lưu trong kho riêng tư Supabase, và được tải lại khi đăng nhập.
 - **Quản trị hệ thống** thấy dữ liệu của mọi giáo viên. Trang **Thành viên** dùng để duyệt, khóa hoặc mở khóa, đặt lại mật khẩu, tạo tài khoản, cấp hoặc bỏ quyền quản trị, xóa tài khoản và xem bảng của từng giáo viên. **Cài đặt hệ thống** dùng để đặt khóa Gemini chung cho AI chấm bài và bật hoặc tắt chế độ tự duyệt giáo viên mới.
 
@@ -46,4 +48,5 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 - `firebase-ai.js`: bản đóng gói Firebase JS SDK 12.11.0 (app, App Check, AI) cho kết nối Gemini · Google, chỉ tải khi thầy cô dùng AI.
 - `supabase/migrations/` (có `0003_ai_keys.sql` cho kết nối AI riêng): cơ sở dữ liệu, phân quyền (Row Level Security) và kho ảnh trên Supabase. Ảnh đại diện sử dụng thư mục `<user-id>/profile/avatar.jpg` của bucket riêng tư `work`; không cần migration mới.
 - `supabase/functions/tuongai/`: hàm máy chủ cho đăng ký, học sinh nộp bài, AI chấm bài và quản trị thành viên. Khóa AI và email quản trị chỉ lưu trên máy chủ, không nằm trong mã nguồn.
+- `node --test tests/student-classroom.test.mjs`: kiểm thử quyền xem, ẩn điểm nháp, lưu phiên sau khi đóng tab và giới hạn sao chép bài của bạn (Node 24).
 - `.github/workflows/pages.yml`: tự xuất bản lên GitHub Pages mỗi khi nhánh `main` thay đổi.

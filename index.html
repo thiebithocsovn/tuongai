@@ -2263,6 +2263,21 @@ html,body{max-width:100%;overflow-x:clip}
 }
 </style>
 
+<style id="student-classroom-view">
+[data-peer-protected]{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+[data-peer-protected] img{-webkit-user-drag:none;-webkit-touch-callout:none}
+.student-post-label{font-size:11px;font-weight:700;color:#596a81;margin:7px 0}
+.peer-view-notice{font-size:12px;line-height:1.5;padding:10px 12px;border-radius:9px;background:#edf2fa;color:#344f72;margin:0 0 12px}
+.post-image-wrap{position:relative;max-width:100%}
+.post-image-wrap img{display:block;max-width:100%}
+.peer-watermark{position:absolute;inset:45% 8% auto;pointer-events:none;text-align:center;transform:rotate(-18deg);font-size:clamp(16px,3vw,27px);font-weight:800;color:rgba(35,54,80,.25);text-shadow:0 1px 2px #fff;z-index:1}
+.viewer[data-peer-protected] .v-stage::after{content:'Tường học tập AI · Chỉ xem';position:absolute;inset:50% 12% auto;text-align:center;pointer-events:none;transform:rotate(-18deg);font-size:clamp(20px,4vw,38px);font-weight:800;color:rgba(255,255,255,.38);text-shadow:0 1px 2px #222}
+.peer-file-preview{margin:10px 0;padding:12px;background:#fff;border:1px solid #dce4ef;border-radius:9px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.6;max-width:100%;overflow:auto}
+.peer-file-preview canvas{display:block;width:100%;height:auto;margin-top:12px}
+.peer-sheet{overflow:auto;max-height:65vh;white-space:normal}
+.peer-sheet td{border:1px solid #dce4ef;padding:5px 8px;min-width:70px}
+@media print{[data-peer-protected]{display:none!important}}
+</style>
 <style id="submission-multiple-files">
 .attach-picker{gap:7px}
 .attach-pick-btn{display:inline-flex;align-items:center;gap:7px;cursor:pointer;padding:12px 15px;border:1.5px dashed #a7bfd8;border-radius:12px;background:#f5f9ff;color:#155184;font-weight:750}
@@ -3127,8 +3142,9 @@ const boardToRow = (b) => ({
 });
 const rowToPost = (r, studentAcc = null) => ({
   id: r.id, boardId: r.board_id, ownerAcc: r.owner || null, columnId: r.column_id || '', studentName: r.student_name || '', studentClass: r.student_class || '',
-  studentAcc, by: r.by || 'gv', text: r.body || '', images: (r.images || []).filter((i) => i && i.path).map((i) => ({ k: 's', path: i.path })),
-  attachments: Array.isArray(r.attachments) ? r.attachments.filter(a=>a?.path && a?.name) : [],
+  studentAcc: r.visibility === 'class' ? null : studentAcc, visibility: r.visibility || '', graded: !!r.graded, editable: r.editable,
+  by: r.by || 'gv', text: r.body || '', images: (r.images || []).filter((i) => i && i.path).map((i) => ({ k: 's', path: i.path })),
+  attachments: Array.isArray(r.attachments) ? r.attachments.filter(a=>a?.name && (a.path || a.viewOnly)) : [],
   ai: r.ai || null, aiAt: r.ai_at ? ts(r.ai_at) : null, teacher: r.teacher || null,
   practice: r.practice || [], practiceSubmissions: r.practice_submissions || [], createdAt: ts(r.created_at),
 });
@@ -3233,6 +3249,15 @@ function attachmentUrl(a,download=false) {
 function attachmentList(p,expanded=false){
  const items=p.attachments||[];
  if(!items.length)return '';
+ if(peerPost(p)) return `<section class="attached-files"><h4>${ic('eye','ic-sm')} ${items.length} tệp · Chỉ xem</h4>${items.map((a,i)=>{
+   const href=attachmentUrl(a),ext=attachmentExt(a.name),type=String(a.type||'');
+   const media=type.startsWith('video/')||type.startsWith('audio/');
+   return `<div class="attached-file"><div><b>${esc(a.name)}</b><small>${prettyBytes(a.size)} · ${esc(ext.toUpperCase())}</small></div>${expanded&&href&&!media?`<button type="button" class="btn btn-sm" data-peer-file="${i}">${ic('eye','ic-sm')}Xem nội dung</button>`:'<span>Chỉ xem</span>'}</div>
+     ${expanded&&href&&type.startsWith('video/')?`<video controls controlslist="nodownload" disablepictureinpicture disableremoteplayback preload="metadata" playsinline src="${esc(href)}"></video>`:''}
+     ${expanded&&href&&type.startsWith('audio/')?`<audio controls controlslist="nodownload" disableremoteplayback preload="metadata" src="${esc(href)}"></audio>`:''}
+     ${expanded&&!a.path?'<p class="meta">Định dạng này chưa có bản xem trực tiếp. Tệp gốc chỉ dành cho chủ bài và giáo viên.</p>':''}
+     <div class="peer-file-preview" data-peer-preview="${i}" hidden></div>`;
+ }).join('')}</section>`;
  return `<section class="attached-files">
   <h4>${ic('download','ic-sm')} ${items.length} tệp đính kèm</h4>
   ${items.map(a=>{
@@ -3245,6 +3270,66 @@ function attachmentList(p,expanded=false){
     ${expanded&&href&&type.startsWith('audio/')?`<audio controls preload="metadata" src="${esc(href)}"></audio>`:''}`;
   }).join('')}
  </section>`;
+}
+
+const previewLibraries = new Map();
+function loadPreviewLibrary(src) {
+  if (!previewLibraries.has(src)) previewLibraries.set(src, new Promise((resolve,reject) => {
+    const script=document.createElement('script'); script.src=src;
+    script.onload=resolve; script.onerror=()=>{ previewLibraries.delete(src); script.remove(); reject(new Error('Chưa tải được trình xem tệp. Hãy thử lại.')); };
+    document.head.appendChild(script);
+  }));
+  return previewLibraries.get(src);
+}
+async function previewPeerFile(p,index,button) {
+  if (!peerPost(p) || !detail || detail.id!==p.id) return;
+  const el=button.closest('.attached-files').querySelector(`[data-peer-preview="${index}"]`);
+  if (!el.hidden && el.childNodes.length) { el.hidden=true; return; }
+  el.hidden=false; el.textContent='Đang mở bản xem…'; button.disabled=true;
+  try {
+    const a=p.attachments[index],url=attachmentUrl(a),ext=attachmentExt(a.name);
+    if (!url) throw new Error('Liên kết đã hết hạn. Hãy đóng và mở lại bài.');
+    const response=await fetch(url);
+    if (!response.ok) throw new Error('Chưa tải được nội dung tệp. Hãy thử lại.');
+    const buffer=await response.arrayBuffer();
+    if (!el.isConnected) return;
+    if (ext==='pdf') {
+      const pdfjs=await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs');
+      pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+      const pdf=await pdfjs.getDocument({data:new Uint8Array(buffer),isEvalSupported:false}).promise;
+      if (!el.isConnected) { await pdf.destroy(); return; }
+      el.innerHTML='<div class="row-between"><button type="button" class="btn btn-sm" data-prev>Trang trước</button><span data-page></span><button type="button" class="btn btn-sm" data-next>Trang sau</button></div><canvas aria-label="Trang tài liệu PDF"></canvas>';
+      let pageNumber=1,busy=false;
+      const draw=async()=>{
+        if(busy)return; busy=true;
+        const prev=el.querySelector('[data-prev]'),next=el.querySelector('[data-next]'); prev.disabled=next.disabled=true;
+        try {
+          const page=await pdf.getPage(pageNumber),base=page.getViewport({scale:1});
+          const viewport=page.getViewport({scale:Math.min(2,1000/base.width)}),canvas=el.querySelector('canvas');
+          if(!canvas)return;
+          canvas.width=viewport.width;canvas.height=viewport.height;
+          await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+          el.querySelector('[data-page]').textContent=pageNumber+' / '+pdf.numPages;
+        } finally {busy=false;prev.disabled=pageNumber===1;next.disabled=pageNumber===pdf.numPages;}
+      };
+      el.querySelector('[data-prev]').onclick=()=>{if(!busy&&pageNumber>1){pageNumber--;draw().catch(()=>{el.textContent='Không mở được trang PDF.';});}};
+      el.querySelector('[data-next]').onclick=()=>{if(!busy&&pageNumber<pdf.numPages){pageNumber++;draw().catch(()=>{el.textContent='Không mở được trang PDF.';});}};
+      await draw();
+      return;
+    }
+    if (ext==='docx') {
+      await loadPreviewLibrary('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js');
+      const result=await window.mammoth.extractRawText({arrayBuffer:buffer});
+      el.textContent=result.value || 'Tài liệu không có phần văn bản để xem trước.';
+    } else if (['xls','xlsx'].includes(ext)) {
+      await loadXLSX();
+      const book=window.XLSX.read(buffer,{type:'array'});
+      el.innerHTML=book.SheetNames.map(name=>`<h4>${esc(name)}</h4><div class="peer-sheet"><table>${window.XLSX.utils.sheet_to_json(book.Sheets[name],{header:1,blankrows:false}).slice(0,500).map(row=>`<tr>${row.slice(0,40).map(value=>`<td>${esc(value)}</td>`).join('')}</tr>`).join('')}</table></div>`).join('');
+    } else if (['txt','csv'].includes(ext)) {
+      el.textContent=new TextDecoder().decode(buffer);
+    } else throw new Error('Định dạng này chưa hỗ trợ xem trực tiếp.');
+  } catch(e) { if(el.isConnected) el.textContent=e.message || 'Không mở được bản xem tệp.'; }
+  finally {button.disabled=false;}
 }
 
 /* ================= gọi máy chủ ================= */
@@ -3325,7 +3410,9 @@ async function flushSign() {
   renderSoon();
   if (typeof drawMedia === 'function' && detail) drawMedia();
 }
-const rememberUrls = (urls) => Object.entries(urls || {}).forEach(([p, u]) => SIGNED.set(p, { url: u, exp: now() + 3500e3 }));
+const rememberUrls = (urls) => Object.entries(urls || {}).forEach(([p, u]) => {
+  if (!(SIGNED.get(p)?.exp > now() + 60000)) SIGNED.set(p, { url: u, exp: now() + 3500e3 });
+});
 
 /* ================= tải dữ liệu và cập nhật trực tiếp ================= */
 async function loadData() {
@@ -3489,7 +3576,7 @@ async function init() {
     readyResolve();
     // Học sinh không cần Supabase Auth SDK; API học sinh gọi Edge Function bằng fetch.
     // Nếu CDN bị chặn trên điện thoại, vẫn phải hiển thị trang vào lớp thay vì màn hình đăng nhập giáo viên.
-    if (LINK_CODE && /^https:\/\//.test(SB_URL)) { showJoin(LINK_CODE, '', ''); }
+    if (LINK_CODE && /^https:\/\//.test(SB_URL)) { await openStudentLink(LINK_CODE); }
     return;
   }
   CAP.sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { storage: authStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
@@ -3498,21 +3585,19 @@ async function init() {
   updateStoreNote();
   readyResolve();
   if (LINK_CODE) {
-    let g = null; try { g = JSON.parse(SS.get(K_GUEST) || 'null'); } catch (x) {}
-    if (g && g.id && g.name && Array.isArray(g.codes) && g.codes.includes(LINK_CODE)) {
-      try { if (await restoreGuest(g, LINK_CODE)) return; } catch (x) { SS.del(K_GUEST); }
-    }
-    showJoin(LINK_CODE, g?.name || '', g?.className || '');
+    await openStudentLink(LINK_CODE);
     return;
   }
   try {
     const { data } = await CAP.sb.auth.getSession();
-    if (data?.session) await afterSignIn(false);
+    if (data?.session) { await afterSignIn(false); return; }
   } catch (x) {}
+  const guest = readGuest();
+  if (guest) { try { await restoreGuest(guest); } catch (x) { /* retry from the class link */ } }
 }
 function updateStoreNote() {
   const t = $('#store-note-t');
-  if (t) t.textContent = 'Dữ liệu lưu trên máy chủ Tường học tập AI. Mỗi giáo viên chỉ thấy bảng và bài của mình; học sinh chỉ thấy bài của em.';
+  if (t) t.textContent = 'Dữ liệu lưu trên máy chủ Tường học tập AI. Học sinh xem bài trong lớp sau khi thầy cô duyệt; điểm chỉ dành cho chủ bài.';
 }
 /* ================= mật khẩu ================= */
 /* Mật khẩu được bọc thêm tiền tố trước khi gửi, để mật khẩu ngắn như "admin" vẫn hợp lệ với máy chủ. */
@@ -3553,7 +3638,32 @@ function deviceToken() {
   if (!t || t.length < 16) { t = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/-/g, ''); LS.set(K_DEVICE, t); SS.set(K_DEVICE, t); }
   return t;
 }
-function saveGuest() { if (S.guest && !S.guest.preview) SS.set(K_GUEST, JSON.stringify(S.guest)); }
+function readGuest() {
+  for (const store of [SS, LS]) {
+    try {
+      const g = JSON.parse(store.get(K_GUEST) || 'null');
+      if (g?.id && g.name && !g.preview && g.token?.length >= 16 && Array.isArray(g.codes)) return g;
+    } catch (e) { store.del(K_GUEST); }
+  }
+  return null;
+}
+function saveGuest() {
+  if (S.guest && !S.guest.preview) {
+    const value = JSON.stringify(S.guest);
+    SS.set(K_GUEST, value); LS.set(K_GUEST, value);
+  }
+}
+async function openStudentLink(code) {
+  const g = readGuest();
+  if (g) { try { if (await restoreGuest(g, code)) return; } catch (e) { /* keep identity for retry */ } }
+  await showJoin(code);
+}
+function applyStudentFeed(result, guest, board) {
+  for (const p of S.posts.values()) if (p.boardId === board.id) S.posts.delete(p.id);
+  rememberUrls(result.urls);
+  for (const p of result.posts || []) S.posts.set(p.id, rowToPost(p, p.visibility === 'mine' ? guest.id : null));
+  if (result.board) S.boards.set(board.id, pubToBoard(result.board));
+}
 async function addGuestBoard(g, code) {
   if (code === DEMO.code) return DEMO;
   const r = await api('student_board', { code });
@@ -3562,9 +3672,8 @@ async function addGuestBoard(g, code) {
   CAP.aiReady = !!r.ai;
   if (!g.joined.includes(b.id)) g.joined.push(b.id);
   if (!g.codes.includes(b.code)) g.codes.push(b.code);
-  const mine = await api('student_mine', { code: b.code, token: g.token });
-  rememberUrls(mine.urls);
-  (mine.posts || []).forEach((p) => S.posts.set(p.id, rowToPost(p, g.id)));
+  const feed = await api('student_feed', { code: b.code, token: g.token });
+  applyStudentFeed(feed, g, b);
   return b;
 }
 function enterGuest(g, boardId) {
@@ -3576,10 +3685,12 @@ function enterGuest(g, boardId) {
 }
 async function restoreGuest(g, preferredCode = '') {
   const guest = { ...g, role: 'hs', guest: true, joined: [], codes: [] };
-  for (const c of g.codes) { try { await addGuestBoard(guest, c); } catch (x) { /* lớp đã bị xóa hoặc tạm dừng */ } }
+  const codes = [...new Set([...g.codes, ...(preferredCode ? [preferredCode] : [])])];
+  for (const c of codes) { try { await addGuestBoard(guest, c); } catch (x) { /* lớp đã bị xóa hoặc tạm dừng */ } }
   const target = preferredCode ? [...S.boards.values()].find((b) => b.code === preferredCode && guest.joined.includes(b.id)) : null;
   // Không dẫn học sinh quay về trang chủ khi em mở mã QR của một lớp cụ thể.
   if (preferredCode && !target) return false;
+  if (!guest.joined.length) return false;
   enterGuest(guest, target?.id || null);
   return true;
 }
@@ -3614,12 +3725,16 @@ async function showJoin(code) {
     return;
   }
   S.boards.set(board.id, board);
-  // Chỉ hiển thị bố cục bảng công khai, không lưu phiên và không lấy bài của học sinh khác.
-  enterGuest({
+  const guest = {
     id: 'preview_' + board.id, name: 'Khách xem lớp', className: '',
     role: 'hs', guest: true, preview: true, token: '',
     joined: [board.id], codes: [board.code],
-  }, board.id);
+  };
+  if (!board.demo) {
+    try { applyStudentFeed(await api('student_feed', { code }), guest, board); }
+    catch (e) { body.innerHTML = joinState('x', 'Chưa tải được bài trong lớp', esc(e.message || 'Hãy thử mở lại đường link.')); return; }
+  }
+  enterGuest(guest, board.id);
 }
 
 /* ---------- chia sẻ bảng cho học sinh (giáo viên) ---------- */
@@ -3853,7 +3968,7 @@ function enterApp(id, fresh) {
 }
 async function logout() {
   const wasGuest = !!(S.guest && S.guest.id === S.meId);
-  SS.del(K_GUEST); S.guest = null;
+  SS.del(K_GUEST); LS.del(K_GUEST); S.guest = null;
   if (!wasGuest && CAP.sb) {
     if (CAP.channel) { CAP.sb.removeChannel(CAP.channel); CAP.channel = null; }
     try { await CAP.sb.auth.signOut(); } catch (x) {}
@@ -3957,20 +4072,45 @@ const getPost = (id) => S.posts.get(id) || S.demoPosts.get(id);
 const allPosts = () => [...S.posts.values(), ...S.demoPosts.values()];
 const postsOf = (bid) => allPosts().filter((p) => p.boardId === bid).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 const boardByCode = (code) => { const c = String(code || '').toUpperCase(); return c === DEMO.code ? DEMO : [...S.boards.values()].find((b) => b.code === c && !b.trashed); };
-const finalScore = (p) => (p.teacher && isNum(p.teacher.score) ? p.teacher.score : p.ai && isNum(p.ai.diem) ? p.ai.diem : null);
+const finalScore = (p) => {
+  if (S.guest && (p.studentAcc !== S.meId || !p.teacher?.approvedAt)) return null;
+  return p.teacher && isNum(p.teacher.score) ? p.teacher.score : p.ai && isNum(p.ai.diem) ? p.ai.diem : null;
+};
+const peerPost = (p) => !!(S.guest && p && p.studentAcc !== S.meId);
+/* Browser-level deterrents, scoped to classmates' work; own work and teacher tools remain usable. */
+function protectedSelection() {
+  const selection=window.getSelection();
+  if (!selection?.rangeCount || selection.isCollapsed) return false;
+  const range=selection.getRangeAt(0);
+  return $$('[data-peer-protected]').some(el=>{try{return range.intersectsNode(el);}catch(e){return false;}});
+}
+for (const type of ['copy','cut','contextmenu','dragstart','selectstart']) {
+  document.addEventListener(type,e=>{
+    const target=e.target instanceof Element ? e.target : e.target?.parentElement;
+    if (target?.closest('[data-peer-protected]') || (['copy','cut'].includes(type)&&protectedSelection())) {
+      e.preventDefault();
+    }
+  },true);
+}
+document.addEventListener('keydown',e=>{
+  if (!(e.ctrlKey||e.metaKey) || !['a','c','x','s','p'].includes(e.key.toLowerCase())) return;
+  const target=e.target instanceof Element ? e.target : null;
+  const protectedModal=$('.viewer[data-peer-protected]') || (detail && peerPost(getPost(detail.id)));
+  if (target?.closest('[data-peer-protected]') || protectedModal || protectedSelection()) e.preventDefault();
+},true);
 const studentCanEdit = (p) => !!(p && S.guest && p.by === 'hs' && p.studentAcc === S.meId &&
-  !p.ai && !p.aiAt && !p.teacher?.approvedAt && !isNum(p.teacher?.score) && !S.grading.has(p.id));
+  p.editable !== false && !p.graded && !p.ai && !p.aiAt && !p.teacher?.approvedAt && !isNum(p.teacher?.score) && !S.grading.has(p.id));
 function status(p) {
   if (S.grading.has(p.id)) return 'dang';
   if (p.teacher?.approvedAt) return 'duyet';
-  if (p.ai) return 'ai';
+  if (p.ai || p.graded) return 'ai';
   return 'cho';
 }
 function chip(p) {
   const s = status(p);
   if (s === 'dang') return '<span class="chip chip-info chip-run"><i></i>AI đang chấm</span>';
   if (s === 'duyet') return '<span class="chip chip-ok"><i></i>Thầy cô đã duyệt</span>';
-  if (s === 'ai') return '<span class="chip chip-info"><i></i>AI đã chấm</span>';
+  if (s === 'ai') return '<span class="chip chip-info"><i></i>' + (S.guest ? 'Chờ thầy cô duyệt' : 'AI đã chấm') + '</span>';
   return '<span class="chip chip-warn"><i></i>Chờ chấm</span>';
 }
 const canManage = (b) => !!b && !b.demo && isGV() && (isAdmin() || b.ownerAcc === S.meId);
@@ -4302,7 +4442,7 @@ function renderSummary() {
   ps.forEach((p) => { const s = status(p); if (s === 'dang' || s === 'cho') c.cho++; else c[s]++; });
   el.innerHTML = me.role === 'gv'
     ? `<span class="sum"><i style="background:#e3a01a"></i>Chờ chấm <b>${c.cho}</b></span><span class="sum"><i style="background:#8a63a6"></i>AI đã chấm <b>${c.ai}</b></span><span class="sum"><i style="background:#3f8a55"></i>Đã duyệt <b>${c.duyet}</b></span>`
-    : `<span class="sum"><i style="background:#8a63a6"></i>Bài đã nộp <b>${ps.length}</b></span><span class="sum"><i style="background:#3f8a55"></i>Đã có điểm <b>${c.ai + c.duyet}</b></span>`;
+    : `<span class="sum"><i style="background:#8a63a6"></i>Bài đã nộp <b>${ps.length}</b></span><span class="sum"><i style="background:#3f8a55"></i>Đã duyệt <b>${c.duyet}</b></span>`;
 }
 function renderGrid() {
   if(dashboardDragCleanup){dashboardDragCleanup();dashboardDragCleanup=null;}
@@ -4377,7 +4517,7 @@ function sortPosts(list, k, pinFirst = true) {
 function boardPostList(b) {
   const me = ME(); const gv = me.role === 'gv';
   let ps = postsOf(b.id);
-  if (!gv) ps = ps.filter((p) => p.studentAcc === me.id || (b.demo && (p.id === 'demoA' || p.id === 'demoB')));
+  if (!gv) ps = ps.filter((p) => p.studentAcc === me.id || p.teacher?.approvedAt || (b.demo && (p.id === 'demoA' || p.id === 'demoB')));
   return ps;
 }
 function boardPostsHtml(b) {
@@ -4698,7 +4838,7 @@ function renderBoard(b) {
         ${b.demo ? `<p class="bcount">Bảng mẫu: thử chấm thật, không lưu lại.</p>` : ''}
       </div>
     </section>
-    ${!gv ? `<div class="gbanner" role="status"><div><strong>Nộp bài vào lớp, không cần đăng nhập</strong><p>Chụp ảnh vở hoặc gõ bài rồi gửi cho thầy cô. ${b.autoGrade !== false && aiOn() ? 'AI chấm ngay, chỉ lỗi sai và gợi ý luyện tập. ' : ''}Bảng chỉ hiển thị bài thuộc phiên của em.</p></div><button class="btn btn-brand" data-act="submit" data-id="${b.id}">${ic('send')}Nộp bài vào lớp</button></div>` : ''}
+    ${!gv ? `<div class="gbanner" role="status"><div><strong>Bài của em và bài đã duyệt trong lớp</strong><p>Quay lại bằng trình duyệt này để xem bài và nhận xét của thầy cô. Điểm chỉ hiển thị cho chủ bài sau khi duyệt. Bài của bạn chỉ được xem, không có nút tải hoặc sao chép.</p></div><button class="btn btn-brand" data-act="submit" data-id="${b.id}">${ic('send')}Nộp bài vào lớp</button></div>` : ''}
     ${S.batch && S.batch.boardId === b.id ? `<div class="batch" role="status"><span class="spin"></span><span>AI đang chấm bài ${Math.min(S.batch.done + 1, S.batch.total)}/${S.batch.total}</span><span class="bar"><i style="width:${(S.batch.done / S.batch.total) * 100}%"></i></span><button class="btn btn-sm btn-ghost" data-act="stop-batch">${ic('stop', 'ic-sm')}Dừng</button></div>` : ''}
     ${!aiOn() && !b.demo && isAdmin() ? `<div class="warnline row-between"><span>AI chấm bài chưa bật. Dán một khóa Gemini để mọi giáo viên dùng chung.</span><button class="btn btn-sm btn-navy" data-act="ai-settings">${ic('spark', 'ic-sm')}Bật AI chấm bài</button></div>` : ''}
     <div class="btool" role="toolbar" aria-label="Công cụ quản lý lớp">
@@ -4885,11 +5025,12 @@ function postCard(p, studentView) {
   const color = postColor(p);
   const time = p.createdAt ? new Date(p.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date(p.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }).replace(/\//g, '-') : 'Đang đồng bộ';
   const showFoot = gv || likes.length || comments.length || fs != null;
-  return `<article class="pcard${tm.pinned ? ' pinned' : ''}"${color !== '#ffffff' ? ` style="background:${color}"` : ''}>
+  return `<article class="pcard${tm.pinned ? ' pinned' : ''}"${peerPost(p) ? ' data-peer-protected="1"' : ''}${color !== '#ffffff' ? ` style="background:${color}"` : ''}>
     <div class="pmeta-row"><span class="pav" aria-hidden="true">${esc(String(who || '?').trim().slice(0, 1) || '?')}</span><div><strong>${esc(who || 'Chưa có tên')}</strong><small title="${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}">${time}</small></div>${tm.pinned ? `<span class="ppin" title="Bài đã ghim">${ic('pin', 'ic-sm')}</span>` : ''}${gv && canManage(b) ? `<button class="icon-btn pmenu-btn" data-act="post-menu" data-id="${p.id}" aria-label="Tùy chọn bài của ${esc(p.studentName)}" aria-haspopup="true">${ic('dots')}</button>` : ''}</div>
     ${media || text ? `<button class="pmedia" data-act="open-post" data-id="${p.id}" aria-label="Xem bài của ${esc(p.studentName)}">${media}${text}</button>` : ''}
     ${p.attachments?.length ? `<button type="button" class="attach-card-count" data-act="open-post" data-id="${p.id}">${ic('download','ic-sm')}${p.attachments.length} tệp đính kèm</button>` : ''}
-    ${linkChips(links, false)}
+    ${peerPost(p) ? '' : linkChips(links, false)}
+    ${!gv ? `<p class="student-post-label">${p.studentAcc === S.meId ? 'Bài của em' : 'Bài của bạn · Chỉ xem'}</p>` : ''}
     <button class="btn btn-ai ai-entry" data-act="open-post" data-id="${p.id}" ${autoGrade ? 'data-grade="1"' : ''}>${aiLabel}</button>
     ${!gv && studentCanEdit(p) ? `<div class="student-post-actions"><button class="btn btn-sm" data-act="student-edit" data-id="${p.id}">${ic('pencil','ic-sm')}Sửa bài</button><button class="btn btn-sm btn-danger" data-act="student-delete" data-id="${p.id}">${ic('trash','ic-sm')}Xóa bài</button></div>` : !gv && p.by === 'hs' && p.studentAcc === S.meId ? `<p class="student-post-locked">${ic('lock','ic-sm')}Bài đã chấm · không thể sửa hoặc xóa</p>` : ''}
     ${showFoot ? `<div class="pfoot">${gv ? `<button class="preact${liked ? ' on' : ''}" data-act="p-like" data-id="${p.id}" aria-pressed="${liked}" aria-label="Thích bài của ${esc(p.studentName)}">${ic(liked ? 'heart-f' : 'heart', 'ic-sm')}${likes.length}</button>` : `<span class="preact${likes.length ? ' on' : ''}">${ic(likes.length ? 'heart-f' : 'heart', 'ic-sm')}${likes.length}</span>`}<button class="preact" data-act="open-post" data-id="${p.id}" data-focus="cmt" aria-label="Nhận xét bài của ${esc(p.studentName)}">${ic('msg', 'ic-sm')}${comments.length}<span>Nhận xét</span></button>${fs != null ? `<span class="score-pill" title="${approved ? 'Điểm thầy cô đã duyệt' : 'Điểm AI đề xuất'}">${fmt(fs)}<small>/${max}</small></span>` : ''}</div>` : ''}
@@ -4918,10 +5059,11 @@ function postMenu(btn, p) {
 window.addEventListener('scroll', () => $('.pmenu')?.remove(), true);
 
 /* ---------- xem ảnh: phóng to, xoay, toàn màn hình ---------- */
-function openViewer(srcs, start = 0) {
+function openViewer(srcs, start = 0, protectedView = false) {
   srcs = srcs.filter(Boolean); if (!srcs.length) return;
   let i = start, rot = 0, z = 1, px = 0, py = 0;
   const v = document.createElement('div'); v.className = 'viewer'; v.setAttribute('role', 'dialog'); v.setAttribute('aria-label', 'Xem ảnh bài làm');
+  if (protectedView) v.dataset.peerProtected = '1';
   v.innerHTML = `<div class="v-bar"><span class="v-n"></span><span class="spacer"></span><button class="icon-btn" data-v="rotl" aria-label="Xoay trái" title="Xoay trái">${ic('rotl')}</button><button class="icon-btn" data-v="rotr" aria-label="Xoay phải" title="Xoay phải">${ic('rotr')}</button><button class="icon-btn" data-v="zout" aria-label="Thu nhỏ" title="Thu nhỏ">${ic('zout')}</button><button class="v-z" data-v="fit" title="Vừa màn hình">100%</button><button class="icon-btn" data-v="zin" aria-label="Phóng to" title="Phóng to">${ic('zin')}</button><button class="icon-btn" data-v="full" aria-label="Toàn màn hình" title="Toàn màn hình">${ic('full')}</button><button class="icon-btn" data-v="close" aria-label="Đóng" title="Đóng (Esc)">${ic('x')}</button></div><div class="v-stage"><img alt="Ảnh bài làm" draggable="false"></div>${srcs.length > 1 ? `<button class="v-nav prev" data-v="prev" aria-label="Ảnh trước">${ic('back')}</button><button class="v-nav next" data-v="next" aria-label="Ảnh sau">${ic('next')}</button>` : ''}`;
   document.body.appendChild(v);
   const img = $('img', v), stage = $('.v-stage', v);
@@ -5475,8 +5617,9 @@ function submitForm(b, asTeacher, colId) {
 
 /* Editing and deleting student submissions is always authorized again on the server. */
 let studentSyncAt = 0;
+const studentSyncPending = new Map();
 function maybeStudentSync() {
-  if (!S.guest || S.guest.preview || !S.guest.token || Date.now() - studentSyncAt < 30000) return;
+  if (!S.guest || document.hidden || Date.now() - studentSyncAt < 20000) return;
   studentSyncAt = Date.now();
   const guest = S.guest;
   for (const b of S.boards.values()) {
@@ -5485,17 +5628,32 @@ function maybeStudentSync() {
 }
 async function studentReloadMine(board) {
   const guest=S.guest;
-  if(!guest||guest.preview||!guest.token||!board||board.demo)return;
-  try{
-    const result=await api('student_mine',{code:board.code,token:guest.token});
-    if(!S.guest||S.guest.id!==guest.id||S.guest.token!==guest.token)return;
-    const allowed=new Set((result.posts||[]).map(p=>p.id));
-    for(const p of S.posts.values())if(p.boardId===board.id&&p.studentAcc===guest.id&&!allowed.has(p.id))S.posts.delete(p.id);
-    rememberUrls(result.urls);
-    (result.posts||[]).forEach(p=>S.posts.set(p.id,rowToPost(p,guest.id)));
-    renderSoon();
-  }catch(e){toast('Không đồng bộ được bài của em: '+(e.message||'Hãy thử lại.'));}
+  if(!guest||!board||board.demo)return;
+  const key = guest.id + ':' + board.id;
+  if (studentSyncPending.has(key)) return studentSyncPending.get(key);
+  const task = (async () => {
+    try {
+      const result=await api('student_feed',{code:board.code,token:guest.token || ''});
+      if(S.guest!==guest)return;
+      applyStudentFeed(result,guest,board);
+      renderSoon();
+    } catch(e) {
+      if(S.guest!==guest)return;
+      if (e.code === 'not_shared' || e.code === 'not_found') {
+        for (const p of S.posts.values()) if (p.boardId === board.id) S.posts.delete(p.id);
+        S.boards.delete(board.id);
+        if (S.view.boardId === board.id) S.view = { name: 'home', tab: 'classes', q: '' };
+        closeAllModals(); renderSoon();
+      }
+      toast('Không đồng bộ được bài trong lớp: '+(e.message||'Hãy thử lại.'));
+    } finally { studentSyncPending.delete(key); }
+  })();
+  studentSyncPending.set(key, task);
+  return task;
 }
+setInterval(maybeStudentSync, 20000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { studentSyncAt = 0; maybeStudentSync(); } });
+window.addEventListener('focus', () => { studentSyncAt = 0; maybeStudentSync(); });
 function studentEditForm(post){
   if(!studentCanEdit(post)){toast('Bài đã chấm hoặc không phải bài của em, không thể sửa.');return;}
   const board=getBoard(post.boardId);
@@ -5918,7 +6076,7 @@ function aboutForm() {
     <div class="sf-brand">${OWL}<div><b class="brand-wordmark" aria-label="Tường học tập AI - Truy gốc lỗi"><span class="brand-primaryline"><span class="brand-core">Tường học tập</span><span class="brand-ai">AI</span></span><span class="brand-featureline"><span class="brand-spark" aria-hidden="true">✦</span>Truy gốc lỗi</span></b><p class="brand-en" lang="en">Learning Wall AI – Error Root Tracer</p><p>Không gian cùng học: chụp bài, nộp bài bằng điện thoại, AI chấm điểm, truy gốc lỗi sai và gợi ý luyện tập cho từng em.</p></div></div>
     <div class="about-grid">
       <section><h4>AI chấm bài</h4><p>Gemini · ChatGPT · Claude. Chấm theo đề, đáp án của thầy cô và Chương trình GDPT 2018. Thầy cô duyệt điểm cuối cùng.</p></section>
-      <section><h4>Riêng tư</h4><p>Mỗi giáo viên chỉ thấy bảng của mình. Học sinh nộp bài qua đường link, chỉ thấy bài của em. Khóa AI riêng của thầy cô không ai khác xem được.</p></section>
+      <section><h4>Riêng tư</h4><p>Mỗi giáo viên chỉ thấy bảng của mình. Học sinh quay lại bằng trình duyệt đã nộp để xem bài của em, điểm đã duyệt và bài đã duyệt của bạn trong lớp. Bài của bạn chỉ xem; điểm và bài luyện tập cá nhân được giữ riêng. Dùng máy chung thì chọn Thoát lớp khi xong. Khóa AI riêng của thầy cô không ai khác xem được.</p></section>
       <section><h4>Hỗ trợ</h4><p>Cần tạo tài khoản, đặt lại mật khẩu hoặc mở khóa: liên hệ Quản trị hệ thống của trường.</p></section>
     </div></div>`, foot: '<button class="btn btn-brand" data-close>Đóng</button>' });
 }
@@ -6136,7 +6294,7 @@ async function gradePost(id, signal) {
       r = await api('grade', { post_id: id }, signal);
     }
     const cur = getPost(id); if (!cur) return;
-    const np = { ...cur, ai: r.ai, aiAt: r.ai_at ? ts(r.ai_at) : now() };
+    const np = me?.guest && r.post ? rowToPost(r.post, me.id) : { ...cur, ai: r.ai, aiAt: r.ai_at ? ts(r.ai_at) : now() };
     if (b.demo) S.demoPosts.set(id, np); else S.posts.set(id, np);
     renderSoon();
     return r.ai;
@@ -6225,16 +6383,16 @@ function openDetail(id, autoGrade, focus) {
   const b = getBoard(p.boardId);
   const gv = isGV();
   const m = openModal({
-    title: (gv ? p.studentName : b.name) + ' · ' + (b.assignment?.title || 'Bài làm'),
+    title: (gv || peerPost(p) ? p.studentName : b.name) + ' · ' + (b.assignment?.title || 'Bài làm'),
     wide: true,
     cls: gv ? "pd-review-modal" : "",
-    body: `<div class="pd"><div class="pd-media" id="pd-media"></div><div class="pd-side" id="pd-side"></div></div>`,
+    body: `<div class="pd"${peerPost(p) ? ' data-peer-protected="1"' : ''}><div class="pd-media" id="pd-media"></div><div class="pd-side" id="pd-side"></div></div>`,
     onClose: () => { const c = ctlOf.get(id); if (c) c.abort(); detail?.as?.ctl?.abort(); detail = null; },
   });
   detail = { id, m, started: 0, studentDrafts: {}, studentBusy: '', studentMessage: '', studentError: '' };
   drawMedia(); drawSide();
   if (!gv && S.guest) studentPracticeRefresh(id);
-  if (autoGrade && !p.ai) runGrade(id);
+  if (autoGrade && gv && !p.ai) runGrade(id);
   if (focus === 'cmt') setTimeout(() => { $('#pd-cmt', m.el)?.scrollIntoView({ block: 'center' }); $('#cm-text', m.el)?.focus(); }, 80);
 }
 function drawMedia() {
@@ -6246,8 +6404,9 @@ function drawMedia() {
   const key = JSON.stringify([srcs, p.text, p.attachments, (p.attachments||[]).map(x=>SIGNED.get(x.path)?.url)]);
   if (el.dataset.k === key) return;
   el.dataset.k = key;
-  el.innerHTML = srcs.map((s, i) => s ? `<img src="${esc(s)}" alt="Trang ${i + 1} bài làm của ${esc(p.studentName)}" data-k="${i}" title="Bấm để phóng to, xoay ảnh">` : '<div class="empty">Đang tải ảnh…</div>').join('') + (text ? `<div class="pd-text"><p class="eyebrow" style="margin-bottom:6px">Bài gõ</p>${esc(text)}</div>` : '') + linkChips(links, true) + attachmentList(p,true);
-  $$('img[data-k]', el).forEach((im) => (im.onclick = () => openViewer(postImageSrcs(p), +im.dataset.k)));
+  el.innerHTML = (peerPost(p) ? '<p class="peer-view-notice">Chỉ xem bài đã duyệt · Điểm của bạn được giữ riêng</p>' : '') + srcs.map((s, i) => s ? `<div class="post-image-wrap"><img src="${esc(s)}" alt="Trang ${i + 1} bài làm của ${esc(p.studentName)}" data-k="${i}" draggable="false" title="Bấm để phóng to, xoay ảnh">${peerPost(p) ? '<span class="peer-watermark" aria-hidden="true">Tường học tập AI · Chỉ xem</span>' : ''}</div>` : '<div class="empty">Đang tải ảnh…</div>').join('') + (text ? `<div class="pd-text"><p class="eyebrow" style="margin-bottom:6px">Bài gõ</p>${esc(text)}</div>` : '') + (peerPost(p) ? (links.length ? '<p class="meta">Liên kết gốc chỉ dành cho chủ bài và giáo viên.</p>' : '') : linkChips(links, true)) + attachmentList(p,true);
+  $$('img[data-k]', el).forEach((im) => (im.onclick = () => openViewer(postImageSrcs(p), +im.dataset.k, peerPost(p))));
+  $$('[data-peer-file]', el).forEach(btn => (btn.onclick = () => previewPeerFile(p, Number(btn.dataset.peerFile), btn)));
 }
 function refreshDetail() {
   if (!detail) return;
@@ -6292,11 +6451,8 @@ async function studentPracticeRefresh(id) {
   const p = getPost(id), b = p && getBoard(p.boardId), g = S.guest;
   if (!b || b.demo) return;
   try {
-    const data = await api('student_mine', { code: b.code, token: g.token });
-    if (S.meId !== g.id || !detail || detail.id !== id) return;
-    rememberUrls(data.urls);
-    for (const row of data.posts || []) S.posts.set(row.id, rowToPost(row, g.id));
-    refreshDetail();
+    await studentReloadMine(b);
+    if (S.meId === g.id && detail?.id === id) refreshDetail();
   } catch (e) {
     if (detail?.id === id) { detail.studentError = aiMsg(e); drawSide(); }
   }
@@ -6395,7 +6551,7 @@ function drawSide() {
   /* Thầy cô: mục nhận xét có Trợ lý AI cho bài làm (theo mẫu Tường học tập Ai), danh sách nhận xét và ô Viết nhận xét. */
   const cmtHtml = gv
     ? `<section class="blk pd-cmt" id="pd-cmt" aria-label="Nhận xét riêng của giáo viên">
-      <header class="pd-review-heading"><h4>Nhận xét riêng của giáo viên</h4><p class="meta">Nhận xét và điểm số không xuất hiện ở liên kết chia sẻ.</p></header>
+      <header class="pd-review-heading"><h4>Nhận xét của giáo viên</h4><p class="meta">Sau khi duyệt, cả lớp xem được bài và nhận xét. Điểm chỉ hiển thị cho chủ bài; Trợ lý AI luôn là ghi chú riêng.</p></header>
       <div id="pd-assist-slot"></div>
       ${p.ai && !S.grading.has(p.id) ? `<details class="pd-review-history"><summary>${ic('sparkles','ic-sm')} Xem kết quả AI chấm và lỗi sai từng câu</summary>${aiPartsHtml(p, b)}</details>` : ''}
       <div class="pd-review-manual"><label class="fld"><span>Viết nhận xét</span><textarea id="cm-text" class="inp" rows="3" maxlength="2000" placeholder="Viết nhận xét và gợi ý cách sửa cho học sinh…"></textarea></label><button type="button" class="btn btn-block" data-pd="cadd">Gửi nhận xét</button></div>
@@ -6429,7 +6585,12 @@ function drawSide() {
   } else {
     main = `<div class="empty">${ic('spark')}<h3>Bài chưa được chấm</h3><p>${gv ? (aiOn() ? 'Bấm Chấm bằng AI để AI đọc bài, cho điểm và chỉ lỗi sai.' : 'Quản trị hệ thống chưa bật AI chấm bài. Thầy cô có thể chấm tay ở bên dưới.') : 'Thầy cô sẽ chấm sớm. Em quay lại sau nhé.'}</p></div>`;
   }
-  const canGrade = aiOn() && !grading && (gv || (!ai && b.autoGrade !== false && !b.demo));
+  if (!gv && !ai && fs == null) {
+    main = peerPost(p)
+      ? `<section class="blk"><h4>Nhận xét của thầy cô</h4><p class="note-t">${esc(p.teacher?.note || 'Thầy cô đã duyệt bài này.')}</p><p class="meta">Em chỉ xem được điểm của bài do mình nộp.</p></section>`
+      : `<section class="blk"><h4>${p.graded ? 'Đang chờ thầy cô duyệt' : 'Đã lưu bài nộp'}</h4><p class="meta">Em có thể đóng trang và quay lại bằng trình duyệt này. Điểm và nhận xét sẽ hiện khi thầy cô duyệt.</p>${p.teacher?.approvedAt && p.teacher?.note ? `<p class="note-t">${esc(p.teacher.note)}</p>` : ''}</section>`;
+  }
+  const canGrade = gv && aiOn() && !grading;
   el.innerHTML = `
     <div class="pd-who"><div><h3>${esc(p.studentName)}</h3><p class="meta">${timeAgo(p.createdAt)} · ${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}${p.aiAt ? ' · AI chấm ' + timeAgo(p.aiAt) : ''}</p></div><div class="row-gap" style="align-items:center">${gv ? `<button class="preact${(tmeta(p).likes || []).includes(S.meId) ? ' on' : ''}" data-pd="like" aria-label="Thích bài">${ic((tmeta(p).likes || []).includes(S.meId) ? 'heart-f' : 'heart', 'ic-sm')}${(tmeta(p).likes || []).length || ''}</button>` : ''}${chip(p)}</div></div>
     ${detail.err ? `<p class="warnline">${esc(detail.err)}</p>` : ''}
@@ -6591,7 +6752,7 @@ function asSimilarSheet(p, b, as) {
     ...x.exercises.map((e, i) => 'Bài ' + (i + 1) + ': ' + e.question + (e.hint ? '\nGợi ý: ' + e.hint : '') + '\nBài làm: ....................................................................................'),
     'Thầy cô sẽ nhận xét sau khi học sinh nộp bài.'].filter(Boolean).join('\n\n');
 }
-const detailKey = (p) => JSON.stringify([p.ai, p.teacher ? { ...p.teacher, assist: undefined } : null, p.practice || [], p.practiceSubmissions || [], S.grading.has(p.id), detail?.err || '']);
+const detailKey = (p) => JSON.stringify([p.ai, p.teacher ? { ...p.teacher, assist: undefined } : null, p.text, p.images, p.attachments, p.graded, p.practice || [], p.practiceSubmissions || [], S.grading.has(p.id), detail?.err || '']);
 
 function assistMount(p) {
   const b = getBoard(p.boardId);

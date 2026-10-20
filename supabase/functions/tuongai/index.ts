@@ -5,6 +5,7 @@
 // - Quản trị: danh sách thành viên, duyệt, khóa, đặt lại mật khẩu, tạo, xóa.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { encodeBase64, decodeBase64 } from "jsr:@std/encoding@1/base64";
+import { studentPost as publicPost, ownsStudentPost, visibleToStudent } from "./student-visibility.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -15,7 +16,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const ok = (data: unknown) => new Response(JSON.stringify(data), { headers: { ...CORS, "content-type": "application/json" } });
+const ok = (data: unknown) => new Response(JSON.stringify(data), { headers: { ...CORS, "content-type": "application/json", "cache-control": "no-store" } });
 class Fail extends Error { constructor(public code: string, msg: string, public status = 400) { super(msg); } }
 
 type Profile = { id: string; email: string; full_name: string; school: string; subject: string; role: string; status: string; must_change: boolean; created_at: string };
@@ -239,8 +240,6 @@ const publicBoard = (b: any) => ({
   code: b.code, auto_grade: b.auto_grade, columns: b.columns, teacher: b.teacher_name || "",
   assignment: { title: b.assignment?.title || "", prompt: b.assignment?.prompt || "", maxScore: Number(b.assignment?.maxScore) || 10 },
 });
-// Phần Trợ lý AI (chat, giả thuyết nguyên nhân, đáp án luyện tập) là ghi chú riêng của giáo viên: không gửi cho học sinh.
-const forStudent = (t: any) => { if (!t || typeof t !== "object") return t ?? null; const { assist: _a, ...rest } = t; return rest; };
 
 /* Học sinh chỉ nhận đề + gợi ý; tuyệt đối không đưa expectedAnswer,
    successCriteria, lịch sử AI hoặc khóa vào dữ liệu gửi tới trình duyệt. */
@@ -262,10 +261,19 @@ function studentPracticeSets(post: any) {
   if (pr?.status === "assigned") add(String(pr.id || ("practice-" + pr.assignedAt)), "practice", "Luyện tập theo lỗi đã sửa", pr);
   return sets;
 }
-const publicPost = (p: any) => ({
-  id: p.id, board_id: p.board_id, column_id: p.column_id, student_name: p.student_name, student_class: p.student_class,
-  by: p.by, body: p.body, images: p.images, attachments: p.attachments || [], ai: p.ai, ai_at: p.ai_at, teacher: forStudent(p.teacher), created_at: p.created_at,
-});
+
+/* Paginate explicitly: the Data API otherwise truncates a large class at 1,000 rows. */
+async function studentRows(boardId: string, token: string, classroom: boolean) {
+  const rows: any[] = [];
+  for (let offset = 0; ; offset += 500) {
+    let q = db.from("posts").select("*").eq("board_id", boardId);
+    q = classroom ? q.not("teacher->>approvedAt", "is", null) : q.eq("student_token", token);
+    const { data, error } = await q.order("created_at", { ascending: false }).order("id").range(offset, offset + 499);
+    if (error) throw new Fail("server", "Không tải được bài trong lớp.", 500);
+    rows.push(...(data || []));
+    if (!data || data.length < 500) return rows;
+  }
+}
 
 /* ---------------- Trợ lý AI cho bài làm (chỉ giáo viên) ----------------
    Chat với AI về một bài, AI phân tích lỗi kèm giả thuyết nguyên nhân để giáo viên kiểm chứng,
@@ -365,13 +373,21 @@ async function handle(req: Request) {
       if(error || !data?.token) throw new Fail("server","Chưa tạo được liên kết tải tệp.",500);
       return {path,token:data.token,type:FILE_MIME[ext],name,size};
     }
+    case "student_feed":
     case "student_mine": {
       const b = await boardByCode(body.code);
       const token = str(body.token, 80);
-      if (token.length < 16) return { posts: [], urls: {} };
-      const { data } = await db.from("posts").select("*").eq("board_id", b.id).eq("student_token", token).order("created_at", { ascending: false });
-      const posts = (data || []).map((p: any) => ({ ...publicPost(p), practice: studentPracticeSets(p) }));
-      const ids = posts.map((p: any) => p.id);
+      const feed = action === "student_feed";
+      const [mine, classroom] = await Promise.all([
+        token.length >= 16 ? studentRows(b.id, token, false) : Promise.resolve([]),
+        feed ? studentRows(b.id, token, true) : Promise.resolve([]),
+      ]);
+      const rows = new Map([...classroom, ...mine].map((p: any) => [p.id, p]));
+      const posts = [...rows.values()].filter((p: any) => visibleToStudent(p, token)).map((p: any) => {
+        const own = ownsStudentPost(p, token);
+        return { ...publicPost(p, own), practice: own ? studentPracticeSets(p) : [] };
+      });
+      const ids = posts.filter((p: any) => p.visibility === "mine").map((p: any) => p.id);
       let submitted: any[] = [];
       if (ids.length) {
         const { data: rows, error: subErr } = await db.from("practice_submissions")
@@ -382,7 +398,7 @@ async function handle(req: Request) {
       const grouped = new Map<string, any[]>();
       for (const entry of submitted) grouped.set(entry.post_id, [...(grouped.get(entry.post_id) || []), entry]);
       for (const post of posts) post.practice_submissions = grouped.get(post.id) || [];
-      return { posts, urls: await signed(posts.flatMap((p: any) => [...(p.images || []), ...(p.attachments || [])].map((i: any) => i.path)).filter(Boolean)) };
+      return { board: publicBoard(b), posts, urls: await signed(posts.flatMap((p: any) => [...(p.images || []), ...(p.attachments || [])].map((i: any) => i.path)).filter(Boolean)) };
     }
     case "student_practice_submit": {
       // Không tin set/exercise do trình duyệt gửi. Ràng buộc với bài của token học sinh.
@@ -520,7 +536,11 @@ async function handle(req: Request) {
       const { data: post } = await db.from("posts").select("*").eq("id", str(body.post_id, 60)).eq("board_id", b.id).maybeSingle();
       if (!post || token.length < 16 || post.student_token !== token) throw new Fail("not_found", "Không tìm thấy bài của em.", 404);
       if (!b.auto_grade) throw new Fail("forbidden", "Thầy cô sẽ chấm bài này.", 403);
-      return await gradePost(post, b);
+      if (post.ai || post.ai_at || post.teacher?.approvedAt || typeof post.teacher?.score === "number")
+        throw new Fail("graded_locked", "Bài đã chấm. Thầy cô sẽ duyệt hoặc chấm lại.", 409);
+      await gradePost(post, b);
+      // Grading is allowed for this student's own work, but drafts stay teacher-only.
+      return { post: publicPost({ ...post, ai_at: new Date().toISOString() }) };
     }
 
     case "grade": {
