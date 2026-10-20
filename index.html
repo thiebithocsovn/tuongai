@@ -2235,6 +2235,60 @@ html,body{max-width:100%;overflow-x:clip}
 .attach-card-count{border:0;background:#eff6ff;color:#18588d;font-size:11.5px;font-weight:700;border-radius:7px;padding:7px 9px;display:flex;align-items:center;gap:5px;margin:7px 0;cursor:pointer;max-width:100%}
 @media(max-width:480px){.attach-pick-btn{min-height:46px;width:100%;justify-content:center}.attached-file{flex-wrap:wrap}.attached-file a{min-height:40px}}
 </style>
+
+<style id="column-horizontal-slider">
+/* A visible accessible slider for boards whose horizontal columns exceed the viewport. */
+.app.board-open .column-scroll-control{
+  display:flex;align-items:center;gap:12px;min-width:0;width:auto;
+  padding:10px 14px;margin-top:0;margin-bottom:10px;
+  border:1px solid rgba(113,145,119,.25);border-radius:12px;
+  background:rgba(255,255,255,.90);box-shadow:0 3px 14px rgba(34,71,49,.045);
+  color:#385c49;
+}
+.app.board-open .column-scroll-control[hidden]{display:none!important}
+.app.board-open .column-scroll-title{
+  display:flex;align-items:center;gap:7px;flex:0 0 auto;
+  font-size:12.5px;font-weight:750;white-space:nowrap;
+}
+.app.board-open .column-scroll-title .ic{width:16px;height:16px}
+.app.board-open .column-scroll-range{
+  -webkit-appearance:auto;appearance:auto;min-width:90px;width:100%;
+  flex:1 1 180px;max-width:none;height:32px;
+  accent-color:#8b4359;cursor:ew-resize;touch-action:pan-x;
+}
+.app.board-open .column-scroll-arrow{
+  display:grid;place-items:center;flex:0 0 34px;height:34px;
+  border:1px solid #d5e2d7;border-radius:8px;background:#fff;
+  color:#47634f;cursor:pointer;transition:background .15s;
+}
+.app.board-open .column-scroll-arrow:disabled{opacity:.35;cursor:default}
+.app.board-open .column-scroll-arrow:not(:disabled):hover{background:#ecf5ed}
+.app.board-open .column-scroll-arrow .ic{width:16px;height:16px}
+.app.board-open .column-scroll-counter{
+  flex:0 0 auto;color:#536c5c;font-size:12px;font-variant-numeric:tabular-nums;
+  min-width:76px;text-align:right;white-space:nowrap;
+}
+.app.board-open .cols-wrap:has(.cols.dir-h){
+  width:100%;max-width:100%;min-width:0;
+  overflow-x:auto;overflow-y:visible;overscroll-behavior-x:contain;
+  scrollbar-width:thin;scrollbar-color:#a67481 #dde9e0;
+  -webkit-overflow-scrolling:touch;
+}
+.app.board-open .cols-wrap:has(.cols.dir-h)::-webkit-scrollbar{height:10px}
+.app.board-open .cols-wrap:has(.cols.dir-h)::-webkit-scrollbar-track{background:#dde9e0;border-radius:8px}
+.app.board-open .cols-wrap:has(.cols.dir-h)::-webkit-scrollbar-thumb{background:#a67481;border-radius:8px;border:2px solid #dde9e0}
+.app.board-open .cols-wrap .cols.dir-h>.col{flex:0 0 310px}
+@media(max-width:760px){
+ .app.board-open .column-scroll-control{gap:7px;padding:8px 9px;flex-wrap:wrap}
+ .app.board-open .column-scroll-title{flex:1 1 100%;font-size:11.5px}
+ .app.board-open .column-scroll-range{flex-basis:100px;min-width:60px}
+ .app.board-open .column-scroll-counter{font-size:11px;min-width:64px}
+ .app.board-open .cols-wrap .cols.dir-h>.col{flex-basis:min(340px,calc(100vw - 54px))}
+}
+@media(prefers-reduced-motion:reduce){
+ .app.board-open .column-scroll-arrow{transition:none}
+}
+</style>
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
@@ -3956,6 +4010,69 @@ function boardPostsHtml(b) {
   const q = String(S.view.pq || '').trim().toLowerCase();
   return renderPosts(b, shownPosts(b), gv, q);
 }
+
+/* Horizontal column slider stays synchronized with touch scrolling, mouse wheels, and the viewport. */
+const columnScrollPositions = new Map();
+let columnScrollObserver = null;
+let columnScrollResizeFallback = null;
+function setupColumnScroll() {
+  if (columnScrollObserver) { columnScrollObserver.disconnect(); columnScrollObserver=null; }
+  if (columnScrollResizeFallback) { window.removeEventListener('resize',columnScrollResizeFallback); columnScrollResizeFallback=null; }
+  const control=$('#column-scroll-control');
+  if (!control) return;
+  const scroller=$('#posts .cols-wrap');
+  const inside=scroller?.querySelector('.cols.dir-h');
+  const boardId=S.view?.boardId;
+  if (!scroller || !inside || !boardId) { control.hidden=true; return; }
+  const range=$('#column-scroll-range'), prev=$('#column-scroll-prev'),
+        next=$('#column-scroll-next'), counter=$('#column-scroll-counter');
+  const maxScroll=()=>Math.max(0,scroller.scrollWidth-scroller.clientWidth);
+  const update=()=>{
+    if(!control.isConnected||!scroller.isConnected)return;
+    const maximum=maxScroll();
+    control.hidden=maximum<=4;
+    if(control.hidden)return;
+    const left=Math.min(maximum,Math.max(0,scroller.scrollLeft));
+    range.value=String(Math.round(left/maximum*1000));
+    prev.disabled=left<2;next.disabled=left>maximum-2;
+    const columns=[...inside.querySelectorAll(':scope > .col')];
+    const bounds=scroller.getBoundingClientRect();
+    const visible=columns.map((el,i)=>({i,box:el.getBoundingClientRect()}))
+      .filter(x=>x.box.right>bounds.left+6&&x.box.left<bounds.right-6);
+    const first=(visible.length?visible[0].i:0)+1;
+    const last=(visible.length?visible[visible.length-1].i:0)+1;
+    counter.textContent='Cột '+first+(last>first?'–'+last:'')+'/'+columns.length;
+    range.setAttribute('aria-valuetext',counter.textContent);
+  };
+  const saved=columnScrollPositions.get(boardId);
+  if(saved!=null)scroller.scrollLeft=saved===Infinity?maxScroll():Math.min(maxScroll(),saved);
+  scroller.addEventListener('scroll',()=>{
+    columnScrollPositions.set(boardId,scroller.scrollLeft);
+    update();
+  },{passive:true});
+  range.oninput=()=>{
+    scroller.scrollLeft=maxScroll()*Number(range.value)/1000;
+    update();
+  };
+  const advance=(direction)=>{
+    const col=inside.querySelector('.col'),style=getComputedStyle(inside);
+    const step=(col?.getBoundingClientRect().width||310)+(parseFloat(style.columnGap)||24);
+    scroller.scrollBy({left:direction*step,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  };
+  prev.onclick=()=>advance(-1);
+  next.onclick=()=>advance(1);
+  if(typeof ResizeObserver!=='undefined'){
+    columnScrollObserver=new ResizeObserver(update);
+    columnScrollObserver.observe(scroller);
+    columnScrollObserver.observe(inside);
+  }else{
+    columnScrollResizeFallback=update;
+    window.addEventListener('resize',update,{passive:true});
+  }
+  update();
+  requestAnimationFrame(update);
+}
+
 function renderBoard(b) {
   homeKey = '';
   const me = ME(); const gv = me.role === 'gv'; const manage = canManage(b);
@@ -4011,9 +4128,21 @@ function renderBoard(b) {
       <button type="button" class="board-structure-btn" data-act="add-row" data-id="${b.id}" title="Tạo nhóm bài theo chiều dọc">${ic('plus')}Thêm hàng</button>
       <span class="board-structure-hint">${layoutKey(b.layout) !== 'cot' ? 'Bấm để chuyển sang bố cục cột hoặc hàng.' : 'Các bài làm cũ được giữ nguyên khi đổi hướng.'}</span>
     </div>` : ''}
+    <div id="column-scroll-control" class="column-scroll-control" hidden role="group" aria-label="Cuộn ngang để xem các cột của lớp">
+      <span class="column-scroll-title">${ic('cols3','ic-sm')} Kéo ngang để xem thêm cột</span>
+      <button type="button" class="column-scroll-arrow" id="column-scroll-prev" aria-label="Xem cột phía trước" title="Sang trái">${ic('arrowl')}</button>
+      <input id="column-scroll-range" class="column-scroll-range" type="range" min="0" max="1000" step="1" value="0" aria-label="Thanh trượt ngang các cột, kéo để xem cột khác">
+      <button type="button" class="column-scroll-arrow" id="column-scroll-next" aria-label="Xem cột tiếp theo" title="Sang phải">${ic('next')}</button>
+      <span class="column-scroll-counter" id="column-scroll-counter" aria-live="off"></span>
+    </div>
     <section id="posts" class="full" aria-label="Bài làm và các cột của lớp">${boardPostsHtml(b)}</section>
     <button class="fab" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}" aria-label="${gv ? 'Thêm bài học sinh' : 'Nộp bài'}" title="${gv ? 'Thêm bài học sinh' : 'Nộp bài'}">${ic('plus')}</button>`;
-  $('#bq').addEventListener('input', (e) => { S.view.pq = e.target.value; const box = $('#posts'); if (box) box.innerHTML = boardPostsHtml(b); });
+  $('#bq').addEventListener('input', (e) => {
+    S.view.pq = e.target.value;
+    const box = $('#posts');
+    if (box) { box.innerHTML = boardPostsHtml(b); setupColumnScroll(); }
+  });
+  setupColumnScroll();
 }
 /* Bài chờ thầy cô duyệt: chưa chấm, đang chấm hoặc AI đã chấm nhưng thầy cô chưa duyệt điểm. */
 const reviewPosts = (b) => sortPosts(boardPostList(b).filter((p) => status(p) !== 'duyet'), 'old');
@@ -4427,11 +4556,16 @@ function colForm(b, colId, kind = 'column') {
     button.disabled = true;
     const oldOverride = S.dirOverrides.get(cur.id);
     if (!col) S.dirOverrides.delete(cur.id);
+    const beforeScroll=columnScrollPositions.get(cur.id);
+    if(!col && !vertical) columnScrollPositions.set(cur.id,Infinity);
     const ok = await saveBoard(updated);
     if (ok) {
       m.close();
       render();
       toast((col ? 'Đã đổi tên ' : 'Đã tạo ') + word + ' “' + name + '”.');
+    } else if(!col && !vertical) {
+      if(beforeScroll===undefined)columnScrollPositions.delete(cur.id);
+      else columnScrollPositions.set(cur.id,beforeScroll);
     } else {
       if (!col && oldOverride) S.dirOverrides.set(cur.id, oldOverride);
       button.disabled = false;
@@ -6804,7 +6938,10 @@ document.addEventListener('click', async (e) => {
 $('#scrim').addEventListener('click', () => { $('#app').classList.remove('drawer'); $('#scrim').hidden = true; });
 document.addEventListener('change', async (e) => {
   const t = e.target.closest('[data-chg]'); if (!t) return;
-  if (t.dataset.chg === 'psort') { S.psort = t.value; const b = getBoard(S.view.boardId); const box = $('#posts'); if (b && box) box.innerHTML = boardPostsHtml(b); }
+  if (t.dataset.chg === 'psort') {
+    S.psort = t.value; const b = getBoard(S.view.boardId); const box = $('#posts');
+    if (b && box) { box.innerHTML = boardPostsHtml(b); setupColumnScroll(); }
+  }
   else if (t.dataset.chg === 'blayout') { const b = getBoard(t.dataset.id); if (b && canManage(b)) { await saveBoard({ ...b, layout: layoutKey(t.value) }); toast('Đã đổi sang bố cục ' + layoutName(t.value) + '.'); } }
 });
 $('#avatar-upload').addEventListener('change', async (e) => {
