@@ -2289,6 +2289,30 @@ body.has-sbar .app.board-open .fab{bottom:calc(var(--sbh) + 34px)}
  body.has-sbar .app.board-open .fab{bottom:calc(var(--sbh) + 37px)}
 }
 </style>
+<style id="board-column-reordering">
+.app.board-open .col-h[data-col-drag]{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.app.board-open .col-h[data-col-drag] .icon-btn{cursor:pointer;touch-action:manipulation}
+.app.board-open .col-h[data-col-drag] h2{cursor:grab;outline-offset:3px}
+.app.board-open .col-h[data-col-drag] h2:focus-visible{outline:3px solid #2589a0;border-radius:5px}
+.app.board-open .col-drag-grip{
+ display:inline-flex;justify-content:center;align-items:center;
+ flex:0 0 19px;width:19px;margin-right:-4px;height:22px;
+ color:#68877d;font-size:18px;font-weight:800;pointer-events:none;opacity:.72
+}
+.app.board-open .col-h[data-col-drag]:hover .col-drag-grip{opacity:1;color:#287f83}
+.app.board-open .col.is-column-dragging{
+ opacity:.58;outline:2px dashed #258e9b;outline-offset:3px;border-radius:10px;
+}
+body.board-column-dragging,body.board-column-dragging *{
+ cursor:grabbing!important;user-select:none!important;-webkit-user-select:none!important
+}
+.column-drag-ghost{
+ position:fixed;top:0;left:0;z-index:10000;pointer-events:none;
+ padding:9px 13px;max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+ background:#155a6a;color:#fff;border:1px solid #7bced1;border-radius:10px;
+ font-size:13px;font-weight:750;box-shadow:0 10px 26px #20485744;
+}
+</style>
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
@@ -3860,6 +3884,7 @@ function updateNavCounts() {
 }
 
 function render() {
+  if(columnDragCleanup){columnDragCleanup();columnDragCleanup=null;}
   if (!S.meId || !ME()) return;
   const ae = document.activeElement;
   const keep = ae && ae.id && $('#view').contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
@@ -4011,6 +4036,131 @@ function boardPostsHtml(b) {
   return renderPosts(b, shownPosts(b), gv, q);
 }
 
+
+/* Column drag on the header; persist for managing teachers, local-only for learners. */
+const studentColumnOrders=new Map();
+let columnDragCleanup=null;
+function setupColumnDragging(){
+  if(columnDragCleanup){columnDragCleanup();columnDragCleanup=null;}
+  const viewport=$('#posts .cols-wrap'),layout=viewport?.querySelector('.cols');
+  if(!viewport||!layout)return;
+  const headers=[...layout.querySelectorAll('.col-h[data-col-drag]')];
+  if(headers.length<2)return;
+  const bid=S.view.boardId,vertical=layout.classList.contains('dir-v');
+  let drag=null,scrollFrame=0,suppressClick=false;
+  const columns=()=>[...layout.querySelectorAll(':scope > .col[data-col-id]')].filter(x=>x.dataset.colId);
+  const ids=()=>columns().map(x=>x.dataset.colId);
+  const restore=(order)=>{
+    const nodes=new Map(columns().map(x=>[x.dataset.colId,x]));
+    const footer=layout.querySelector('.col-add-actions');
+    order.forEach(id=>{if(nodes.has(id))layout.insertBefore(nodes.get(id),footer);});
+  };
+  const clear=()=>{
+    if(scrollFrame)cancelAnimationFrame(scrollFrame);
+    scrollFrame=0;
+    drag?.node?.classList.remove('is-column-dragging');
+    drag?.ghost?.remove();
+    drag=null;
+    document.body.classList.remove('board-column-dragging');
+  };
+  const preview=(x,y)=>{
+    if(!drag?.active)return;
+    const other=columns().filter(el=>el!==drag.node);
+    const before=other.find(el=>{
+      const r=el.getBoundingClientRect();
+      return vertical?y<r.top+r.height/2:x<r.left+r.width/2;
+    });
+    const target=before||layout.querySelector('.col-add-actions');
+    if(target && target!==drag.node && drag.node.nextElementSibling!==target)
+      layout.insertBefore(drag.node,target);
+    else if(!target&&layout.lastElementChild!==drag.node)
+      layout.appendChild(drag.node);
+  };
+  const autoScroll=()=>{
+    scrollFrame=0;
+    if(!drag?.active)return;
+    const r=viewport.getBoundingClientRect(),v=vertical?drag.y:drag.x;
+    const lo=vertical?r.top:r.left,hi=vertical?r.bottom:r.right,edge=64;
+    const speed=v<lo+edge?-Math.min(22,Math.max(2,(lo+edge-v)/3)):
+      v>hi-edge?Math.min(22,Math.max(2,(v-hi+edge)/3)):0;
+    if(speed){
+      if(vertical)viewport.scrollTop+=speed;else viewport.scrollLeft+=speed;
+      preview(drag.x,drag.y);
+    }
+    scrollFrame=requestAnimationFrame(autoScroll);
+  };
+  const down=(ev)=>{
+    if(drag||(ev.pointerType==='mouse'&&ev.button!==0))return;
+    if(ev.target.closest('button,a,input,select,textarea,[contenteditable]'))return;
+    const node=ev.currentTarget.closest('.col[data-col-id]');
+    if(!node?.dataset.colId)return;
+    drag={pointer:ev.pointerId,x:ev.clientX,y:ev.clientY,sx:ev.clientX,sy:ev.clientY,
+      node,previous:ids(),active:false,ghost:null};
+  };
+  const move=(ev)=>{
+    if(!drag||ev.pointerId!==drag.pointer)return;
+    drag.x=ev.clientX;drag.y=ev.clientY;
+    if(!drag.active&&Math.hypot(drag.sx-ev.clientX,drag.sy-ev.clientY)<7)return;
+    if(!drag.active){
+      drag.active=true;drag.node.classList.add('is-column-dragging');
+      document.body.classList.add('board-column-dragging');
+      const ghost=document.createElement('div');ghost.className='column-drag-ghost';
+      ghost.textContent=drag.node.querySelector('.col-h h2')?.textContent||'Di chuyển cột';
+      ghost.setAttribute('aria-hidden','true');document.body.appendChild(ghost);drag.ghost=ghost;
+      scrollFrame=requestAnimationFrame(autoScroll);
+    }
+    ev.preventDefault();
+    drag.ghost.style.transform='translate('+Math.round(ev.clientX+15)+'px,'+Math.round(ev.clientY+13)+'px)';
+    preview(ev.clientX,ev.clientY);
+  };
+  const saveOrder=async(previous,order)=>{
+    if(order.join('|')===previous.join('|'))return;
+    const b=getBoard(bid);if(!b)return;
+    const byId=new Map((b.columns||[]).map(c=>[c.id,c]));
+    const next=[...order.map(id=>byId.get(id)).filter(Boolean),
+      ...(b.columns||[]).filter(c=>!order.includes(c.id))];
+    if(next.length!==(b.columns||[]).length)return;
+    if(canManage(b)){
+      const ok=await saveBoard({...b,columns:next});
+      toast(ok?'Đã lưu vị trí các cột.':'Không lưu được vị trí cột. Hãy thử lại.');
+    }else{
+      studentColumnOrders.set(bid,next.map(c=>c.id));
+      toast('Đã sắp xếp lại cột trên màn hình của em.');
+    }
+  };
+  const end=(ev)=>{
+    if(!drag||ev.pointerId!==drag.pointer)return;
+    const active=drag.active,previous=drag.previous,after=ids();
+    if(!active||ev.type==='pointercancel')restore(previous);
+    if(active){suppressClick=true;setTimeout(()=>{suppressClick=false;},0);}
+    clear();
+    if(active&&ev.type==='pointerup')saveOrder(previous,after);
+  };
+  const stopClick=ev=>{if(suppressClick){ev.preventDefault();ev.stopImmediatePropagation();}};
+  const keyboard=(ev)=>{
+    if(!ev.altKey)return;
+    const axis=vertical?['ArrowUp','ArrowDown']:['ArrowLeft','ArrowRight'];
+    const diff=ev.key===axis[0]?-1:ev.key===axis[1]?1:0;
+    if(!diff)return;
+    const before=ids(),index=before.indexOf(ev.currentTarget.dataset.colDrag),other=index+diff;
+    if(index<0||other<0||other>=before.length)return;
+    ev.preventDefault();
+    const order=before.slice();[order[index],order[other]]=[order[other],order[index]];
+    restore(order);saveOrder(before,order);
+    ev.currentTarget.querySelector('h2')?.focus();
+  };
+  headers.forEach(h=>{h.addEventListener('pointerdown',down);h.addEventListener('keydown',keyboard);});
+  window.addEventListener('pointermove',move,{passive:false});
+  window.addEventListener('pointerup',end);window.addEventListener('pointercancel',end);
+  document.addEventListener('click',stopClick,true);
+  columnDragCleanup=()=>{
+    headers.forEach(h=>{h.removeEventListener('pointerdown',down);h.removeEventListener('keydown',keyboard);});
+    window.removeEventListener('pointermove',move);
+    window.removeEventListener('pointerup',end);window.removeEventListener('pointercancel',end);
+    document.removeEventListener('click',stopClick,true);clear();
+  };
+}
+
 /* Horizontal column slider stays synchronized with touch scrolling, mouse wheels, and the viewport. */
 const columnScrollPositions = new Map();
 let columnScrollObserver = null;
@@ -4142,9 +4292,10 @@ function renderBoard(b) {
   $('#bq').addEventListener('input', (e) => {
     S.view.pq = e.target.value;
     const box = $('#posts');
-    if (box) { box.innerHTML = boardPostsHtml(b); setupColumnScroll(); }
+    if (box) { box.innerHTML = boardPostsHtml(b); setupColumnScroll(); setupColumnDragging(); }
   });
   setupColumnScroll();
+  setupColumnDragging();
 }
 /* Bài chờ thầy cô duyệt: chưa chấm, đang chấm hoặc AI đã chấm nhưng thầy cô chưa duyệt điểm. */
 const reviewPosts = (b) => sortPosts(boardPostList(b).filter((p) => status(p) !== 'duyet'), 'old');
@@ -4254,12 +4405,17 @@ function renderPosts(b, ps, gv, q) {
   }
   if (lay === 'tuong' || (!gv && lay !== 'cot')) return `<div class="wall pad${dir}">${cards(ps)}</div>`;
   const cols = (b.columns || []).slice();
+  // Learners may reorder only their temporary on-screen copy.
+  if(!manage && studentColumnOrders.has(b.id)){
+    const order=new Map(studentColumnOrders.get(b.id).map((id,i)=>[id,i]));
+    cols.sort((a,b)=>(order.get(a.id)??Infinity)-(order.get(b.id)??Infinity));
+  }
   const ids = new Set(cols.map((c) => c.id));
   const loose = ps.filter((p) => !ids.has(p.columnId));
   const groups = [];
   if (loose.length || !cols.length) groups.push({ id: '', name: 'Bài chung', items: loose, own: false });
   cols.forEach((c) => groups.push({ id: c.id, name: c.name, items: ps.filter((p) => p.columnId === c.id), own: true }));
-  return `<div class="cols-wrap"><div class="cols${dir}">${groups.map((g) => `<section class="col" aria-label="${esc(g.name)}"><div class="col-h"><h2>${esc(g.name)}</h2><span>${g.items.length}</span>${manage && g.own ? `<button class="icon-btn" data-act="col-rename" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>` : ''}</div>${cards(g.items)}${!g.items.length && q ? '<p class="col-empty">Không có bài phù hợp.</p>' : ''}<button class="col-addpost" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}" data-col="${esc(g.id)}">${ic('plus')}${gv ? 'Thêm bài' : 'Nộp bài'}</button></section>`).join('')}${manage ? `<div class="col-add-actions"><button class="col-add" data-act="add-col" data-id="${b.id}">${ic('plus')}Thêm cột</button><button class="col-add col-add-row" data-act="add-row" data-id="${b.id}">${ic('plus')}Thêm hàng</button></div>` : ''}</div></div>`;
+  return `<div class="cols-wrap"><div class="cols${dir}">${groups.map((g) => `<section class="col" data-col-id="${g.own ? esc(g.id) : ''}" aria-label="${esc(g.name)}"><div class="col-h"${g.own ? ` data-col-drag="${esc(g.id)}"` : ''}>${g.own ? '<span class="col-drag-grip" aria-hidden="true">⠿</span>' : ''}<h2${g.own ? ` tabindex="0" title="Giữ chuột trái để kéo cột, hoặc nhấn Alt và phím mũi tên" aria-label="Di chuyển cột ${esc(g.name)} bằng chuột hoặc Alt và mũi tên"` : ''}>${esc(g.name)}</h2><span>${g.items.length}</span>${manage && g.own ? `<button class="icon-btn" data-act="col-rename" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>` : ''}</div>${cards(g.items)}${!g.items.length && q ? '<p class="col-empty">Không có bài phù hợp.</p>' : ''}<button class="col-addpost" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}" data-col="${esc(g.id)}">${ic('plus')}${gv ? 'Thêm bài' : 'Nộp bài'}</button></section>`).join('')}${manage ? `<div class="col-add-actions"><button class="col-add" data-act="add-col" data-id="${b.id}">${ic('plus')}Thêm cột</button><button class="col-add col-add-row" data-act="add-row" data-id="${b.id}">${ic('plus')}Thêm hàng</button></div>` : ''}</div></div>`;
 }
 function imgSrc(r) {
   if (!r) return '';
@@ -6942,7 +7098,7 @@ document.addEventListener('change', async (e) => {
   const t = e.target.closest('[data-chg]'); if (!t) return;
   if (t.dataset.chg === 'psort') {
     S.psort = t.value; const b = getBoard(S.view.boardId); const box = $('#posts');
-    if (b && box) { box.innerHTML = boardPostsHtml(b); setupColumnScroll(); }
+    if (b && box) { box.innerHTML = boardPostsHtml(b); setupColumnScroll(); setupColumnDragging(); }
   }
   else if (t.dataset.chg === 'blayout') { const b = getBoard(t.dataset.id); if (b && canManage(b)) { await saveBoard({ ...b, layout: layoutKey(t.value) }); toast('Đã đổi sang bố cục ' + layoutName(t.value) + '.'); } }
 });
