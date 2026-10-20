@@ -2237,56 +2237,56 @@ html,body{max-width:100%;overflow-x:clip}
 </style>
 
 <style id="column-horizontal-slider">
-/* A visible accessible slider for boards whose horizontal columns exceed the viewport. */
+/* Padlet-style persistent horizontal track, floating immediately above the footer. */
 .app.board-open .column-scroll-control{
-  display:flex;align-items:center;gap:12px;min-width:0;width:auto;
-  padding:10px 14px;margin-top:0;margin-bottom:10px;
-  border:1px solid rgba(113,145,119,.25);border-radius:12px;
-  background:rgba(255,255,255,.90);box-shadow:0 3px 14px rgba(34,71,49,.045);
-  color:#385c49;
+ position:fixed!important;bottom:calc(var(--sbh,0px) + 5px)!important;
+ left:max(14px,env(safe-area-inset-left,0px));right:max(14px,env(safe-area-inset-right,0px));
+ z-index:44;display:flex;align-items:center;width:auto!important;max-width:none!important;
+ height:25px;padding:3px 8px;margin:0!important;box-sizing:border-box;
+ border:1px solid #a4c3c4;border-radius:999px;
+ background:rgba(239,249,246,.96);box-shadow:0 2px 15px #22545b38;
+ backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
 }
 .app.board-open .column-scroll-control[hidden]{display:none!important}
-.app.board-open .column-scroll-title{
-  display:flex;align-items:center;gap:7px;flex:0 0 auto;
-  font-size:12.5px;font-weight:750;white-space:nowrap;
-}
-.app.board-open .column-scroll-title .ic{width:16px;height:16px}
+.app.board-open .column-scroll-title,
+.app.board-open .column-scroll-arrow,
+.app.board-open .column-scroll-counter{display:none!important}
 .app.board-open .column-scroll-range{
-  -webkit-appearance:auto;appearance:auto;min-width:90px;width:100%;
-  flex:1 1 180px;max-width:none;height:32px;
-  accent-color:#8b4359;cursor:ew-resize;touch-action:pan-x;
+ appearance:none;-webkit-appearance:none;display:block;
+ flex:1 1 100%;width:100%;min-width:0;max-width:100%;
+ height:15px;padding:0;margin:0;border:0;border-radius:999px;
+ background:#b8d7d8;cursor:ew-resize;touch-action:pan-x;
 }
-.app.board-open .column-scroll-arrow{
-  display:grid;place-items:center;flex:0 0 34px;height:34px;
-  border:1px solid #d5e2d7;border-radius:8px;background:#fff;
-  color:#47634f;cursor:pointer;transition:background .15s;
+.app.board-open .column-scroll-range::-webkit-slider-thumb{
+ appearance:none;-webkit-appearance:none;
+ width:var(--column-thumb-size,180px);height:15px;
+ border-radius:999px;border:1px solid #167c96;
+ background:linear-gradient(90deg,#288b9d,#52c4c4);
+ box-shadow:0 1px 5px #004c5966;
 }
-.app.board-open .column-scroll-arrow:disabled{opacity:.35;cursor:default}
-.app.board-open .column-scroll-arrow:not(:disabled):hover{background:#ecf5ed}
-.app.board-open .column-scroll-arrow .ic{width:16px;height:16px}
-.app.board-open .column-scroll-counter{
-  flex:0 0 auto;color:#536c5c;font-size:12px;font-variant-numeric:tabular-nums;
-  min-width:76px;text-align:right;white-space:nowrap;
+.app.board-open .column-scroll-range::-moz-range-thumb{
+ width:var(--column-thumb-size,180px);height:15px;
+ border-radius:999px;border:1px solid #167c96;
+ background:linear-gradient(90deg,#288b9d,#52c4c4);
+ box-shadow:0 1px 5px #004c5966;
 }
+.app.board-open .column-scroll-range:focus-visible{outline:3px solid #278cad;outline-offset:3px}
 .app.board-open .cols-wrap:has(.cols.dir-h){
-  width:100%;max-width:100%;min-width:0;
-  overflow-x:auto;overflow-y:visible;overscroll-behavior-x:contain;
-  scrollbar-width:thin;scrollbar-color:#a67481 #dde9e0;
-  -webkit-overflow-scrolling:touch;
+ width:100%;max-width:100%;min-width:0;
+ overflow-x:auto;overflow-y:visible;overscroll-behavior-x:contain;
+ scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;
 }
-.app.board-open .cols-wrap:has(.cols.dir-h)::-webkit-scrollbar{height:10px}
-.app.board-open .cols-wrap:has(.cols.dir-h)::-webkit-scrollbar-track{background:#dde9e0;border-radius:8px}
-.app.board-open .cols-wrap:has(.cols.dir-h)::-webkit-scrollbar-thumb{background:#a67481;border-radius:8px;border:2px solid #dde9e0}
+.app.board-open .cols-wrap:has(.cols.dir-h)::-webkit-scrollbar{display:none}
 .app.board-open .cols-wrap .cols.dir-h>.col{flex:0 0 310px}
+body.has-sbar .app.board-open .fab{bottom:calc(var(--sbh) + 34px)}
 @media(max-width:760px){
- .app.board-open .column-scroll-control{gap:7px;padding:8px 9px;flex-wrap:wrap}
- .app.board-open .column-scroll-title{flex:1 1 100%;font-size:11.5px}
- .app.board-open .column-scroll-range{flex-basis:100px;min-width:60px}
- .app.board-open .column-scroll-counter{font-size:11px;min-width:64px}
+ .app.board-open .column-scroll-control{
+  left:max(8px,env(safe-area-inset-left,0px));
+  right:max(8px,env(safe-area-inset-right,0px));
+  bottom:calc(var(--sbh,0px) + 4px)!important;
+ }
  .app.board-open .cols-wrap .cols.dir-h>.col{flex-basis:min(340px,calc(100vw - 54px))}
-}
-@media(prefers-reduced-motion:reduce){
- .app.board-open .column-scroll-arrow{transition:none}
+ body.has-sbar .app.board-open .fab{bottom:calc(var(--sbh) + 37px)}
 }
 </style>
 </head>
@@ -4033,6 +4033,8 @@ function setupColumnScroll() {
     control.hidden=maximum<=4;
     if(control.hidden)return;
     const left=Math.min(maximum,Math.max(0,scroller.scrollLeft));
+    const thumb=Math.max(52,Math.min(range.clientWidth,range.clientWidth*scroller.clientWidth/scroller.scrollWidth));
+    range.style.setProperty('--column-thumb-size',Math.round(thumb)+'px');
     range.value=String(Math.round(left/maximum*1000));
     prev.disabled=left<2;next.disabled=left>maximum-2;
     const columns=[...inside.querySelectorAll(':scope > .col')];
