@@ -20,7 +20,7 @@ const layouts=[
   });
   for(const platform of ['android','ios','windows','mac']){
    await page.locator('[data-install-os="'+platform+'"]').click();
-   const label=await page.locator('#install-steps p').innerText();
+   const label=await page.locator('#install-instructions').innerText();
    if(!label||label.length<25)throw Error(name+': no help for '+platform);
   }
   await page.screenshot({path:'screenshots/'+name.replace(/[^a-z0-9]+/gi,'-')+'.png',fullPage:true});
