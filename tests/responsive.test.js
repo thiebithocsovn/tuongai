@@ -1,4 +1,12 @@
 const {chromium}=require('playwright');
+const fs=require('node:fs'),vm=require('node:vm'),Answers=require('../answer-materials.js');
+const appHtml=fs.readFileSync('../index.html','utf8');
+const css=[...appHtml.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map(m=>m[1]).join('\n');
+const start=appHtml.indexOf('function asAnswerHtml('),end=appHtml.indexOf('async function asAddAnswers(',start);
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const answerUi=vm.runInNewContext(appHtml.slice(start,end)+'\nasAnswerHtml',{
+ TuongAiAnswers:Answers,esc,ic:()=>'<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor"/></svg>',
+})({ctx:{answerFiles:[{name:'Dap-an-giao-vien.docx',text:'Câu 1: x = 2.\nCâu 2: y = 3.\nMỗi câu 2 điểm.',images:[]}]}},false);
 const layouts=[
  ['Android 360',360,800,true], ['iPhone 390',390,844,true],
  ['iPhone Plus 430',430,932,true], ['Tablet 768',768,1024,true],
@@ -27,6 +35,15 @@ const layouts=[
   const ok=checks.visible&&checks.inViewport&&checks.cardInViewport&&checks.buttons===4&&checks.allButtons;
   console.log((ok?'PASS ':'FAIL ')+name,JSON.stringify(checks));
   if(!ok)fails++;
+  await page.setContent('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style><div class="as" style="max-width:720px;margin:16px"><div class="as-sec">'+answerUi+'</div></div>');
+  const answers=await page.evaluate(()=>{
+   const root=document.querySelector('.as-answer-files'),rect=root.getBoundingClientRect();
+   return {inViewport:rect.left>=0&&rect.right<=innerWidth+1,controls:[...root.querySelectorAll('button,.as-answer-pick')].every(button=>{const r=button.getBoundingClientRect();return r.width>0&&r.left>=0&&r.right<=innerWidth+1;})};
+  });
+  const answersOk=answers.inViewport&&answers.controls;
+  console.log((answersOk?'PASS ':'FAIL ')+name+' answer files',JSON.stringify(answers));
+  if(!answersOk)fails++;
+  await page.screenshot({path:'screenshots/Answer-files-'+name.replace(/[^a-z0-9]+/gi,'-')+'.png',fullPage:true});
   await context.close();
  }
  await browser.close();

@@ -2,9 +2,13 @@
   "name": "tuongai-responsive-tests",
   "private": true,
   "scripts": {
-    "test": "node responsive.test.js"
+    "test": "node --test *.test.mjs && node responsive.test.js"
   },
   "devDependencies": {
-    "playwright": "1.56.1"
+    "@xmldom/xmldom": "0.9.12",
+    "mammoth": "1.9.0",
+    "pdfjs-dist": "4.10.38",
+    "playwright": "1.56.1",
+    "xlsx": "0.18.5"
   }
 }

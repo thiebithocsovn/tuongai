@@ -2383,6 +2383,21 @@ body.board-column-dragging,body.board-column-dragging *{
 </style>
 
 <style id="board-column-post-scroll">
+.as-answer-files{padding:14px;border:1px solid #c9d9ed;border-radius:12px;background:#f4f8ff;min-width:0}
+.as-answer-files h4{margin:0 0 8px;font-size:15px;color:#243d68}
+.as-answer-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.as-answer-pick{position:relative;overflow:hidden;cursor:pointer}
+.as-answer-pick input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.as-answer-pick:focus-within,.as-answer-paste:focus-visible{outline:3px solid #2589a0;outline-offset:2px}
+.as-answer-paste{border:1px dashed #9cb7d7;border-radius:9px;padding:12px;text-align:center;color:#496580;background:#fff}
+.as-answer-file{background:#fff;border:1px solid #dce5f2;border-radius:9px;padding:10px;margin-top:10px;min-width:0}
+.as-answer-file header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.as-answer-file strong{overflow-wrap:anywhere;font-size:14px}
+.as-answer-file small{color:var(--muted)}
+.as-answer-file pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:190px;overflow:auto;font:inherit;font-size:13px;padding:10px;background:#f7f9fc;border-radius:7px}
+.as-answer-images{display:flex;gap:8px;overflow-x:auto;margin-top:9px}
+.as-answer-images img{width:110px;height:145px;object-fit:contain;background:#f7f9fc;border:1px solid #e1e7ef;border-radius:6px}
+.as-answer-files [aria-disabled="true"]{opacity:.6;pointer-events:none}
 .app.board-open .col-h {gap:6px;margin-bottom:8px}
 .app.board-open .col-h .col-submit-btn {
   width:36px;height:36px;min-width:36px;min-height:36px;
@@ -2645,6 +2660,7 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="./answer-materials.js"></script>
 <script>
 (() => {
 'use strict';
@@ -6219,7 +6235,13 @@ function cleanGrade(r, max) {
 }
 async function gradeGoogle(p, b, signal) {
   const images = await postImagesB64(p);
-  return cleanGrade(await aiJson(gradePrompt(b, p.text || '', images.length), images, signal), Number(b.assignment?.maxScore) || 10);
+  const reference = TuongAiAnswers.payload(p.teacher?.assist?.ctx || {}), ctx = reference.context;
+  const board = { ...b, subject: ctx.subject || b.subject, grade: ctx.grade || b.grade,
+    assignment: { ...b.assignment, prompt: ctx.task || b.assignment?.prompt, answerKey: ctx.criteria || b.assignment?.answerKey } };
+  const body = [p.text, ctx.transcript].filter(Boolean).join('\n');
+  if (!body.trim() && !images.length) throw { code: 'no_grade_input', message: 'Chưa có bài làm học sinh để chấm. Hãy bổ sung ảnh hoặc nội dung bài làm.' };
+  const prompt = gradePrompt(board, body, images.length) + '\n\nTỆP ĐÁP ÁN CỦA GIÁO VIÊN:\n' + (ctx.answerText || '(Không có tệp đáp án.)') + '\n' + TuongAiAnswers.imageRules(images.length, reference.answer_images.length);
+  return cleanGrade(await aiJson(prompt, [...images, ...reference.answer_images], signal), Number(b.assignment?.maxScore) || 10);
 }
 
 /* ----- Trợ lý AI (giống hành động "assist" của hàm máy chủ) ----- */
@@ -6231,7 +6253,7 @@ Công thức viết dạng chữ thường (ví dụ √3, x², ⇒). Không dù
 const clip = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : v == null ? '' : String(v).trim().slice(0, max));
 const clipList = (v, n, max) => (Array.isArray(v) ? v : []).map((x) => clip(x, max)).filter(Boolean).slice(0, n);
 function assistCtxOf(v) {
-  return { subject: clip(v?.subject, 120), grade: clip(v?.grade, 80), task: clip(v?.task, 4000), criteria: clip(v?.criteria, 4000), transcript: clip(v?.transcript, 12000) };
+  return { subject: clip(v?.subject, 120), grade: clip(v?.grade, 80), task: clip(v?.task, 4000), criteria: clip(v?.criteria, 4000), transcript: clip(v?.transcript, 12000), answerText: clip(v?.answerText, 24000) };
 }
 function assistDataOf(ctx, workText, nImg, extra = {}) {
   return JSON.stringify({ context: { ...ctx, task: ctx.task || 'Giáo viên chưa cung cấp đề bài. Chỉ nhận xét phần nhìn thấy; nêu rõ thiếu đề hoặc tiêu chí và đề nghị giáo viên bổ sung.' }, workText: String(workText || '').slice(0, 12000), attachedImages: nImg, ...extra });
@@ -6286,10 +6308,12 @@ difficulty là foundation, application hoặc transfer. Mỗi lỗi 1–3 bài, 
     if (!exercises.length) throw { code: 'invalid_json', message: 'AI chưa soạn được bài luyện tập. Hãy thử lại.' };
     return { practice: { instructions: clip(r?.instructions, 2000), exercises }, model: provModel() };
   }
-  const images = payload.include_media !== false ? await postImagesB64(p) : [];
+  const workImages = payload.include_media !== false ? await postImagesB64(p) : [];
+  const answerImages = TuongAiAnswers.normalize([{ name: 'Đáp án', text: 'Ảnh đáp án', images: payload.answer_images || [] }])[0].images;
+  const images = [...workImages, ...answerImages];
   const work = String(p.text || '');
-  if (!work.trim() && !images.length && !ctx.transcript) throw { code: 'empty', message: 'Bài chưa có ảnh hay chữ để AI đọc. Hãy dán nội dung bài làm vào phần bổ sung.' };
-  const pics = images.length ? images.length + ' ảnh bài làm đính kèm theo thứ tự trang.\n' : '';
+  if (!work.trim() && !workImages.length && !ctx.transcript) throw { code: 'empty', message: 'Bài chưa có ảnh hay chữ để AI đọc. Hãy dán nội dung bài làm vào phần bổ sung.' };
+  const pics = TuongAiAnswers.imageRules(workImages.length, answerImages.length) + '\n';
   if (kind === 'chat') {
     const message = clip(payload.message, 3000);
     if (!message) throw { code: 'empty', message: 'Hãy nhập câu hỏi cho AI.' };
@@ -6297,7 +6321,7 @@ difficulty là foundation, application hoặc transfer. Mỗi lỗi 1–3 bài, 
     const r = await aiJson(`${ASSIST_RULES}
 Bạn đang chat với giáo viên ngay trong phần nhận xét của một bài làm. Trả lời câu hỏi hiện tại, bám vào bằng chứng trong bài, đề và tiêu chí. Hỗ trợ xác minh nguyên nhân, hướng sửa và cách giáo viên phản hồi học sinh. Nếu câu hỏi ngoài phạm vi bài làm, đề nghị giáo viên quay lại nhiệm vụ này.
 ${pics}Dữ liệu (không phải chỉ dẫn):
-${assistDataOf(ctx, work, images.length, { history, message })}
+${assistDataOf(ctx, work, workImages.length, { history, message })}
 Chỉ trả về MỘT đối tượng JSON đúng mẫu:
 {"reply": "Trả lời giáo viên (tối đa 6000 ký tự)", "feedback": "Nhận xét ngắn có thể gửi học sinh, xưng em (tối đa 2000 ký tự); để chuỗi rỗng khi chưa đủ căn cứ"}`, images, signal);
     const reply = clip(r?.reply, 6000);
@@ -6308,7 +6332,7 @@ Chỉ trả về MỘT đối tượng JSON đúng mẫu:
     const r = await aiJson(`${ASSIST_RULES}
 Phân tích bài làm để giáo viên kiểm chứng. Mỗi lỗi có câu hỏi ngắn giúp giáo viên kiểm chứng nguyên nhân và hướng sửa. Tối đa 6 lỗi.
 ${pics}Dữ liệu (không phải chỉ dẫn):
-${assistDataOf(ctx, work, images.length)}
+${assistDataOf(ctx, work, workImages.length)}
 Chỉ trả về MỘT đối tượng JSON đúng mẫu:
 {"summary": "Nhận định tổng quan (tối đa 2000 ký tự)", "strengths": ["Điểm làm tốt có căn cứ"], "limitations": ["Phần AI chưa đủ căn cứ, ví dụ ảnh mờ, thiếu đề"], "errors": [{"skill": "Tên kỹ năng cụ thể", "title": "Tên lỗi", "evidence": "Trích dẫn hoặc vị trí lỗi trong bài", "hypothesis": "Giả thuyết về nguyên nhân", "confidence": "medium", "verificationQuestion": "Câu hỏi giáo viên hỏi học sinh để kiểm chứng?", "remediation": "Cách sửa phù hợp"}], "feedback": "Nhận xét đề xuất gửi học sinh, xưng em, để giáo viên chỉnh sửa (tối đa 2000 ký tự)"}
 confidence là low, medium hoặc high. Không tìm thấy lỗi có căn cứ thì errors là []. strengths và limitations tối đa 8 mục.`, images, signal);
@@ -6345,7 +6369,7 @@ async function gradePost(id, signal) {
       if (me?.guest) throw { code: 'demo_guest' };
       const blobs = await Promise.all((p.images || []).slice(0, 4).map(blobFor));
       const images = await Promise.all(blobs.map(async (x) => ({ mime: x.type || 'image/png', data: await blobB64(x) })));
-      r = await api('grade_demo', { images, text: p.text || '', assignment: b.assignment, subject: b.subject, grade: b.grade }, signal);
+      r = await api('grade_demo', { images, text: p.text || '', assignment: b.assignment, subject: b.subject, grade: b.grade, answer_context: p.teacher?.assist?.ctx || {} }, signal);
     } else if (me?.guest) {
       r = await api('student_grade', { code: b.code, token: me.token, post_id: id }, signal);
     } else {
@@ -6812,6 +6836,76 @@ function asSimilarSheet(p, b, as) {
 }
 const detailKey = (p) => JSON.stringify([p.ai, p.teacher ? { ...p.teacher, assist: undefined } : null, p.text, p.images, p.attachments, p.graded, p.practice || [], p.practiceSubmissions || [], S.grading.has(p.id), detail?.err || '']);
 
+async function answerImage(blob) {
+  const compressed = await shrink(blob, 1600, .8);
+  if (!compressed) throw new Error('Không đọc được ảnh đáp án. Hãy chọn lại ảnh.');
+  return { mime: 'image/jpeg', data: await blobB64(compressed) };
+}
+const answerReaders = {
+  image: answerImage,
+  docx: async buffer => {
+    await loadPreviewLibrary('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js');
+    await loadPreviewLibrary('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+    return TuongAiAnswers.readDocx(buffer, window.mammoth, (data, mime) => answerImage(dataURLtoBlob('data:' + mime + ';base64,' + data)),
+      data => TuongAiAnswers.readWordMath(data, window.JSZip, xml => new DOMParser().parseFromString(xml, 'application/xml')));
+  },
+  pdf: async buffer => {
+    const pdfjs = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs');
+    pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+    return TuongAiAnswers.readPdf(buffer, pdfjs, async page => {
+      const base = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: Math.min(2, 1600 / Math.max(base.width, base.height)) });
+      const canvas = document.createElement('canvas'); canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .8));
+      if (!blob) throw new Error('Không đọc được trang PDF đáp án.');
+      return { mime: 'image/jpeg', data: await blobB64(blob) };
+    });
+  },
+  spreadsheet: async buffer => {
+    if (!await loadXLSX()) throw new Error('Chưa tải được bộ đọc Excel. Hãy kiểm tra mạng rồi chọn lại tệp.');
+    return TuongAiAnswers.readSpreadsheet(buffer, window.XLSX);
+  },
+};
+function asAnswerHtml(as, locked) {
+  let files;
+  try { files = TuongAiAnswers.normalize(as.ctx.answerFiles || []); }
+  catch (e) { return `<div class="as-answer-files"><p class="as-err">${esc(e.message)}</p><button type="button" class="btn btn-sm" data-as="clear-answers" ${locked ? 'disabled' : ''}>Bỏ tệp đáp án không hợp lệ</button></div>`; }
+  const dis = locked ? 'disabled' : '';
+  return `<section class="as-answer-files" aria-label="Ảnh và tệp đáp án của giáo viên">
+    <h4>${ic('bookopen', 'ic-sm')} Ảnh và tệp đáp án của giáo viên</h4>
+    <div class="as-answer-paste" tabindex="0" data-answer-paste aria-label="Vùng dán ảnh đáp án" aria-disabled="${locked}">Chọn vùng này rồi nhấn Ctrl+V để dán ảnh đáp án.</div>
+    <div class="as-answer-actions">
+      <button type="button" class="btn btn-sm as-btn" data-as="paste-answer" ${dis}>${ic('image', 'ic-sm')}Dán ảnh đáp án</button>
+      <label class="btn btn-sm as-btn as-answer-pick" aria-disabled="${locked}">${ic('plus', 'ic-sm')}Tải tệp đáp án<input type="file" data-answer-files accept="${TuongAiAnswers.accept}" multiple aria-label="Tải tệp đáp án" ${dis}></label>
+      ${files.length ? `<button type="button" class="btn btn-sm as-btn" data-as="save-answers" ${dis}>${ic('save', 'ic-sm')}Lưu đáp án</button>` : ''}
+    </div>
+    <p class="as-help">Word DOCX, PDF (kể cả bản scan), TXT/CSV, Excel, JPG/PNG/WebP. Tối đa 5 tệp, 20 MB/tệp, 8 ảnh hoặc trang PDF. Đáp án chỉ giáo viên xem; AI dùng để đối chiếu và chấm.</p>
+    ${files.map((file, index) => `<article class="as-answer-file"><header><div><strong>${esc(file.name)}</strong><br><small>${file.text.length.toLocaleString('vi-VN')} ký tự${file.images.length ? ' · ' + file.images.length + ' ảnh/trang' : ''}</small></div><button type="button" class="icon-btn" data-as="remove-answer" data-index="${index}" aria-label="Bỏ đáp án ${esc(file.name)}" ${dis}>${ic('trash', 'ic-sm')}</button></header>
+      ${file.images.length ? `<div class="as-answer-images">${file.images.map((image, page) => `<img src="data:${image.mime};base64,${image.data}" alt="Đáp án ${esc(file.name)}, ảnh ${page + 1}" loading="lazy">`).join('')}</div>` : ''}
+      ${file.text ? `<details class="as-sub"><summary>Xem nội dung đáp án đã đọc</summary><pre>${esc(file.text)}</pre></details>` : ''}
+      ${file.warnings.map(warning => `<p class="as-help">${esc(warning)}</p>`).join('')}
+    </article>`).join('')}
+  </section>`;
+}
+async function asAddAnswers(as, incoming) {
+  if (as.busy || as.ext || !incoming.length) return;
+  as.busy = 'answers'; as.err = ''; as.msg = ''; asRender(as);
+  try {
+    if ((as.ctx.answerFiles || []).length + incoming.length > TuongAiAnswers.limits.files) throw new Error('Mỗi bài dùng tối đa 5 tệp đáp án. Hãy bỏ bớt tệp cũ trước.');
+    const added = [];
+    for (const file of incoming) {
+      as.msg = 'Đang đọc đáp án: ' + file.name; asRender(as);
+      const parsed = await TuongAiAnswers.read(file, answerReaders);
+      parsed.id = uid('answer'); added.push(parsed);
+    }
+    as.ctx.answerFiles = TuongAiAnswers.normalize([...(as.ctx.answerFiles || []), ...added]);
+    as.contextDirty = true;
+    if (!await asPersist(as, {})) throw new Error('Đã đọc đáp án nhưng chưa lưu được. Giữ cửa sổ này và bấm Lưu đáp án để thử lại.');
+    as.msg = 'Đã đọc và lưu đáp án riêng của giáo viên. AI sẽ dùng khi chat, đánh giá hoặc chấm bài này.';
+  } catch (e) { as.err = e?.message || 'Chưa đọc được tệp đáp án. Hãy kiểm tra tệp rồi thử lại.'; as.msg = ''; }
+  finally { as.busy = ''; asRender(as); }
+}
 function assistMount(p) {
   const b = getBoard(p.boardId);
   const saved = asSaved(p);
@@ -6819,7 +6913,7 @@ function assistMount(p) {
     id: p.id, el: document.createElement('section'), step: 0,
     ctx: { ...asDefaults(b), ...(saved?.ctx || {}) }, media: saved?.media !== false, draft: '',
     a: asLocal(saved?.a || null), base: canon(saved), busy: '', pending: '', err: '', msg: '', conn: '',
-    ext: false, dirty: false, similar: { ...asSimilarDefaults(), ...clone(saved?.similar || {}) }, similarDirty: false,
+    ext: false, dirty: false, contextDirty: false, similar: { ...asSimilarDefaults(), ...clone(saved?.similar || {}) }, similarDirty: false,
     submissions: [], submissionsLoaded: false, submissionsLoading: false,
     att: { ex: '', resp: '', ev: '', verdict: '' }, ctl: null, open: { ctx: true },
   };
@@ -6827,7 +6921,15 @@ function assistMount(p) {
   as.el.setAttribute('aria-label', 'Trợ lý AI cho bài làm');
   as.el.addEventListener('click', (e) => { const t = e.target.closest('[data-as]'); if (t && as.el.contains(t)) asAct(as, t.dataset.as, t); });
   as.el.addEventListener('input', (e) => asField(as, e.target, false));
-  as.el.addEventListener('change', (e) => asField(as, e.target, true));
+  as.el.addEventListener('change', (e) => {
+    if (e.target.matches('[data-answer-files]')) { const files = Array.from(e.target.files || []); e.target.value = ''; void asAddAnswers(as, files); }
+    else asField(as, e.target, true);
+  });
+  as.el.addEventListener('paste', e => {
+    if (!e.target.closest('[data-answer-paste]') || as.busy || as.ext) return;
+    const files = Array.from(e.clipboardData?.files || []).filter(file => file.type.startsWith('image/'));
+    if (files.length) { e.preventDefault(); void asAddAnswers(as, files); }
+  });
   as.el.addEventListener('keydown', (e) => {
     if (e.target.dataset?.asf === 'draft' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); asAct(as, 'send'); }
   });
@@ -6840,7 +6942,7 @@ function asField(as, el, commit) {
   const v = el.type === 'checkbox' ? el.checked : el.value;
   const [k, id, prop] = f.split('.');
   if (k === 'prov') { LS.set(K_PROV, v); as.conn = ''; as.err = ''; as.msg = 'Đã chọn ' + PROV_LABEL[aiProv()] + '. Bấm Kiểm tra kết nối AI để thử.'; asRender(as); return; }
-  if (k === 'ctx') as.ctx[id] = v;
+  if (k === 'ctx') { as.ctx[id] = v; as.contextDirty = true; }
   else if (k === 'media') as.media = v;
   else if (k === 'draft') { as.draft = v; const s = $('[data-as="send"]', as.el); if (s) s.disabled = !!as.busy || as.ext || !aiOn() || !v.trim(); }
   else if (k === 'att') { as.att[id] = v; if (commit && id === 'ex') asRender(as); }
@@ -6870,13 +6972,13 @@ function asField(as, el, commit) {
 function asSync(as, p) {
   const saved = asSaved(p);
   if (canon(saved) === as.base) return;
-  if (as.busy || as.dirty || as.similarDirty) { if (!as.ext) { as.ext = true; asRender(as); } return; }
+  if (as.busy || as.dirty || as.contextDirty || as.similarDirty) { if (!as.ext) { as.ext = true; asRender(as); } return; }
   asAdopt(as, saved);
 }
 function asAdopt(as, saved) {
-  as.base = canon(saved); as.a = asLocal(saved?.a || null); as.dirty = false; as.ext = false;
+  as.base = canon(saved); as.a = asLocal(saved?.a || null); as.dirty = false; as.contextDirty = false; as.ext = false;
   as.similar = { ...asSimilarDefaults(), ...clone(saved?.similar || {}) }; as.similarDirty = false;
-  if (saved?.ctx) as.ctx = { ...as.ctx, ...saved.ctx };
+  as.ctx = { ...asDefaults(getBoard(getPost(as.id).boardId)), ...(saved?.ctx || {}) };
   if (typeof saved?.media === 'boolean') as.media = saved.media;
   asRender(as);
 }
@@ -6885,8 +6987,9 @@ async function asPersist(as, patch, teacherPatch = {}) {
   const saved = asSaved(p) || { v: 1, chat: null, chats: [], a: null, history: [] };
   const next = clone({ ...saved, ...patch, v: 1, ctx: as.ctx, media: as.media, at: now() });
   if ('a' in patch && saved.a?.review?.status === 'approved' && saved.a.id !== next.a?.id) next.history = [...(saved.history || []), saved.a].slice(-10);
-  as.base = canon(next); as.ext = false;
-  return patchTeacher(p, { ...teacherPatch, assist: next });
+  const ok = await patchTeacher(p, { ...teacherPatch, assist: next });
+  if (ok) { as.base = canon(next); as.ext = false; as.contextDirty = false; }
+  return ok;
 }
 async function asWork(p, b, withImages) {
   if (!b.demo) return { post_id: p.id };
@@ -6895,6 +6998,7 @@ async function asWork(p, b, withImages) {
   return { demo: true, text: p.text || '', images };
 }
 async function asCall(as, kind, payload) {
+  if (payload.context) payload = { ...payload, ...TuongAiAnswers.payload(payload.context) };
   const ctl = new AbortController(); as.ctl = ctl;
   try {
     if (clientProv()) return await assistGoogle(kind, payload, getPost(as.id), ctl.signal);
@@ -6918,6 +7022,31 @@ async function asAct(as, a, t) {
   };
   const copy = async (text, ok) => { try { await navigator.clipboard.writeText(text); as.msg = ok; } catch (e) { as.err = 'Trình duyệt chưa cho sao chép. Hãy chọn chữ rồi sao chép tay.'; } asRender(as); };
   switch (a) {
+    case 'paste-answer': {
+      try {
+        if (!navigator.clipboard?.read) throw new Error('Dùng Ctrl+V tại vùng dán ảnh hoặc chọn Tải tệp đáp án.');
+        const items = await navigator.clipboard.read(), files = [];
+        for (const item of items) {
+          const type = item.types.find(type => /^image\/(png|jpeg|webp)$/.test(type));
+          if (type) files.push(new File([await item.getType(type)], 'Anh-dap-an-' + (files.length + 1) + '.' + type.split('/')[1], { type }));
+        }
+        if (!files.length) throw new Error('Bộ nhớ tạm chưa có ảnh. Hãy sao chép ảnh rồi dán lại, hoặc chọn Tải tệp đáp án.');
+        await asAddAnswers(as, files);
+      } catch (e) { as.err = e.name === 'NotAllowedError' || e.name === 'SecurityError' ? 'Trình duyệt chưa cho đọc ảnh. Nhấn Ctrl+V tại vùng dán ảnh hoặc chọn Tải tệp đáp án.' : e.message || 'Chưa đọc được ảnh đáp án.'; asRender(as); }
+      return;
+    }
+    case 'clear-answers':
+    case 'remove-answer': return run('save', async () => {
+      const previous = as.ctx.answerFiles;
+      as.ctx.answerFiles = a === 'clear-answers' ? [] : (previous || []).filter((_, index) => index !== Number(t.dataset.index));
+      as.contextDirty = true;
+      if (!await asPersist(as, {})) { as.ctx.answerFiles = previous; throw new Error('Chưa lưu được thay đổi đáp án. Hãy thử lại.'); }
+      as.msg = 'Đã bỏ tệp đáp án khỏi lần chấm tiếp theo.';
+    });
+    case 'save-answers': return run('save', async () => {
+      if (!await asPersist(as, {})) throw new Error('Chưa lưu được đáp án. Hãy kiểm tra kết nối rồi thử lại.');
+      as.msg = 'Đã lưu đáp án riêng của giáo viên.';
+    });
     case 'step': as.step = +t.dataset.i; as.err = ''; as.msg = ''; asRender(as); if (as.step === 2 && !as.submissionsLoaded) await asLoadSubmissions(as); return;
     case 'reload-subs': await asLoadSubmissions(as); return;
     case 'reload': asAdopt(as, asSaved(p)); return;
@@ -6952,7 +7081,7 @@ async function asAct(as, a, t) {
     case 'analyze': return run('analyze', async () => {
       const r = await asCall(as, 'analyze', { ...(await asWork(p, b, as.media)), context: as.ctx, include_media: as.media });
       const an = r.analysis;
-      const next = { id: uid('a'), at: now(), model: r.model, ctx: { ...as.ctx },
+      const next = { id: uid('a'), at: now(), model: r.model, ctx: assistCtxOf(TuongAiAnswers.payload(as.ctx).context),
         analysis: { ...an, errors: an.errors.map((e) => ({ ...e, decision: 'pending', teacherCause: '', verificationEvidence: '' })) },
         review: { status: 'draft', feedback: an.feedback || '', score: null, by: '', byName: '', at: 0 }, practice: null };
       as.a = asLocal(next); as.dirty = false; as.step = 1;
@@ -7222,7 +7351,7 @@ function asHtml(as) {
   const dis = (c) => (c ? 'disabled' : '');
   const fs = finalScore(p);
   const when = (t) => (t ? new Date(t).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
-  const busyLine = { analyze: 'AI đang đọc bài và phân tích…', practice: 'AI đang soạn bài luyện tập…', similar: 'AI đang tạo bộ bài tương tự…', ping: 'Đang kiểm tra kết nối AI…', save: 'Đang lưu…' }[as.busy];
+  const busyLine = { answers: 'Đang đọc tệp đáp án…', analyze: 'AI đang đọc bài và phân tích…', practice: 'AI đang soạn bài luyện tập…', similar: 'AI đang tạo bộ bài tương tự…', ping: 'Đang kiểm tra kết nối AI…', save: 'Đang lưu…' }[as.busy];
   let body = '';
   if (as.step === 0) {
     body = `<section class="as-chat" aria-label="Chat AI trong phần nhận xét">
@@ -7239,9 +7368,10 @@ function asHtml(as) {
       <div class="as-grid"><label class="as-lbl">Môn học<input data-asf="ctx.subject" maxlength="120" value="${esc(as.ctx.subject)}" placeholder="Ví dụ: Tin học" ${dis(lock)}></label><label class="as-lbl">Khối / lớp<input data-asf="ctx.grade" maxlength="80" value="${esc(as.ctx.grade)}" placeholder="Ví dụ: Lớp 8" ${dis(lock)}></label></div>
       <label class="as-lbl">Đề bài / nhiệm vụ cần đánh giá<textarea data-asf="ctx.task" rows="3" maxlength="4000" placeholder="Nhập yêu cầu để AI đối chiếu đúng nhiệm vụ…" ${dis(lock)}>${esc(as.ctx.task)}</textarea></label>
       <label class="as-lbl">Đáp án / tiêu chí đánh giá<textarea data-asf="ctx.criteria" rows="3" maxlength="4000" placeholder="Nội dung đúng, mức độ yêu cầu, tiêu chí của giáo viên…" ${dis(lock)}>${esc(as.ctx.criteria)}</textarea></label>
+      ${asAnswerHtml(as, lock)}
       <details class="as-sub" data-asd="tr" ${as.open.tr ? 'open' : ''}><summary>Bổ sung nội dung đọc từ tài liệu</summary><label class="as-lbl">Nội dung bài làm bổ sung<textarea data-asf="ctx.transcript" rows="4" maxlength="12000" placeholder="Dán nội dung Word/PowerPoint/Excel hoặc phần chữ khó đọc trên ảnh…" ${dis(lock)}>${esc(as.ctx.transcript)}</textarea></label></details>
       <label class="as-chk"><input type="checkbox" data-asf="media" ${as.media ? 'checked' : ''} ${dis(lock)}>Gửi kèm ảnh bài làm</label>
-      <p class="as-help">AI đọc phần chữ học sinh gõ, ảnh bài làm và nội dung thầy cô dán ở phần bổ sung. Word, Excel, PowerPoint và liên kết ngoài cần dán nội dung vào phần bổ sung để AI đọc đúng. Tên học sinh, điểm và nhận xét riêng không nằm trong yêu cầu; thầy cô kiểm tra thông tin có trong ảnh bài làm trước khi gửi.</p>
+      <p class="as-help">AI đọc riêng bài làm của học sinh và các tệp đáp án thầy cô đã thêm ở trên. Phần bổ sung bên dưới dành cho nội dung bài làm học sinh cần gõ lại. Kiểm tra phần đáp án đã đọc trước khi gửi cho AI.</p>
     </div></details>
     <button type="button" class="btn as-primary as-block" data-as="analyze" ${dis(off)}>${ic('sparkles')}${x ? 'Đánh giá lại bài làm tại đây' : 'AI đánh giá bài làm tại đây'}</button>
     ${x ? '<p class="as-help">Đánh giá lại tạo bản nháp mới. Bản đã duyệt trước được giữ trong lịch sử khi bản mới được lưu.</p>' : ''}`;
