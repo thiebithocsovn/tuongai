@@ -5046,7 +5046,7 @@ function renderPosts(b, ps, gv, q) {
         <button type="button" class="icon-btn col-submit-btn" ${target} aria-label="${label}" title="${label}">${ic('plus')}</button>
         ${manage && g.own ? `<button class="icon-btn" data-act="col-rename" data-id="${esc(b.id)}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${esc(b.id)}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>` : ''}
       </div>
-      <button type="button" class="col-addpost" ${target} aria-label="${label}">${ic('plus')}${actionLabel}</button>
+      <button type="button" class="col-addpost" ${target} aria-label="${label}" title="${label}">${ic('plus')}</button>
       <div class="col-post-viewport" data-overflow="0">
         <div class="col-post-scroll" role="region" tabindex="0" aria-label="Xem bài làm trong ${esc(g.name)}"><div class="col-post-content">${cards(g.items)}${!g.items.length && q ? '<p class="col-empty">Không có bài phù hợp.</p>' : ''}</div></div>
         <div class="col-post-rail" aria-hidden="true"><div class="col-post-thumb"></div></div>
