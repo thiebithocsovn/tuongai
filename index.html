@@ -2383,6 +2383,15 @@ body.board-column-dragging,body.board-column-dragging *{
 </style>
 
 <style id="board-column-post-scroll">
+.app.board-open .col-h {gap:6px;margin-bottom:8px}
+.app.board-open .col-h .col-submit-btn {
+  width:36px;height:36px;min-width:36px;min-height:36px;
+  background:#e5f4ee;border:1px solid #c8e3d5;color:#176b55;
+}
+.app.board-open .col-h .col-submit-btn:hover {background:#d4eddf}
+.app.board-open .col > .col-addpost {margin:0 0 12px;background:rgba(255,255,255,.7)}
+.app.board-open .col-submit-btn:focus-visible,
+.app.board-open .col-addpost:focus-visible {outline:3px solid #2589a0;outline-offset:3px}
 /* Padlet-like independent vertical post scrolling, only in horizontal column layouts. */
 .app.board-open .cols.dir-h > .col {
   display:flex;flex-direction:column;
@@ -2393,7 +2402,7 @@ body.board-column-dragging,body.board-column-dragging *{
   flex:0 0 auto;position:relative;
 }
 .app.board-open .cols.dir-h > .col > .col-addpost {
-  flex:0 0 auto;margin-top:9px;
+  flex:0 0 auto;
 }
 .app.board-open .cols.dir-h .col-post-viewport {
   position:relative;display:flex;flex:1 1 auto;
@@ -5024,7 +5033,26 @@ function renderPosts(b, ps, gv, q) {
   const groups = [];
   if (loose.length || !cols.length) groups.push({ id: '', name: 'Bài chung', items: loose, own: false });
   cols.forEach((c) => groups.push({ id: c.id, name: c.name, items: ps.filter((p) => p.columnId === c.id), own: true }));
-  return `<div class="cols-wrap"><div class="cols${dir}">${groups.map((g) => `<section class="col" data-col-id="${g.own ? esc(g.id) : ''}" aria-label="${esc(g.name)}"><div class="col-h"${g.own ? ` data-col-drag="${esc(g.id)}"` : ''}>${g.own ? '<span class="col-drag-grip" aria-hidden="true">⠿</span>' : ''}<h2${g.own ? ` tabindex="0" title="Giữ chuột trái để kéo cột, hoặc nhấn Alt và phím mũi tên" aria-label="Di chuyển cột ${esc(g.name)} bằng chuột hoặc Alt và mũi tên"` : ''}>${esc(g.name)}</h2><span>${g.items.length}</span>${manage && g.own ? `<button class="icon-btn" data-act="col-rename" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${b.id}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>` : ''}</div><div class="col-post-viewport" data-overflow="0"><div class="col-post-scroll" role="region" tabindex="0" aria-label="Xem bài làm trong ${esc(g.name)}"><div class="col-post-content">${cards(g.items)}${!g.items.length && q ? '<p class="col-empty">Không có bài phù hợp.</p>' : ''}</div></div><div class="col-post-rail" aria-hidden="true"><div class="col-post-thumb"></div></div></div><button class="col-addpost" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}" data-col="${esc(g.id)}">${ic('plus')}${gv ? 'Thêm bài' : 'Nộp bài'}</button></section>`).join('')}${manage ? `<div class="col-add-actions"><button class="col-add" data-act="add-col" data-id="${b.id}">${ic('plus')}Thêm cột</button><button class="col-add col-add-row" data-act="add-row" data-id="${b.id}">${ic('plus')}Thêm hàng</button></div>` : ''}</div></div>`;
+  const action = gv ? 'capture' : 'submit';
+  const actionLabel = gv ? 'Thêm bài' : 'Nộp bài';
+  return `<div class="cols-wrap"><div class="cols${dir}">${groups.map((g) => {
+    const target = `data-act="${action}" data-id="${esc(b.id)}" data-col="${esc(g.id)}"`;
+    const label = esc(actionLabel + ' vào ' + g.name);
+    return `<section class="col" data-col-id="${g.own ? esc(g.id) : ''}" aria-label="${esc(g.name)}">
+      <div class="col-h"${g.own ? ` data-col-drag="${esc(g.id)}"` : ''}>
+        ${g.own ? '<span class="col-drag-grip" aria-hidden="true">⠿</span>' : ''}
+        <h2${g.own ? ` tabindex="0" title="Giữ chuột trái để kéo cột, hoặc nhấn Alt và phím mũi tên" aria-label="Di chuyển cột ${esc(g.name)} bằng chuột hoặc Alt và mũi tên"` : ''}>${esc(g.name)}</h2>
+        <span>${g.items.length}</span>
+        <button type="button" class="icon-btn col-submit-btn" ${target} aria-label="${label}" title="${label}">${ic('plus')}</button>
+        ${manage && g.own ? `<button class="icon-btn" data-act="col-rename" data-id="${esc(b.id)}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${esc(b.id)}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>` : ''}
+      </div>
+      <button type="button" class="col-addpost" ${target} aria-label="${label}">${ic('plus')}${actionLabel}</button>
+      <div class="col-post-viewport" data-overflow="0">
+        <div class="col-post-scroll" role="region" tabindex="0" aria-label="Xem bài làm trong ${esc(g.name)}"><div class="col-post-content">${cards(g.items)}${!g.items.length && q ? '<p class="col-empty">Không có bài phù hợp.</p>' : ''}</div></div>
+        <div class="col-post-rail" aria-hidden="true"><div class="col-post-thumb"></div></div>
+      </div>
+    </section>`;
+  }).join('')}${manage ? `<div class="col-add-actions"><button class="col-add" data-act="add-col" data-id="${b.id}">${ic('plus')}Thêm cột</button><button class="col-add col-add-row" data-act="add-row" data-id="${b.id}">${ic('plus')}Thêm hàng</button></div>` : ''}</div></div>`;
 }
 function imgSrc(r) {
   if (!r) return '';
@@ -5627,7 +5655,7 @@ function submitForm(b, asTeacher, colId) {
       }
       const colSel = $('#sf-col', el);
       const p = {
-        id: pid, boardId: b.id, ownerAcc: b.ownerAcc, columnId: colSel ? colSel.value : (cols[0]?.id || ''),
+        id: pid, boardId: b.id, ownerAcc: b.ownerAcc, columnId: colSel ? colSel.value : (selectedColumn?.id || (colId == null ? cols[0]?.id || '' : '')),
         studentName: name, studentClass: '', studentAcc: null,
         by: asTeacher ? 'gv' : 'hs', images: refs, attachments: uploadedFiles, text, createdAt: now(),
       };
