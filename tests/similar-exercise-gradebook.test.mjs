@@ -32,6 +32,16 @@ test('Student can submit an AI-derived similar question directly below the pupil
  assert.match(result,/giáo viên/i);
  assert.ok(!result.includes('expectedAnswer'));
 });
+test('When no similar worksheet exists, pupils can supply a similar question and hand in a worked answer',()=>{
+ const result=render({sourcePost:{...post,similarQuestions:[]}});
+ assert.match(result,/data-sim-question/);
+ assert.match(result,/data-sim-answer="-1"/);
+ assert.match(result,/data-sim-send="-1"/);
+ assert.match(result,/Đề bài tương tự em chọn/);
+ assert.match(result,/Nộp bài tập tương tự/);
+ assert.match(edge,/index===-1 && !questions.length/);
+ assert.match(edge,/exercise_question:task.question/);
+});
 test('Students can see only own provisional AI evaluation or final locked assessment',()=>{
  const pending=render({name:'Em A',attempts:[{id:'1',exercise_key:'q0',response:'S = 9 × 4 = 36',ai_score:9,ai_note:'Đúng phép tính'}]});
  assert.match(pending,/AI chấm sơ bộ/);
