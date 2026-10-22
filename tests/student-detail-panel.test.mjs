@@ -38,6 +38,8 @@ test('Own approved legacy AI result always displays teacher comments in the righ
  assert.match(result,/8.5/);
  assert.match(result,/Nhận xét sau khi chấm/);
  assert.match(result,/Em cần trình bày rõ các bước giải/);
+ assert.match(html,/\$\$\('\[data-st-pr-answer\]', el\)\.forEach/);
+ assert.match(html,/\$\$\('\[data-st-pr-send\]', el\)\.forEach/);
  assert.match(result,/Bài tập tương tự/);
  assert.ok(result.length>200);
 });
