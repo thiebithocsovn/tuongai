@@ -1,11 +1,22 @@
+/* Chỉ bài giáo viên giao mới công khai ngay; bài chụp hộ học sinh vẫn cần duyệt. */
+export function isTeacherAnnouncement(p: any, ownerName = ""): boolean {
+  if (!p || p.by !== "gv") return false;
+  if (p.teacher?.postType === "announcement") return true;
+  if (p.teacher?.postType) return false;
+  // Bài giao trước khi triển khai postType chỉ có tên của giáo viên tạo lớp.
+  const studentName = String(p.student_name || "").trim().toLocaleLowerCase("vi");
+  return !!(ownerName && studentName && studentName === String(ownerName).trim().toLocaleLowerCase("vi"));
+}
+
 /* Explicit student response fields: never serialize raw rows or teacher.assist. */
-export function studentPost(p: any, mine = true) {
+export function studentPost(p: any, mine = true, ownerName = "") {
   const approved = !!p.teacher?.approvedAt;
-  const teacherPost = p.by === "gv";
+  const teacherPost = isTeacherAnnouncement(p, ownerName);
   const graded = !!(p.ai || p.ai_at || approved || typeof p.teacher?.score === "number");
   const teacher: any = {
     pinned: !!p.teacher?.pinned,
     color: p.teacher?.color || "",
+    postType: teacherPost ? "announcement" : p.teacher?.postType === "student_work" ? "student_work" : "",
   };
   if (approved) {
     teacher.approvedAt = p.teacher.approvedAt;
@@ -33,4 +44,4 @@ export function studentPost(p: any, mine = true) {
 
 export const ownsStudentPost = (p: any, token: string) => token.length >= 16 && p.student_token === token;
 // Giáo viên đăng bài lên lớp: công khai ngay, không đợi duyệt bài học sinh.
-export const visibleToStudent = (p: any, token: string) => ownsStudentPost(p, token) || p.by === "gv" || !!p.teacher?.approvedAt;
+export const visibleToStudent = (p: any, token: string, ownerName = "") => ownsStudentPost(p, token) || isTeacherAnnouncement(p, ownerName) || !!p.teacher?.approvedAt;
