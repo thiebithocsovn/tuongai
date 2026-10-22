@@ -2524,6 +2524,19 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 @media(prefers-reduced-motion:reduce){
   #app #grid .board-drag-handle{transition:none}
 }
+
+.board-transfer .modal-b{gap:15px}
+.transfer-info{background:linear-gradient(145deg,#f3f7ff,#fafcff);border:1px solid #dce6f6;border-radius:15px;padding:15px;display:grid;gap:6px}
+.transfer-info small{font-size:11px;font-weight:750;letter-spacing:.08em;color:#64748b;text-transform:uppercase}
+.transfer-info strong{color:#1a345c;font-size:20px;line-height:1.3}
+.transfer-info span{color:#60718b;font-size:13px;line-height:1.5}
+.transfer-target{display:grid;gap:8px}
+.transfer-target select,.transfer-target input{width:100%;border:1px solid #d9e1ed;border-radius:10px;background:#fff;padding:11px 12px;color:#21324e;font-size:14px}
+.transfer-target label{font-weight:750;color:#273e5e;font-size:13px}
+.transfer-warning{background:#fff8e9;border:1px solid #f0deae;border-radius:12px;padding:12px 14px;color:#805620;line-height:1.55;font-size:13px}
+.transfer-warning b{color:#744311}
+.transfer-empty{font-size:13px;color:#8c4750}
+
 </style>
 </head>
 <body>
@@ -4875,6 +4888,7 @@ function renderBoard(b) {
       <div class="btop-ctl">
         ${gv ? `<button class="btn btn-soft" data-act="slideshow" data-id="${b.id}" ${ps.length ? '' : 'disabled'} aria-label="Trình chiếu" title="Trình chiếu từng bài">${ic('playo')}<span class="hide-m">Trình chiếu</span></button>` : ''}
         ${gv ? `<button class="btn btn-soft" data-act="share" data-id="${b.id}">${ic('share')}Chia sẻ</button>` : ''}
+        ${manage && isAdmin() && !b.demo ? `<button class="btn btn-soft" data-act="transfer-board" data-id="${b.id}" aria-label="Chuyển quyền quản trị lớp ${esc(b.name)}">${ic('users')}<span class="hide-m">Chuyển quyền</span></button>` : ''}
         ${manage ? `<button class="icon-btn" data-act="edit-board" data-id="${b.id}" aria-label="Cài đặt bảng" title="Cài đặt bảng">${ic('sliders')}</button>` : ''}
         ${acctChip(true)}
       </div>
@@ -7472,6 +7486,86 @@ function joinForm() {
   $('#jf-go', el).onclick = go;
   $('#jf', el).addEventListener('submit', (e) => { e.preventDefault(); go(); });
 }
+
+/* ---------- Chuyển quyền quản trị lớp: chỉ Quản trị hệ thống ---------- */
+function boardTransferForm(board) {
+  if (!isAdmin() || !board || board.demo) return;
+  const teachers = [...S.members.values()]
+    .filter((x) => x.role === 'teacher' && x.status === 'active' && x.id !== board.ownerAcc)
+    .sort((a,b) => (a.full_name || a.email).localeCompare(b.full_name || b.email, 'vi'));
+  const oldName = ownerLabel(board);
+  const posts = postsOf(board.id).length;
+  const m = openModal({
+    title: 'Chuyển quyền quản trị lớp',
+    cls: 'board-transfer',
+    body: `<form class="modal-b" id="transfer-form" novalidate>
+      <div class="transfer-info"><small>Lớp đang quản lý</small><strong>${esc(board.name)}</strong>
+        <span>Giáo viên hiện tại: <b>${esc(oldName)}</b></span>
+        <span>${posts} bài làm · Mã lớp: <b>${esc(board.code || '')}</b></span>
+      </div>
+      <div class="transfer-target">
+        <label for="transfer-search">Tìm giáo viên nhận lớp</label>
+        <input id="transfer-search" type="search" autocomplete="off" placeholder="Nhập họ tên, email hoặc đơn vị...">
+        <label for="transfer-target">Chọn tài khoản giáo viên đã được kích hoạt</label>
+        <select id="transfer-target" required aria-describedby="transfer-warning"></select>
+        <span class="transfer-empty" id="transfer-empty" hidden>Không tìm thấy giáo viên đang hoạt động phù hợp.</span>
+      </div>
+      <div class="transfer-warning" id="transfer-warning"><b>Lưu ý khi bàn giao:</b> Giáo viên được chọn sẽ quản lý lớp, tiếp nhận toàn bộ bài làm, nhận xét và tệp đã nộp. Giáo viên cũ sẽ không còn quyền quản trị lớp. Mã lớp và liên kết học sinh giữ nguyên.</div>
+      <p class="form-err" id="transfer-error" role="alert"></p>
+    </form>`,
+    foot: `<button type="button" class="btn btn-ghost" data-close>Hủy</button><button type="button" class="btn btn-brand" id="transfer-submit" ${teachers.length ? '' : 'disabled'}>${ic('users')}Xác nhận chuyển quyền</button>`,
+  });
+  const el = m.el, search = $('#transfer-search',el), select = $('#transfer-target',el), go = $('#transfer-submit',el);
+  const draw = () => {
+    const query = search.value.trim().toLocaleLowerCase('vi');
+    const list = teachers.filter((x) => [x.full_name,x.email,x.school].some((v) => String(v||'').toLocaleLowerCase('vi').includes(query)));
+    const selected = select.value;
+    select.replaceChildren();
+    const placeholder = document.createElement('option');
+    placeholder.value = ''; placeholder.textContent = list.length ? '— Chọn giáo viên nhận lớp —' : 'Không có giáo viên phù hợp';
+    select.appendChild(placeholder);
+    for(const t of list){
+      const option=document.createElement('option');
+      option.value=t.id;
+      option.textContent=(t.full_name || t.email)+' · '+t.email+(t.school ? ' · '+t.school : '');
+      select.appendChild(option);
+    }
+    if (list.some(x=>x.id===selected)) select.value=selected;
+    go.disabled = !list.length || !select.value;
+    $('#transfer-empty',el).hidden = !!list.length;
+  };
+  search.addEventListener('input',draw);
+  select.addEventListener('change',()=>{go.disabled=!select.value;});
+  draw();
+  $('#transfer-form',el).addEventListener('submit',(e)=>{e.preventDefault();go.click();});
+  go.onclick = async () => {
+    if (!isAdmin()) return;
+    const recipient=teachers.find(x=>x.id===select.value);
+    if (!recipient){$('#transfer-error',el).textContent='Hãy chọn giáo viên đã được kích hoạt.';return;}
+    const who=recipient.full_name||recipient.email;
+    const approved=await confirmBox('Xác nhận bàn giao lớp?',
+      'Chuyển lớp <b>'+esc(board.name)+'</b> từ <b>'+esc(oldName)+'</b> sang <b>'+esc(who)+'</b> ('+esc(recipient.email)+').<p>Sau khi chuyển, giáo viên cũ không còn quản lý lớp và giáo viên mới tiếp nhận '+posts+' bài làm. Mã lớp được giữ nguyên.</p>',
+      'Chuyển quyền',true);
+    if(!approved)return;
+    go.disabled=true;
+    const err=$('#transfer-error',el);err.textContent='';
+    try{
+      const {data,error}=await CAP.sb.rpc('admin_transfer_board',{p_board_id:board.id,p_new_owner:recipient.id});
+      if(error)throw error;
+      if(!data||data.new_owner!==recipient.id)throw new Error('Máy chủ chưa xác nhận chuyển quyền.');
+      m.close();
+      if(S.view.owner===board.ownerAcc)S.view.owner=null;
+      await loadData();
+      homeKey='';render();
+      toast('Đã chuyển lớp '+board.name+' cho '+who+'. '+(data.posts_transferred||0)+' bài làm được giữ nguyên.');
+      refreshMembers(false);
+    }catch(e){
+      err.textContent=e?.message||'Chuyển lớp chưa thành công. Không có dữ liệu nào bị thay đổi.';
+      go.disabled=false;
+    }
+  };
+}
+
 /* ---------- trang Thành viên (chỉ Quản trị hệ thống) ---------- */
 const STATUS_LABEL = { pending: 'Chờ duyệt', active: 'Đang hoạt động', locked: 'Đã khóa' };
 async function refreshMembers(loud) {
@@ -7760,6 +7854,7 @@ function boardMenu(btn, b) {
     <button role="menuitem" data-act="fav" data-id="${b.id}">${ic('pin')}${fav ? 'Bỏ ghim' : 'Ghim lên đầu'}</button>
     <button role="menuitem" data-act="share" data-id="${b.id}">${ic('send')}Chia sẻ cho học sinh</button>
     <button role="menuitem" data-act="edit-board" data-id="${b.id}">${ic('gear')}Cài đặt bảng</button>
+    ${isAdmin() ? `<button role="menuitem" data-act="transfer-board" data-id="${b.id}">${ic('users')}Chuyển quyền quản trị</button>` : ''}
     <button role="menuitem" data-act="m-archive" data-id="${b.id}">${ic('archive')}${b.archived ? 'Bỏ lưu trữ' : 'Lưu trữ'}</button>
     <button role="menuitem" data-act="trash-board" data-id="${b.id}" style="color:var(--pen)">${ic('trash')}Chuyển vào thùng rác</button>`;
   btn.closest('.bcard').appendChild(menu);
@@ -7792,6 +7887,7 @@ document.addEventListener('click', async (e) => {
     case 'join': closeDrawer(); joinForm(); break;
     case 'open-board': if (b && !b.trashed) { S.view = { name: 'board', boardId: b.id, tab: S.view.tab, q: '' }; render(); window.scrollTo(0, 0); } break;
     case 'edit-board': $('.menu')?.remove(); if (b) boardForm(b); break;
+    case 'transfer-board': $('.menu')?.remove(); if (b && isAdmin()) boardTransferForm(b); break;
     case 'trash-board':
       $('.menu')?.remove();
       if (b && await confirmBox('Chuyển vào thùng rác?', '<b>' + esc(b.name) + '</b> sẽ vào Thùng rác. Bạn có thể khôi phục lại sau.', 'Chuyển vào thùng rác', true)) { await saveBoard({ ...b, trashed: true, pinned: false, starred: false, shared: false }); toast('Đã chuyển vào thùng rác. Đường link cho học sinh đã tắt.'); }
