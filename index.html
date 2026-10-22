@@ -2303,6 +2303,25 @@ html,body{max-width:100%;overflow-x:clip}
 </style>
 
 
+
+<style id="student-feedback-styles">
+.student-result-entry>span{flex:1;min-width:0}
+.student-result-feedback{margin-top:3px!important;font-size:12px!important;color:#285277!important;line-height:1.5;white-space:normal;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.student-result-feedback b{font-size:12px;font-weight:800;color:#174c7c}
+.student-feedback-inline{margin:6px 0 8px;padding:10px 12px;border:1px solid #d5e7f4;border-radius:10px;background:#f4f9ff;color:#284565}
+.student-feedback-inline strong{display:flex;align-items:center;gap:5px;font-size:12px}
+.student-feedback-inline p{font-size:12px;line-height:1.5;margin:5px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.student-feedback-detail{border:1px solid #c4ddf1;background:#f7fbff;border-radius:12px;padding:16px!important}
+.student-feedback-detail h4{display:flex;align-items:center;gap:7px;color:#18588c}
+.student-feedback-detail h5{margin:0 0 7px;font-size:13px;color:#255478}
+.student-feedback-note p,.student-feedback-comment p,.student-feedback-ai p{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65;font-size:14px}
+.student-feedback-note{padding:12px;background:#fff;border:1px solid #e1ebf5;border-radius:9px}
+.student-feedback-comments,.student-feedback-ai{margin-top:12px}
+.student-feedback-comment{padding:10px 12px;margin-top:7px;border-radius:9px;border:1px solid #e1ebf5;background:#fff}
+.student-feedback-comment b{font-size:12px}
+.student-feedback-comment small{color:#728399;font-size:11px;margin-left:10px}
+.student-feedback-ai{padding:12px;border-radius:9px;background:#eef4ff;border:1px solid #d8e3fa}
+</style>
 <style id="student-score-results">
 .student-result-panel{margin:12px 16px 14px;padding:18px 20px;background:linear-gradient(125deg,#f1f7ff,#fff 70%);border:1px solid #bfd3ec;border-radius:16px;box-shadow:0 5px 24px #16396a0e}
 .student-result-top{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
@@ -4665,7 +4684,7 @@ function renderMyWork() {
   const ps = allPosts().filter((p) => p.studentAcc === me.id).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   $('#view').innerHTML = `
     <div class="crumbs"><nav><span>Không gian làm việc</span><span>/</span><span class="cur">Bài em đã nộp</span></nav><div class="crumbs-r">${acctChip()}</div></div>
-    <section class="hero"><div><p class="eyebrow">Xem lại để tiến bộ</p><div class="hline"><h1>Bài em đã nộp</h1>${headingArt()}</div><p class="lede">Bấm vào một bài để xem điểm, lỗi sai và gợi ý luyện tập.</p></div></section>
+    <section class="hero"><div><p class="eyebrow">Xem lại để tiến bộ</p><div class="hline"><h1>Bài em đã nộp</h1>${headingArt()}</div><p class="lede">Bấm vào một bài để xem điểm, lời nhận xét của giáo viên, lỗi sai và gợi ý luyện tập sau khi thầy cô duyệt.</p></div></section>
     ${ps.length ? `<div class="wall">${ps.map((p) => postCard(p, true)).join('')}</div>` : `<div class="empty">${ic('send')}<h3>Em chưa nộp bài nào</h3><p>Vào một lớp, đọc đề rồi bấm Nộp bài. Có thể chụp vở hoặc gõ bài trực tiếp.</p><button class="btn btn-brand" data-act="tab" data-tab="classes">Đến Lớp của em</button></div>`}`;
 }
 
@@ -5011,14 +5030,14 @@ function renderBoard(b) {
     </section>
     ${!gv ? `<section class="student-result-panel" aria-label="Điểm số bài làm của em">
       <div class="student-result-top"><div><p class="student-result-eyebrow">KẾT QUẢ HỌC TẬP CỦA EM</p>
-        <h2>${S.guest?.preview ? 'Xem điểm bài em đã nộp' : ownGradedPosts.length ? 'Điểm của em đã được công bố' : 'Theo dõi điểm của em'}</h2>
+        <h2>${S.guest?.preview ? 'Xem điểm bài em đã nộp' : ownGradedPosts.length ? 'Điểm và nhận xét của em đã được công bố' : 'Theo dõi điểm của em'}</h2>
         <p class="student-result-sub">${S.guest?.preview ? 'Em cần mở lại bài bằng mã cá nhân hoặc dùng chính trình duyệt đã nộp để xem điểm của mình.' : ownStudentPosts.length ? ownGradedPosts.length + ' bài đã có điểm · ' + ownWaitingPosts.length + ' bài đang chờ duyệt' : 'Em chưa có bài nộp trong lớp này.'} Điểm của các bạn khác luôn được giữ riêng.</p></div>
         <div class="student-result-actions">${S.guest?.preview ? `<button class="btn btn-brand" data-act="student-restore" data-id="${b.id}">${ic('search')}Tìm bài và điểm của em</button>` : `<button class="btn btn-soft" data-act="student-refresh" data-id="${b.id}">${ic('restore','ic-sm')}Cập nhật điểm</button><button class="btn btn-soft" data-act="student-private-link" data-id="${b.id}">${ic('copy')}Sao chép liên kết điểm riêng</button>`}</div>
       </div>
-      ${ownStudentPosts.length ? `<div class="student-result-list">${ownStudentPosts.slice(0,6).map(p => {const sc=finalScore(p); const max=b.assignment?.maxScore||10; return `<button type="button" class="student-result-entry" data-act="open-post" data-id="${p.id}"><span><b>${esc(p.studentName)}</b><small>${esc(vnTime(p.createdAt))} · ${sc == null ? 'Giáo viên chưa duyệt điểm' : 'Điểm giáo viên đã duyệt'}</small></span><strong class="student-result-score${sc==null?' pending':''}">${sc==null?'Chờ duyệt':fmt(sc)+' / '+fmt(max)}</strong>${ic('eye','ic-sm')}</button>`;}).join('')}</div>` : ''}
+      ${ownStudentPosts.length ? `<div class="student-result-list">${ownStudentPosts.slice(0,6).map(p => {const sc=finalScore(p); const max=b.assignment?.maxScore||10; const feedback=sc==null?null:studentFeedbackExcerpt(p); return `<button type="button" class="student-result-entry" data-act="open-post" data-id="${p.id}" aria-label="Xem điểm và nhận xét bài ${esc(p.studentName)}"><span><b>${esc(p.studentName)}</b><small>${esc(vnTime(p.createdAt))} · ${sc == null ? 'Giáo viên chưa duyệt điểm và nhận xét' : 'Điểm và nhận xét đã duyệt'}</small>${feedback ? `<small class="student-result-feedback"><b>${esc(feedback.label)}:</b> ${esc(feedback.text.slice(0,170))}${feedback.text.length>170?'…':''}</small>` : ''}</span><strong class="student-result-score${sc==null?' pending':''}">${sc==null?'Chờ duyệt':fmt(sc)+' / '+fmt(max)}</strong>${ic('eye','ic-sm')}</button>`;}).join('')}</div>` : ''}
       ${!S.guest?.preview && ownStudentPosts.length ? '<p class="student-result-safety">Liên kết xem điểm là riêng tư: chỉ chia sẻ với người được phép xem kết quả của em.</p>' : ''}
     </section>` : ''}
-    ${!gv ? `<div class="gbanner" role="status"><div><strong>Bài giáo viên giao, bài của em và bài đã duyệt trong lớp</strong><p>Thầy cô đăng bài cho cả lớp. Bài của em được hiển thị điểm số khi giáo viên đã duyệt. Học sinh khác không xem được điểm của em.</p></div><button class="btn btn-brand" data-act="submit" data-id="${b.id}">${ic('send')}Nộp bài vào lớp</button></div>` : ''}
+    ${!gv ? `<div class="gbanner" role="status"><div><strong>Bài giáo viên giao, bài của em và bài đã duyệt trong lớp</strong><p>Thầy cô đăng bài cho cả lớp. Điểm số và nhận xét bài của em được công bố khi giáo viên duyệt. Học sinh khác không xem được điểm của em.</p></div><button class="btn btn-brand" data-act="submit" data-id="${b.id}">${ic('send')}Nộp bài vào lớp</button></div>` : ''}
     ${S.batch && S.batch.boardId === b.id ? `<div class="batch" role="status"><span class="spin"></span><span>AI đang chấm bài ${Math.min(S.batch.done + 1, S.batch.total)}/${S.batch.total}</span><span class="bar"><i style="width:${(S.batch.done / S.batch.total) * 100}%"></i></span><button class="btn btn-sm btn-ghost" data-act="stop-batch">${ic('stop', 'ic-sm')}Dừng</button></div>` : ''}
     ${!aiOn() && !b.demo && isAdmin() ? `<div class="warnline row-between"><span>AI chấm bài chưa bật. Dán một khóa Gemini để mọi giáo viên dùng chung.</span><button class="btn btn-sm btn-navy" data-act="ai-settings">${ic('spark', 'ic-sm')}Bật AI chấm bài</button></div>` : ''}
     <div class="btool" role="toolbar" aria-label="Công cụ quản lý lớp">
