@@ -2302,6 +2302,30 @@ html,body{max-width:100%;overflow-x:clip}
 @media(max-width:480px){.attach-pick-btn{min-height:46px;width:100%;justify-content:center}.attached-file{flex-wrap:wrap}.attached-file a{min-height:40px}}
 </style>
 
+<style id="in-app-file-preview">
+.file-actions{display:flex!important;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.file-eye{display:inline-flex;align-items:center;gap:5px;min-height:34px;border:1px solid #9bbfe8;color:#0f5595;background:#eaf4ff;border-radius:8px;font-weight:700}
+.file-eye[aria-expanded="true"]{background:#d1e9ff;border-color:#4f95ce}
+.file-inline-preview{max-width:100%;min-width:0;padding:12px;margin:4px 0 12px;background:#fff;border:1px solid #d6e2ef;border-radius:12px;box-shadow:0 6px 20px #162d5010;overflow:auto}
+.fp-loading,.fp-error,.fp-note{padding:16px;color:#385473;line-height:1.5;font-size:13px}
+.fp-error{color:#a32636;background:#fff4f5;border-radius:8px}
+.fp-toolbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:center;gap:14px;padding:8px;background:#f4f8fd;border:1px solid #e4ebf4;border-radius:9px;margin-bottom:12px}
+.fp-toolbar button{min-width:38px;min-height:34px;border:1px solid #cbd9e8;background:#fff;border-radius:7px;cursor:pointer;font-size:20px}
+.fp-toolbar button:disabled{opacity:.4;cursor:default}
+.fp-toolbar select{min-width:120px;max-width:75%;padding:7px;background:#fff;border:1px solid #cbd9e8;border-radius:7px}
+.fp-canvas,.fp-image-wrap img{display:block;max-width:100%;height:auto;margin:0 auto;background:#fff}
+.fp-image-wrap img{width:auto!important;max-height:76vh;object-fit:contain;box-shadow:none}
+.fp-sheet{overflow:auto;max-height:65vh}
+.fp-sheet table{border-collapse:collapse;width:max-content;min-width:100%;font-size:12px;line-height:1.45}
+.fp-sheet td{border:1px solid #d6e0eb;padding:6px 9px;min-width:65px;max-width:360px;white-space:pre-wrap;overflow-wrap:anywhere}
+.fp-sheet tr:nth-child(odd){background:#f7faff}
+.fp-docx{overflow-x:auto;padding:8px;background:#e9edf4}
+.fp-docx .docx-wrapper{padding:12px!important;background:#e9edf4}
+.fp-docx .docx{box-shadow:0 3px 10px #112f521a!important;margin:8px auto 16px!important}
+.fp-docx img{cursor:default;max-width:100%}
+.fp-plain{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.55;max-height:60vh;overflow:auto}
+@media(max-width:600px){.file-inline-preview{padding:7px}.fp-docx{padding:0}.attached-file .file-actions{width:100%;justify-content:flex-start}.fp-docx .docx-wrapper{padding:4px!important}}
+</style>
 <style id="column-horizontal-slider">
 /* Padlet-style persistent horizontal track, floating immediately above the footer. */
 .app.board-open .column-scroll-control{
@@ -2674,6 +2698,7 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="./answer-materials.js"></script>
+<script src="./file-preview.js"></script>
 <script>
 (() => {
 'use strict';
@@ -3204,6 +3229,7 @@ const ATT_MIME = {
  pdf:'application/pdf',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
  xls:'application/vnd.ms-excel',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
  ppt:'application/vnd.ms-powerpoint',pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+ jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',gif:'image/gif',
  txt:'text/plain',csv:'text/csv',odt:'application/vnd.oasis.opendocument.text',
  ods:'application/vnd.oasis.opendocument.spreadsheet',odp:'application/vnd.oasis.opendocument.presentation',
  mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm',mp3:'audio/mpeg',m4a:'audio/mp4',wav:'audio/wav'
@@ -3225,7 +3251,7 @@ function checkAttachments(files,old=[]) {
 }
 function attachPickerHtml(id,existing=[]) {
  return `<div class="fld attach-picker">
-   <span>Đính kèm tệp <em>(Word, PDF, Excel, PowerPoint, video, âm thanh...)</em></span>
+   <span>Đính kèm tệp <em>(Word, PDF, Excel, PowerPoint, hình ảnh, video, âm thanh...)</em></span>
    <label class="attach-pick-btn">${ic('plus','ic-sm')} Chọn nhiều tệp <input type="file" id="${esc(id)}" accept="${ATT_ACCEPT}" multiple></label>
    <div class="attach-selected" data-selected-files aria-live="polite"></div>
    <p class="fld-hint">Tối đa 5 tệp · 25 MB/tệp · tổng 80 MB. Hỗ trợ DOC, DOCX, PDF, XLS, XLSX, PPT, PPTX, MP4, MOV, WebM, MP3, WAV, TXT, CSV và OpenDocument.</p>
@@ -3298,14 +3324,16 @@ function attachmentList(p,expanded=false){
  }).join('')}</section>`;
  return `<section class="attached-files">
   <h4>${ic('download','ic-sm')} ${items.length} tệp đính kèm</h4>
-  ${items.map(a=>{
+  ${items.map((a,i)=>{
    const href=attachmentUrl(a),downloadHref=attachmentUrl(a,true),type=String(a.type||'');
+   const media=type.startsWith('video/')||type.startsWith('audio/');
    return `<div class="attached-file">
      <div><b>${esc(a.name)}</b><small>${prettyBytes(a.size)} · ${esc(attachmentExt(a.name).toUpperCase())}</small></div>
-     ${href?`<a href="${esc(downloadHref)}" target="_blank" rel="noopener noreferrer" download="${esc(a.name)}">${ic('download','ic-sm')} Tải về</a>`:'<span>Đang tạo liên kết...</span>'}
+     <div class="file-actions">${expanded&&href&&!media?`<button type="button" class="btn btn-sm file-eye" data-view-file="${i}" aria-expanded="false" aria-label="Xem trực tiếp ${esc(a.name)}" title="Xem ngay trên website">${ic('eye','ic-sm')} Xem</button>`:''}${href?`<a href="${esc(downloadHref)}" target="_blank" rel="noopener noreferrer" download="${esc(a.name)}">${ic('download','ic-sm')} Tải về</a>`:'<span>Đang tạo liên kết...</span>'}</div>
     </div>
     ${expanded&&href&&type.startsWith('video/')?`<video controls preload="metadata" playsinline src="${esc(href)}"></video>`:''}
-    ${expanded&&href&&type.startsWith('audio/')?`<audio controls preload="metadata" src="${esc(href)}"></audio>`:''}`;
+    ${expanded&&href&&type.startsWith('audio/')?`<audio controls preload="metadata" src="${esc(href)}"></audio>`:''}
+    ${expanded&&!media?`<div class="file-inline-preview" data-file-preview="${i}" hidden></div>`:''}`;
   }).join('')}
  </section>`;
 }
@@ -3370,6 +3398,19 @@ async function previewPeerFile(p,index,button) {
   finally {button.disabled=false;}
 }
 
+async function previewAttachmentFile(p,index,button) {
+  if (!detail || detail.id!==p.id || !window.TuongAiFilePreview) return;
+  const el=button.closest('.attached-files')?.querySelector('[data-file-preview="'+index+'"]');
+  const file=p.attachments?.[index]; if (!el || !file) return;
+  if (!el.hidden) {
+    window.TuongAiFilePreview.close(el); el.hidden=true; el.textContent='';
+    button.setAttribute('aria-expanded','false'); return;
+  }
+  const url=attachmentUrl(file);
+  if (!url) {toast('Liên kết tệp chưa sẵn sàng. Vui lòng thử lại.');return;}
+  button.setAttribute('aria-expanded','true');
+  await window.TuongAiFilePreview.render(el,file,url);
+}
 /* ================= gọi máy chủ ================= */
 async function api(action, payload = {}, signal) {
   let token = '';
@@ -6502,7 +6543,7 @@ function openDetail(id, autoGrade, focus) {
     wide: true,
     cls: gv ? "pd-review-modal" : "",
     body: `<div class="pd"${peerPost(p) ? ' data-peer-protected="1"' : ''}><div class="pd-media" id="pd-media"></div><div class="pd-side" id="pd-side"></div></div>`,
-    onClose: () => { const c = ctlOf.get(id); if (c) c.abort(); detail?.as?.ctl?.abort(); detail = null; },
+    onClose: () => { window.TuongAiFilePreview?.dispose(m.el); const c = ctlOf.get(id); if (c) c.abort(); detail?.as?.ctl?.abort(); detail = null; },
   });
   detail = { id, m, started: 0, studentDrafts: {}, studentBusy: '', studentMessage: '', studentError: '' };
   drawMedia(); drawSide();
@@ -6518,10 +6559,12 @@ function drawMedia() {
   const srcs = postImageSrcs(p);
   const key = JSON.stringify([srcs, p.text, p.attachments, (p.attachments||[]).map(x=>SIGNED.get(x.path)?.url)]);
   if (el.dataset.k === key) return;
+  window.TuongAiFilePreview?.dispose(el);
   el.dataset.k = key;
   el.innerHTML = (peerPost(p) ? '<p class="peer-view-notice">Chỉ xem bài đã duyệt · Điểm của bạn được giữ riêng</p>' : '') + srcs.map((s, i) => s ? `<div class="post-image-wrap"><img src="${esc(s)}" alt="Trang ${i + 1} bài làm của ${esc(p.studentName)}" data-k="${i}" draggable="false" title="Bấm để phóng to, xoay ảnh">${peerPost(p) ? '<span class="peer-watermark" aria-hidden="true">Tường học tập AI · Chỉ xem</span>' : ''}</div>` : '<div class="empty">Đang tải ảnh…</div>').join('') + (text ? `<div class="pd-text"><p class="eyebrow" style="margin-bottom:6px">Bài gõ</p>${esc(text)}</div>` : '') + (peerPost(p) ? (links.length ? '<p class="meta">Liên kết gốc chỉ dành cho chủ bài và giáo viên.</p>' : '') : linkChips(links, true)) + attachmentList(p,true);
   $$('img[data-k]', el).forEach((im) => (im.onclick = () => openViewer(postImageSrcs(p), +im.dataset.k, peerPost(p))));
-  $$('[data-peer-file]', el).forEach(btn => (btn.onclick = () => previewPeerFile(p, Number(btn.dataset.peerFile), btn)));
+  $('[data-peer-file]', el).forEach(btn => (btn.onclick = () => previewPeerFile(p, Number(btn.dataset.peerFile), btn)));
+  $('[data-view-file]', el).forEach(btn => (btn.onclick = () => previewAttachmentFile(p, Number(btn.dataset.viewFile), btn)));
 }
 function refreshDetail() {
   if (!detail) return;
