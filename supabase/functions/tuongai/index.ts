@@ -335,11 +335,16 @@ function cleanAnalysis(r: any) {
 /* Bài luyện tập tương tự của học sinh trên link lớp: câu hỏi từ máy chủ, không tin đề/đáp án trình duyệt. */
 async function similarContext(postId: string, boardId: string) {
   const { data:p, error } = await db.from("posts").select("*").eq("id",postId).eq("board_id",boardId).maybeSingle();
-  if (error || !p || !p.teacher?.approvedAt || p.by !== "hs") throw new Fail("not_approved","Bài này chưa được duyệt hoặc không còn bài tập tương tự.",403);
+  if (error || !p || !p.teacher?.approvedAt || p.teacher?.postType === "announcement") throw new Fail("not_approved","Bài này chưa được duyệt hoặc không còn bài tập tương tự.",403);
   return p;
 }
-function similarQuestion(post: any, index: number) {
+function similarQuestion(post: any, index: number, ownQuestion = "") {
   const questions=studentSimilarQuestions(post,true);
+  if(index===-1 && !questions.length) {
+    const question=txt(ownQuestion,2000);
+    if(question.length<10) throw new Fail("need_question","Chưa có đề do giáo viên giao; em hãy nhập đề bài tự luyện (ít nhất 10 ký tự).");
+    return {question,key:"self",expectedAnswer:"",criteria:"Đánh giá lời giải cho đề do học sinh tự chọn; chỉ chấm sơ bộ, giáo viên xác nhận."};
+  }
   if (!Number.isInteger(index) || index<0 || index>=questions.length) throw new Fail("invalid_exercise","Câu hỏi này đã thay đổi. Em hãy tải lại trang.",400);
   const q=questions[index];
   const assigned=post.teacher?.assist?.similar;
@@ -362,7 +367,7 @@ async function aiGradeSimilar(item: any, task: any, board: any) {
   return {score:Math.round(Math.max(0,Math.min(10,score))*4)/4,note:txt(raw?.note,1600),model:(await config("gemini_model"))||"gemini-flash-latest"};
 }
 function safeSimilarAttempt(row:any) {
-  return {id:row.id,post_id:row.post_id,exercise_key:row.exercise_key,response:row.response,
+  return {id:row.id,post_id:row.post_id,exercise_key:row.exercise_key,exercise_question:row.exercise_question||"",response:row.response,
     submitted_at:row.submitted_at, ai_score:row.ai_score,ai_note:row.ai_note,
     teacher_score:row.locked_at?row.teacher_score:null,teacher_note:row.locked_at?row.teacher_note:"",
     locked_at:row.locked_at};
@@ -468,7 +473,7 @@ async function handle(req: Request) {
       if(token.length<16||token.length>80) throw new Fail("bad_token","Thiếu mã truy cập bài làm. Em hãy tải lại trang.",403);
       if(name.length<2) throw new Fail("bad_name","Em hãy điền họ tên trước khi nộp bài.");
       if(!response||response.length<3) throw new Fail("empty","Em hãy nhập lời giải đầy đủ (ít nhất 3 ký tự).");
-      const post=await similarContext(postId,board.id),task=similarQuestion(post,index);
+      const post=await similarContext(postId,board.id),task=similarQuestion(post,index,str(body.question,2000));
       const {data:existing,error:lookupErr}=await db.from("similar_attempts").select("*").eq("post_id",post.id).eq("exercise_key",task.key)
         .eq("student_token",token).maybeSingle();
       if(lookupErr) throw new Fail("server","Không tìm được bài luyện tập trước đó.",500);
@@ -480,7 +485,7 @@ async function handle(req: Request) {
       const {count}=await db.from("similar_attempts").select("id",{head:true,count:"exact"})
         .eq("student_token",token).gte("submitted_at",since);
       if(!existing && (count||0)>=12) throw new Fail("too_many","Em đã nộp nhiều bài trong giờ qua. Hãy quay lại sau.",429);
-      const base={board_id:board.id,post_id:post.id,exercise_key:task.key,student_token:token,student_name:name,
+      const base={board_id:board.id,post_id:post.id,exercise_key:task.key,exercise_question:task.question,student_token:token,student_name:name,
         response,submitted_at:new Date().toISOString(),ai_score:null,ai_note:"",ai_model:""};
       const write=existing
         ? await db.from("similar_attempts").update(base).eq("id",existing.id).is("locked_at",null).select("*").maybeSingle()
@@ -502,7 +507,7 @@ async function handle(req: Request) {
       const u=needActive(me),postId=str(body.post_id,60);
       const {data:p}=await db.from("posts").select("id,owner,board_id,teacher").eq("id",postId).maybeSingle();
       if(!p||(p.owner!==u.id&&u.role!=="admin")) throw new Fail("forbidden","Không có quyền xem bài luyện tập.",403);
-      const {data,error}=await db.from("similar_attempts").select("id,student_name,exercise_key,response,submitted_at,ai_score,ai_note,teacher_score,teacher_note,locked_at,post_id")
+      const {data,error}=await db.from("similar_attempts").select("id,student_name,exercise_key,exercise_question,response,submitted_at,ai_score,ai_note,teacher_score,teacher_note,locked_at,post_id")
         .eq("post_id",p.id).order("submitted_at",{ascending:false}).limit(500);
       if(error) throw new Fail("server","Không tải được kết quả luyện tập.",500);
       const attempts=data||[],locked=attempts.filter((x:any)=>x.locked_at&&x.teacher_score!=null);
@@ -529,7 +534,7 @@ async function handle(req: Request) {
         const board=await db.from("boards").select("*").eq("id",attempt.board_id).maybeSingle();
         if(!board.data) throw new Fail("not_found","Không tìm thấy lớp.");
         const index=Number(String(attempt.exercise_key).slice(1));
-        const task=similarQuestion(post,index),ai=await aiGradeSimilar(attempt,task,board.data);
+        const task=similarQuestion(post,index,str(attempt.exercise_question,2000)),ai=await aiGradeSimilar(attempt,task,board.data);
         patch={ai_score:ai.score,ai_note:ai.note,ai_model:ai.model};
       }
       const {data,error}=await db.from("similar_attempts").update(patch).eq("id",id).is("locked_at",null).select("*").maybeSingle();
