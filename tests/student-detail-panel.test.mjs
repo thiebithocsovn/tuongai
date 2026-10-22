@@ -52,6 +52,15 @@ test('A preview opening an approved classmates submission displays publicly appr
  assert.match(result,/Điểm và nhận xét AI riêng của bạn không hiển thị/);
  assert.ok(result.length>200);
 });
+test('Teacher-photographed student work keeps published comments visible to class visitors',()=>{
+ const p={id:'teacher-photo',boardId:'cls',by:'gv',studentAcc:null,studentName:'Học sinh C',
+   teacher:{postType:'student_work',approvedAt:123,note:'Chữ viết rõ, cần đặt phép tính thẳng hàng.',comments:[]},
+   similarQuestions:[]};
+ const result=renderStudent(p,{peer:true});
+ assert.match(result,/Nhận xét sau khi chấm/);
+ assert.match(result,/Chữ viết rõ/);
+ assert.match(result,/Điểm và nhận xét AI riêng của bạn không hiển thị/);
+});
 test('An old approved submission without AI result or written remarks still displays a clear message',()=>{
  const p={id:'old',boardId:'cls',by:'hs',studentAcc:'this-student',studentName:'Học sinh A',
   teacher:{approvedAt:123,score:0},ai:null,similarQuestions:[]};
