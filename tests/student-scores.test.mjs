@@ -65,7 +65,7 @@ test('Student result links keep the secret in URL fragment, not in a query strin
 test('Student feedback shows published teacher notes and comments, with AI clearly separate',()=>{
   const src=section('function publishedStudentFeedback(p)','const postColor =');
   const escape=(v)=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const context={S:{guest:{id:'my-student'},meId:'my-student'},ic:()=>'<svg></svg>',esc:escape,vnTime:()=> '22/10/2026'};
+  const context={S:{guest:{id:'my-student'},meId:'my-student'},getBoard:()=>({assignment:{studentView:{showFeedback:true}}}),ic:()=>'<svg></svg>',esc:escape,vnTime:()=> '22/10/2026'};
   const tools=vm.runInNewContext(src+'\n({publishedStudentFeedback,studentFeedbackExcerpt,studentFeedbackDetail})',context);
   const raw={...approved,teacher:{...approved.teacher,note:'Tốt: tiếp tục luyện tập',comments:[
     {name:'Cô giáo',text:'Bổ sung cách trình bày ở câu 2',at:123},
