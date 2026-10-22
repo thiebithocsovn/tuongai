@@ -246,7 +246,8 @@ async function boardByCode(code: string) {
 const publicBoard = (b: any) => ({
   id: b.id, name: b.name, school: b.school, subject: b.subject, grade: b.grade, cover: b.cover, layout: b.layout,
   code: b.code, auto_grade: b.auto_grade, columns: b.columns, teacher: b.teacher_name || "",
-  assignment: { title: b.assignment?.title || "", prompt: b.assignment?.prompt || "", maxScore: Number(b.assignment?.maxScore) || 10 },
+  assignment: { title: b.assignment?.title || "", prompt: b.assignment?.prompt || "", maxScore: Number(b.assignment?.maxScore) || 10,
+    studentView: { showFeedback: b.assignment?.studentView?.showFeedback !== false, showSimilar: b.assignment?.studentView?.showSimilar !== false } },
 });
 
 /* Học sinh chỉ nhận đề + gợi ý; tuyệt đối không đưa expectedAnswer,
@@ -395,7 +396,7 @@ async function handle(req: Request) {
       const rows = new Map([...classroom, ...teacherPosts, ...mine].map((p: any) => [p.id, p]));
       const posts = [...rows.values()].filter((p: any) => visibleToStudent(p, token, b.teacher_name)).map((p: any) => {
         const own = ownsStudentPost(p, token);
-        return { ...publicPost(p, own, b.teacher_name), practice: own ? studentPracticeSets(p) : [] };
+        return { ...publicPost(p, own, b.teacher_name, b.assignment?.studentView), practice: own && b.assignment?.studentView?.showSimilar !== false && p.teacher?.approvedAt ? studentPracticeSets(p) : [] };
       });
       const ids = posts.filter((p: any) => p.visibility === "mine").map((p: any) => p.id);
       let submitted: any[] = [];
