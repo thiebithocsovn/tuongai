@@ -6729,7 +6729,14 @@ function openDetail(id, autoGrade, focus) {
     onClose: () => { window.TuongAiFilePreview?.dispose(m.el); const c = ctlOf.get(id); if (c) c.abort(); detail?.as?.ctl?.abort(); detail = null; },
   });
   detail = { id, m, started: 0, studentDrafts: {}, studentBusy: '', studentMessage: '', studentError: '' };
-  drawMedia(); drawSide();
+  // Nhận xét là nội dung chính của cửa sổ: luôn hiển thị trước khi nạp ảnh và tệp.
+  drawSide();
+  try { drawMedia(); }
+  catch (error) {
+    console.warn('Không thể khởi tạo một số nút xem tệp bài làm:', error);
+    const media = $('#pd-media', m.el);
+    if (media && !media.innerHTML.trim()) media.innerHTML = '<p class="meta">Ảnh hoặc tệp đính kèm chưa tải được. Nhận xét vẫn hiển thị ở bên cạnh.</p>';
+  }
   if (!announcement && !gv && S.guest) studentPracticeRefresh(id);
   if (!announcement && autoGrade && gv && !p.ai) runGrade(id);
   if (focus === 'cmt') setTimeout(() => { $('#pd-cmt', m.el)?.scrollIntoView({ block: 'center' }); $('#cm-text', m.el)?.focus(); }, 80);
@@ -6746,8 +6753,8 @@ function drawMedia() {
   el.dataset.k = key;
   el.innerHTML = (peerPost(p) ? '<p class="peer-view-notice">Chỉ xem bài đã duyệt · Điểm của bạn được giữ riêng</p>' : '') + srcs.map((s, i) => s ? `<div class="post-image-wrap"><img src="${esc(s)}" alt="Trang ${i + 1} bài làm của ${esc(p.studentName)}" data-k="${i}" draggable="false" title="Bấm để phóng to, xoay ảnh">${peerPost(p) ? '<span class="peer-watermark" aria-hidden="true">Tường học tập AI · Chỉ xem</span>' : ''}</div>` : '<div class="empty">Đang tải ảnh…</div>').join('') + (text ? `<div class="pd-text"><p class="eyebrow" style="margin-bottom:6px">Bài gõ</p>${esc(text)}</div>` : '') + (peerPost(p) ? (links.length ? '<p class="meta">Liên kết gốc chỉ dành cho chủ bài và giáo viên.</p>' : '') : linkChips(links, true)) + attachmentList(p,true);
   $$('img[data-k]', el).forEach((im) => (im.onclick = () => openViewer(postImageSrcs(p), +im.dataset.k, peerPost(p))));
-  $('[data-peer-file]', el).forEach(btn => (btn.onclick = () => previewPeerFile(p, Number(btn.dataset.peerFile), btn)));
-  $('[data-view-file]', el).forEach(btn => (btn.onclick = () => previewAttachmentFile(p, Number(btn.dataset.viewFile), btn)));
+  $$('[data-peer-file]', el).forEach(btn => (btn.onclick = () => previewPeerFile(p, Number(btn.dataset.peerFile), btn)));
+  $$('[data-view-file]', el).forEach(btn => (btn.onclick = () => previewAttachmentFile(p, Number(btn.dataset.viewFile), btn)));
 }
 function refreshDetail() {
   if (!detail) return;
