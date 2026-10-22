@@ -17,7 +17,7 @@ function render({name='',attempts=[],showSimilar=true,sourcePost=post,guest={pre
  const detail={id:'post',similarName:name,similarAttempts:attempts,similarDrafts:{},similarBusy:'',similarError:'',similarMessage:''};
  const S={guest,meId:'viewer'};
  const b={code:'ABC123',assignment:{studentView:{showSimilar}}};
- const ctx={detail,S,getBoard:()=>b,ic:()=>'',esc:escape,vnTime:()=> '23/10/2026',fmt:String,deviceToken:()=> 'a'.repeat(32),
+ const ctx={detail,S,CAP:{aiReady:false},getBoard:()=>b,ic:()=>'',esc:escape,vnTime:()=> '23/10/2026',fmt:String,deviceToken:()=> 'a'.repeat(32),
    guestId:()=> 'g_1234',SS:{get:()=>''},api:()=>{throw Error('not connected')}};
  const fn=vm.runInNewContext(helper+'\n'+ui+'\nstudentSimilarPreviewHtml',ctx);
  return String(fn(sourcePost));
@@ -61,7 +61,7 @@ test('Preview honors teacher sharing controls and approval',()=>{
 test('Teacher gradebook shows submission, preliminary AI grade and requires a deliberate lock step',()=>{
  const ctx={detail:{teacherSimilar: [{id:'a',student_name:'Học sinh A',exercise_key:'q0',submitted_at:'2026-10-23',response:'36 cm²',ai_score:9,ai_note:'Tính đúng'}],
   teacherSimilarSummary:{submitted:1,locked:0,average_score:null,original_score:7},teacherSimilarLoaded:true,teacherSimilarLoading:false},
-  ic:()=>'',esc:escape,vnTime:()=> '23/10/2026',fmt:String};
+  CAP:{aiReady:false},ic:()=>'',esc:escape,vnTime:()=> '23/10/2026',fmt:String};
  const fn=vm.runInNewContext(helper+'\nteacherSimilarReviewHtml',ctx);
  const out=String(fn(post));
  assert.match(out,/Chấm và khóa sổ/);
