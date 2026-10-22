@@ -77,6 +77,54 @@ test('Public class link shows approved teacher feedback without authenticating a
   assert.match(feedback(noComment),/chưa công bố nhận xét bằng chữ/);
   assert.match(html,/api\('student_feed', \{ code \}\)/);
 });
+test('Opening the shared student link displays approved teacher remarks directly under each post AND in the eye viewer',()=>{
+  const context={S:{guest:{preview:true,id:'anonymous-viewer'},meId:'anonymous-viewer'},
+    getBoard:()=>({assignment:{studentView:{showFeedback:true}}}),isTeacherAnnouncement:p=>p?.teacher?.postType==='announcement',
+    ic:()=>'<svg></svg>',esc:(x)=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),
+    vnTime:()=>''};
+  const start=html.indexOf('function publishedStudentFeedback(p)'),end=html.indexOf('const postColor =',start);
+  const view=vm.runInNewContext(html.slice(start,end)+'\n({studentFeedbackInlineHtml,studentFeedbackDetail})',context);
+  const approvedPeer=studentPost(approved,false,'',{showFeedback:true});
+  const peer={...approvedPeer,boardId:'b1',studentAcc:null};
+  const wall=view.studentFeedbackInlineHtml(peer);
+  const detail=view.studentFeedbackDetail(peer);
+  assert.match(wall,/Nhận xét của giáo viên sau khi chấm/);
+  assert.match(wall,/Em cần chú ý phép tính/);
+  assert.match(wall,/Sửa câu 2/);
+  assert.match(wall,/data-act="open-post"/);
+  assert.match(wall,/Xem bài và nhận xét đầy đủ/);
+  assert.match(detail,/Nhận xét sau khi chấm/);
+  assert.match(detail,/Em cần chú ý phép tính/);
+  assert.match(detail,/Sửa câu 2/);
+  assert.ok(!wall.includes('AI chỉ gửi cho chủ bài'));
+  assert.ok(!wall.includes('Bí mật'));
+  assert.ok(!wall.includes('Điểm: 8'));
+  assert.equal(peer.teacher.score,undefined);
+  assert.match(html,/!gv && approved \? studentFeedbackInlineHtml\(p\)/);
+  assert.match(html,/!gv && approved \? '📝 Xem bài và nhận xét'/);
+});
+test('The wall never exposes draft comments, hidden class feedback, teacher announcements or unsafe HTML',()=>{
+  let hidden=false;
+  const context={S:{guest:{preview:true,id:'anonymous-viewer'},meId:'anonymous-viewer'},
+    getBoard:()=>({assignment:{studentView:{showFeedback:!hidden}}}),
+    isTeacherAnnouncement:p=>p?.teacher?.postType==='announcement',
+    ic:()=>'',esc:(v)=>String(v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),vnTime:()=>''};
+  const start=html.indexOf('function publishedStudentFeedback(p)'),end=html.indexOf('const postColor =',start);
+  const inline=vm.runInNewContext(html.slice(start,end)+'\nstudentFeedbackInlineHtml',context);
+  const draft={id:'draft',boardId:'b1',by:'hs',studentAcc:null,teacher:{note:'Không công bố'}};
+  assert.equal(inline(draft),'');
+  const teacher={id:'notice',boardId:'b1',by:'gv',teacher:{postType:'announcement',approvedAt:123,note:'Thông báo'}};
+  assert.equal(inline(teacher),'');
+  const escaped=studentPost({...approved,teacher:{...approved.teacher,note:'<img src=x onerror="alert(1)">'}},false);
+  const post={...escaped,boardId:'b1',studentAcc:null};
+  assert.ok(!inline(post).includes('<img src=x'));
+  assert.match(inline(post),/&lt;img/);
+  // Separate class settings API strips feedback for every student; UI still guards disabled state.
+  const suppressed=studentPost(approved,false,'',{showFeedback:false});
+  assert.equal(suppressed.teacher.note,undefined);
+  assert.equal(suppressed.teacher.comments,undefined);
+  assert.equal(inline({...suppressed,boardId:'b1',studentAcc:null}).includes('Em cần chú ý phép tính'),false);
+});
 test('Student guest preview considers teacher-photographed student work a classmate post',()=>{
   const c={S:{guest:{preview:true,id:'preview-b1'},meId:'preview-b1',members:new Map()},getBoard:()=>null,isGV:()=>false,ME:()=>null};
   const start=html.indexOf('function isTeacherAnnouncement(p)'),end=html.indexOf('/* Browser-level deterrents',start);
