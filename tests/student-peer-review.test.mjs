@@ -62,6 +62,29 @@ test('The right-hand column explicitly renders student peer feedback and similar
   assert.match(html,/id="bf-similar"/);
   assert.match(html,/studentView: \{ showFeedback: \$\('#bf-feedback', el\)\.checked, showSimilar: \$\('#bf-similar', el\)\.checked \}/);
 });
+test('Public class link shows approved teacher feedback without authenticating as a student',()=>{
+  const context={S:{guest:{preview:true,id:'preview-class'},meId:'preview-class'},getBoard:()=>({assignment:{studentView:{showFeedback:true}}}),ic:()=>'',esc:(x)=>String(x),vnTime:()=>'',isGV:()=>false,ME:()=>null};
+  const start=html.indexOf('function publishedStudentFeedback(p)'),end=html.indexOf('const postColor =',start);
+  assert.ok(start>=0&&end>start);
+  const feedback=vm.runInNewContext(html.slice(start,end)+'\nstudentFeedbackDetail',context);
+  const publicPost=studentPost(approved,false,'',{showFeedback:true,showSimilar:true});
+  const peer={...publicPost,boardId:'b1',studentAcc:null};
+  assert.match(feedback(peer),/Nhận xét sau khi chấm/);
+  assert.match(feedback(peer),/Em cần chú ý phép tính/);
+  assert.match(feedback(peer),/Sửa câu 2/);
+  assert.ok(!feedback(peer).includes('Điểm: 8'));
+  const noComment={...peer,teacher:{approvedAt:123}};
+  assert.match(feedback(noComment),/chưa công bố nhận xét bằng chữ/);
+  assert.match(html,/api\('student_feed', \{ code \}\)/);
+});
+test('Student guest preview considers teacher-photographed student work a classmate post',()=>{
+  const c={S:{guest:{preview:true,id:'preview-b1'},meId:'preview-b1',members:new Map()},getBoard:()=>null,isGV:()=>false,ME:()=>null};
+  const start=html.indexOf('function isTeacherAnnouncement(p)'),end=html.indexOf('/* Browser-level deterrents',start);
+  const fn=vm.runInNewContext(html.slice(start,end)+'\npeerPost',c);
+  assert.equal(fn({by:'hs',studentAcc:null,teacher:{approvedAt:123}}),true);
+  assert.equal(fn({by:'gv',studentAcc:null,teacher:{postType:'student_work',approvedAt:123}}),true);
+  assert.equal(fn({by:'gv',studentAcc:null,teacher:{postType:'announcement'}}),false);
+});
 test('All inline application scripts remain syntactically valid',()=>{
   for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){
     if(m[1].trim())assert.doesNotThrow(()=>new vm.Script(m[1]));
