@@ -6748,18 +6748,21 @@ async function studentSimilarSubmit(index) {
   const nameInput=$('[data-sim-name]',d.m.el);
   const name=(nameInput?.value || similarStudentName(p)).trim().replace(/\s+/g,' ');
   const answer=[...d.m.el.querySelectorAll('[data-sim-answer]')].find(el=>+el.dataset.simAnswer===index);
-  const response=(answer?.value||d.similarDrafts?.['q'+index]||'').trim();
+  const key=index===-1?'self':'q'+index;
+  const response=(answer?.value||d.similarDrafts?.[key]||'').trim();
+  const question=index===-1?($('[data-sim-question]',d.m.el)?.value||d.similarSelfQuestion||'').trim():'';
   if(name.length<2){d.similarError='Em cần điền họ tên trước khi nộp bài.';nameInput?.focus();return;}
+  if(index===-1 && question.length<10){d.similarError='Em hãy nhập đề bài tương tự trước (ít nhất 10 ký tự).';alert(d.similarError);return;}
   if(response.length<3){d.similarError='Em hãy gõ lời giải trước khi nộp (ít nhất 3 ký tự).';answer?.focus();return;}
-  d.similarName=name;d.similarDrafts['q'+index]=response;
+  d.similarName=name;d.similarDrafts[key]=response;if(index===-1)d.similarSelfQuestion=question;
   SS.set('tuongai-similar-name-'+b.code,name);
-  d.similarBusy='q'+index;d.similarError='';drawSide();
+  d.similarBusy=key;d.similarError='';drawSide();
   try {
-    const result=await api('similar_attempt_submit',{code:b.code,post_id:p.id,token:similarStudentToken(name),name,index,response});
+    const result=await api('similar_attempt_submit',{code:b.code,post_id:p.id,token:similarStudentToken(name),name,index,question,response});
     if(detail!==d)return;
-    d.similarAttempts=(d.similarAttempts||[]).filter(a=>a.exercise_key!=='q'+index);
+    d.similarAttempts=(d.similarAttempts||[]).filter(a=>a.exercise_key!==key);
     d.similarAttempts.push(result.attempt);
-    delete d.similarDrafts['q'+index];
+    delete d.similarDrafts[key];
     d.similarMessage=result.warning||result.message||'Đã nộp. Chờ giáo viên khóa sổ.';
   }catch(e){if(detail===d)d.similarError=aiMsg(e)}
   finally {if(detail===d){d.similarBusy='';drawSide();}}
@@ -6767,7 +6770,8 @@ async function studentSimilarSubmit(index) {
 function bindStudentSimilar(el) {
   const name=$('[data-sim-name]',el);
   if(name)name.oninput=()=>{if(detail)detail.similarName=name.value;};
-  $$('[data-sim-answer]',el).forEach(x=>x.oninput=()=>{if(detail)detail.similarDrafts['q'+x.dataset.simAnswer]=x.value});
+  $$('[data-sim-answer]',el).forEach(x=>x.oninput=()=>{if(detail)detail.similarDrafts[x.dataset.simAnswer==='-1'?'self':'q'+x.dataset.simAnswer]=x.value});
+  $('[data-sim-question]',el)?.addEventListener('input',event=>{if(detail)detail.similarSelfQuestion=event.target.value});
   $$('[data-sim-send]',el).forEach(x=>x.onclick=()=>studentSimilarSubmit(+x.dataset.simSend));
   $('[data-sim-refresh]',el)?.addEventListener('click',()=>studentSimilarRefresh(detail.id));
 }
@@ -6780,7 +6784,7 @@ function teacherSimilarReviewHtml(p) {
     ${d.teacherSimilarError?`<p class="as-err" role="alert">${esc(d.teacherSimilarError)}</p>`:''}
     ${d.teacherSimilarMessage?`<p class="as-ok" role="status">${esc(d.teacherSimilarMessage)}</p>`:''}
     ${d.teacherSimilarLoaded?`<p class="teacher-similar-stats">Đã nộp: <b>${summary.submitted||0}</b> · Đã khóa sổ: <b>${summary.locked||0}</b> · Điểm trung bình đã chốt: <b>${summary.average_score??'—'}/10</b> ${summary.original_score!=null?'· Điểm bài gốc: '+fmt(summary.original_score):''}</p>
-      ${!attempts.length?'<p class="meta">Chưa có lượt nộp nào.</p>':attempts.map(a=>`<article class="teacher-similar-item" data-sim-teacher-id="${esc(a.id)}"><strong>${esc(a.student_name)} · Câu ${esc(String(a.exercise_key).replace('q',''))}</strong>
+      ${!attempts.length?'<p class="meta">Chưa có lượt nộp nào.</p>':attempts.map(a=>`<article class="teacher-similar-item" data-sim-teacher-id="${esc(a.id)}"><strong>${esc(a.student_name)} · ${a.exercise_key==='self'?'Bài tự luyện': 'Câu '+esc(String(a.exercise_key).replace('q',''))}</strong><p class="meta">${esc(a.exercise_question||'')}</p>
        <small>${esc(vnTime(a.submitted_at))} · ${a.locked_at?'Đã khóa sổ':'Chờ giáo viên chấm'}</small>
        <p class="teacher-similar-response">${esc(a.response)}</p>
        <p class="meta">AI đề xuất: <b>${a.ai_score==null?'Chưa chấm':fmt(a.ai_score)+'/10'}</b> · ${esc(a.ai_note||'Không có nhận xét AI')}</p>
@@ -6826,7 +6830,8 @@ async function teacherSimilarAction(action,source) {
 /* Đề tương tự đã lọc trên máy chủ; không bao giờ hiển thị đáp án riêng của giáo viên. */
 function studentSimilarPreviewHtml(p) {
   if (!p?.teacher?.approvedAt || getBoard(p.boardId)?.assignment?.studentView?.showSimilar === false) return '';
-  const questions=Array.isArray(p.similarQuestions)?p.similarQuestions:[];
+  const assignedQuestions=Array.isArray(p.similarQuestions)?p.similarQuestions:[];
+  const questions=assignedQuestions.length?assignedQuestions:[{self:true,question:'Bài tự luyện do em chọn: Hãy nhập đề bài tương tự theo chủ đề đang học và trình bày lời giải.',hint:'Đây là đề do học sinh tự chọn, AI chỉ chấm sơ bộ; giáo viên sẽ xem và quyết định điểm.'}];
   const attempts=detail?.similarAttempts||[];
   const draft=detail?.similarDrafts||{};
   const name=similarStudentName(p);
@@ -6838,16 +6843,19 @@ function studentSimilarPreviewHtml(p) {
         <button type="button" class="btn btn-sm btn-soft" data-sim-refresh>${ic('restore','ic-sm')} Xem kết quả của em</button>
       </div>
       <ol class="student-similar-questions">${questions.map((q,index)=>{
-        const k='q'+index,at=attempts.find(a=>a.exercise_key===k);
+        const k=q.self?'self':'q'+index,at=attempts.find(a=>a.exercise_key===k);
         const busy=detail?.similarBusy===k,locked=!!at?.locked_at;
         return `<li><p>${esc(q.question)}</p>
           ${q.hint?`<div class="student-similar-hint"><b>Gợi ý:</b> ${esc(q.hint)}</div>`:''}
-          <div class="student-similar-submit"><label>Bài làm của em
-            <textarea data-sim-answer="${index}" rows="4" maxlength="8000" placeholder="Viết lời giải, các bước tính hoặc câu trả lời vào đây…" ${locked||busy?'disabled':''}>${esc(draft[k]??at?.response??'')}</textarea></label>
+          <div class="student-similar-submit">
+            ${q.self?`<label>Đề bài tương tự em chọn
+              <textarea data-sim-question rows="3" maxlength="2000" placeholder="Chép đề bài tương tự do thầy cô giao hoặc em tự chọn…">${esc(detail?.similarSelfQuestion??at?.exercise_question??'')}</textarea></label>`:''}
+            <label>Bài làm của em
+            <textarea data-sim-answer="${q.self?-1:index}" rows="4" maxlength="8000" placeholder="Viết lời giải, các bước tính hoặc câu trả lời vào đây…" ${locked||busy?'disabled':''}>${esc(draft[k]??at?.response??'')}</textarea></label>
             ${at?`<div class="student-similar-status"><b>${locked?'Đã khóa sổ · Kết quả chính thức':'Đã nộp · Đang chờ giáo viên khóa sổ'}</b>
               ${locked?`<p>Điểm giáo viên: <strong>${fmt(at.teacher_score)}/10</strong> · ${esc(at.teacher_note||'Đã được giáo viên chốt')}</p>`:`<p>${at.ai_score!=null?'AI chấm sơ bộ: '+fmt(at.ai_score)+'/10 · '+esc(at.ai_note||''): 'AI chưa chấm được; giáo viên có thể chấm thủ công.'}</p>`}
               <small>${esc(vnTime(at.submitted_at))}</small></div>`:''}
-            ${!locked?`<button type="button" class="btn btn-brand btn-sm" data-sim-send="${index}" ${busy?'disabled':''}>${ic('send','ic-sm')} ${busy?'Đang nộp và AI chấm…':at?'Nộp lại lời giải':'Nộp bài tập tương tự'}</button>`:''}
+            ${!locked?`<button type="button" class="btn btn-brand btn-sm" data-sim-send="${q.self?-1:index}" ${busy?'disabled':''}>${ic('send','ic-sm')} ${busy?'Đang nộp và AI chấm…':at?'Nộp lại lời giải':'Nộp bài tập tương tự'}</button>`:''}
           </div></li>`;}).join('')}</ol>`:
       '<p class="meta">Bài này chưa có bài tập tương tự để chia sẻ. Em có thể hỏi thầy cô để được hướng dẫn thêm.</p>'}
     ${detail?.similarError?`<p class="as-err" role="alert">${esc(detail.similarError)}</p>`:''}
