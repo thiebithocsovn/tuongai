@@ -29,7 +29,7 @@ test('Student can submit an AI-derived similar question directly below the pupil
  assert.match(result,/data-sim-name/);
  assert.match(result,/data-sim-answer="0"/);
  assert.match(result,/data-sim-send="0"/);
- assert.match(result,/thầy cô/i);
+ assert.match(result,/giáo viên/i);
  assert.ok(!result.includes('expectedAnswer'));
 });
 test('Students can see only own provisional AI evaluation or final locked assessment',()=>{
