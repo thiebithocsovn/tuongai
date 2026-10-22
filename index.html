@@ -5081,6 +5081,36 @@ const layoutKey = (k) => (LAYOUTS.some((x) => x[0] === k) ? k : 'cot');
 const layoutName = (k) => LAYOUTS.find((x) => x[0] === layoutKey(k))[1];
 const POST_COLORS = [['#ffffff', 'Trắng'], ['#fff3cc', 'Vàng'], ['#e5f2e4', 'Xanh lá'], ['#e5eefb', 'Xanh dương'], ['#fbe5e8', 'Hồng'], ['#efe6fc', 'Tím']];
 const tmeta = (p) => p.teacher || {};
+/* Chỉ tổng hợp nhận xét đã công bố; không gửi teacher.assist tới học sinh. */
+function publishedStudentFeedback(p) {
+  const t = p?.teacher || {};
+  if (!t.approvedAt) return { note: '', comments: [], aiText: '' };
+  const note = typeof t.note === 'string' ? t.note.trim() : '';
+  const comments = (Array.isArray(t.comments) ? t.comments : [])
+    .filter(c => c && typeof c.text === 'string' && c.text.trim())
+    .map(c => ({name: String(c.name || 'Giáo viên'), text: c.text.trim(), at: c.at}));
+  const own = !!(S.guest && p.studentAcc === S.meId);
+  const aiText = own && typeof p.ai?.nhan_xet === 'string' ? p.ai.nhan_xet.trim() : '';
+  return { note, comments, aiText };
+}
+function studentFeedbackExcerpt(p) {
+  const f = publishedStudentFeedback(p);
+  if (f.note) return { label: 'Nhận xét của giáo viên', text: f.note };
+  if (f.comments.length) return { label: 'Nhận xét của giáo viên', text: f.comments[f.comments.length - 1].text };
+  if (f.aiText) return { label: 'Nhận xét AI đã duyệt', text: f.aiText };
+  return { label: 'Nhận xét', text: 'Giáo viên chưa ghi nhận xét bằng chữ.' };
+}
+function studentFeedbackDetail(p) {
+  if (!p?.teacher?.approvedAt) return '';
+  const f = publishedStudentFeedback(p);
+  return `<section class="blk student-feedback-detail" aria-label="Nhận xét đã công bố">
+    <h4>${ic('msg','ic-sm')} Nhận xét của giáo viên</h4>
+    ${f.note ? `<div class="student-feedback-note"><b>Nhận xét chốt</b><p>${esc(f.note)}</p></div>` : ''}
+    ${f.comments.length ? `<div class="student-feedback-comments"><h5>Nhận xét bổ sung (${f.comments.length})</h5>${f.comments.map(c => `<div class="student-feedback-comment"><b>${esc(c.name)}</b><small>${esc(vnTime(c.at))}</small><p>${esc(c.text)}</p></div>`).join('')}</div>` : ''}
+    ${!f.note && !f.comments.length ? '<p class="meta">Giáo viên đã duyệt bài nhưng chưa ghi lời nhận xét bằng chữ.</p>' : ''}
+    ${f.aiText ? `<div class="student-feedback-ai"><h5>${ic('spark','ic-sm')} Gợi ý từ AI (đã duyệt)</h5><p>${esc(f.aiText)}</p></div>` : ''}
+  </section>`;
+}
 const postColor = (p) => (POST_COLORS.some((c) => c[0] === tmeta(p).color) ? tmeta(p).color : '#ffffff');
 async function patchTeacher(p, patch) { const cur = getPost(p.id) || p; return savePost({ ...cur, teacher: { ...(cur.teacher || {}), ...patch } }); }
 const safeUrl = (u) => { try { const x = new URL(String(u).trim()); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch (e) { return ''; } };
@@ -5219,7 +5249,7 @@ function postCard(p, studentView) {
   const media = img ? `<span class="pthumb">${src ? `<img src="${esc(src)}" alt="Ảnh bài làm của ${esc(p.studentName)}" loading="lazy">` : ''}${p.images.length > 1 ? `<span class="more">${p.images.length} ảnh</span>` : ''}</span>` : '';
   const text = body ? `<span class="ptext">${esc(body)}</span>` : '';
   const approved = !!tm.approvedAt;
-  const aiLabel = announcement ? '📘 Xem bài giáo viên giao' : grading ? '✨ AI đang phân tích…'
+  const aiLabel = announcement ? '📘 Xem bài giáo viên giao' : !gv && p.studentAcc === S.meId && approved ? '📝 Xem điểm và nhận xét' : grading ? '✨ AI đang phân tích…'
     : gv ? (fileOnly ? '📎 Xem tệp · Chấm thủ công' : '✨ Phân tích AI' + (approved ? ' · Đã duyệt' : p.ai ? ' · Chờ duyệt' : ''))
     : p.by === 'gv' ? '📘 Xem bài giáo viên giao'
     : p.practice?.length ? '📚 Làm bài luyện tập (' + p.practice.reduce((n, v) => n + (v.exercises?.length || 0), 0) + ' bài)'
@@ -5233,6 +5263,7 @@ function postCard(p, studentView) {
     ${p.attachments?.length ? `<button type="button" class="attach-card-count" data-act="open-post" data-id="${p.id}">${ic('download','ic-sm')}${p.attachments.length} tệp đính kèm</button>` : ''}
     ${peerPost(p) ? '' : linkChips(links, false)}
     ${!gv ? `<p class="student-post-label">${announcement ? '📘 Bài giáo viên · Cả lớp xem' : p.studentAcc === S.meId ? 'Bài của em' : 'Bài của bạn · Chỉ xem'}</p>` : ''}
+    ${!gv && p.studentAcc === S.meId && approved ? `<div class="student-feedback-inline" aria-label="Nhận xét đã duyệt"><strong>${ic('msg','ic-sm')} ${esc(studentFeedbackExcerpt(p).label)}</strong><p>${esc(studentFeedbackExcerpt(p).text.slice(0,240))}${studentFeedbackExcerpt(p).text.length>240?'…':''}</p></div>` : ''}
     <button class="btn ${announcement ? 'btn-soft' : 'btn-ai ai-entry'}" data-act="open-post" data-id="${p.id}" ${autoGrade ? 'data-grade="1"' : ''}>${aiLabel}</button>
     ${!gv && studentCanEdit(p) ? `<div class="student-post-actions"><button class="btn btn-sm" data-act="student-edit" data-id="${p.id}">${ic('pencil','ic-sm')}Sửa bài</button><button class="btn btn-sm btn-danger" data-act="student-delete" data-id="${p.id}">${ic('trash','ic-sm')}Xóa bài</button></div>` : !gv && p.by === 'hs' && p.studentAcc === S.meId ? `<p class="student-post-locked">${ic('lock','ic-sm')}Bài đã chấm · không thể sửa hoặc xóa</p>` : ''}
     ${showFoot ? `<div class="pfoot">${gv ? `<button class="preact${liked ? ' on' : ''}" data-act="p-like" data-id="${p.id}" aria-pressed="${liked}" aria-label="Thích bài của ${esc(p.studentName)}">${ic(liked ? 'heart-f' : 'heart', 'ic-sm')}${likes.length}</button>` : `<span class="preact${likes.length ? ' on' : ''}">${ic(likes.length ? 'heart-f' : 'heart', 'ic-sm')}${likes.length}</span>`}<button class="preact" data-act="open-post" data-id="${p.id}" data-focus="cmt" aria-label="Nhận xét bài của ${esc(p.studentName)}">${ic('msg', 'ic-sm')}${comments.length}<span>Nhận xét</span></button>${fs != null ? `<span class="score-pill" title="${approved ? 'Điểm thầy cô đã duyệt' : 'Điểm AI đề xuất'}">${fmt(fs)}<small>/${max}</small></span>` : ''}</div>` : ''}
@@ -6789,7 +6820,7 @@ function drawSide() {
         <button type="button" class="btn btn-navy btn-block" data-pd="approve">${ic('check')} Duyệt điểm và nhận xét</button></div></details>
       <button type="button" class="btn btn-danger btn-block pd-review-delete" data-pd="delete">${ic('trash','ic-sm')} Xóa bài này</button>` : ''}
       </section>`
-    : cms.length ? `<section class="blk" id="pd-cmt"><h4>${ic('chat','ic-sm')}Trao đổi nhận xét <span class="n">${cms.length}</span></h4>${cmtList}</section>` : '';
+    : '';
   const ai = p.ai;
   const grading = S.grading.has(p.id);
   const fs = finalScore(p);
@@ -6799,14 +6830,14 @@ function drawSide() {
   } else if (ai) {
     const sev = (e) => (e.muc_do === 'nang' ? 'Sai kiến thức' : e.muc_do === 'nhe' ? 'Trình bày' : 'Tính toán');
     main = `
-      <div class="grade"><div class="stampbig">${fmt(fs)}<small>/${max}</small></div><div><p class="lbl">${p.teacher?.approvedAt ? 'Điểm thầy cô đã duyệt' : gv ? 'Điểm AI đề xuất' : 'Điểm AI · chờ thầy cô duyệt'}</p><p class="note-lbl">${ic('msg', 'ic-sm')}${p.teacher?.note ? 'Nhận xét của thầy cô' : 'Nhận xét của AI'}</p><p class="note-t">${esc(p.teacher?.note || ai.nhan_xet)}</p></div></div>
+      <div class="grade"><div class="stampbig">${fmt(fs)}<small>/${max}</small></div><div><p class="lbl">${p.teacher?.approvedAt ? 'Điểm thầy cô đã duyệt' : gv ? 'Điểm AI đề xuất' : 'Điểm AI · chờ thầy cô duyệt'}</p>${gv ? `<p class="note-lbl">${ic('msg','ic-sm')}Nhận xét ${p.teacher?.note ? 'của giáo viên' : 'từ AI'}</p><p class="note-t">${esc(p.teacher?.note || ai.nhan_xet)}</p>` : '<p class="note-t">Đọc nhận xét của giáo viên và gợi ý AI đã duyệt ở mục bên dưới.</p>'}</div></div>
       ${ai.canh_bao ? `<p class="warnline">${esc(ai.canh_bao)}</p>` : ''}
       ${gv ? `<button type="button" class="air-jump" data-pd="go-air">${ic('sparkles', 'ic-sm')}Đọc bài, lỗi sai, nguyên nhân, điểm từng câu và bài tập ở mục Nhận xét của giáo viên bên dưới</button>`
       : `<section class="blk"><h4>Lỗi sai cần sửa <span class="n">${ai.loi_sai.length}</span></h4>${ai.loi_sai.length ? `<ol class="errs">${ai.loi_sai.map((e) => `<li class="err ${e.muc_do}"><span class="where">${esc(e.vi_tri || e.cau || 'Trong bài')}<span class="sev">${sev(e)}</span></span><p>${esc(e.loi)}</p>${e.giai_thich ? `<p>${esc(e.giai_thich)}</p>` : ''}${e.sua ? `<p class="fix"><b>Sửa:</b> ${esc(e.sua)}</p>` : ''}</li>`).join('')}</ol>` : '<p class="meta">AI không thấy lỗi sai nào. Rất tốt!</p>'}</section>
       ${ai.diem_manh.length ? `<section class="blk"><h4>Em đã làm tốt</h4><ul class="goods">${ai.diem_manh.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
       ${ai.luyen_tap.length || ai.bai_tap_goi_y.length ? `<section class="blk"><h4>Định hướng luyện tập</h4><ul class="prac">${ai.luyen_tap.map((x) => `<li><b>${esc(x.ky_nang)}</b>${x.goi_y ? ' — ' + esc(x.goi_y) : ''}</li>`).join('')}</ul>${ai.bai_tap_goi_y.length ? `<div class="drills"><p class="eyebrow" style="margin-bottom:6px">Bài tập gợi ý</p><ol class="drills" style="margin-top:0">${ai.bai_tap_goi_y.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}</section>` : ''}`}`;
   } else if (!gv && fs != null) {
-    main = `<section class="blk"><div class="grade"><div class="stampbig">${fmt(fs)}<small>/${max}</small></div><div><p class="lbl">Điểm thầy cô đã chấm</p><p class="note-t">${esc(p.teacher?.note || 'Bài đã chấm. Em xem điểm và nhận xét tại đây.')}</p></div></div></section>`;
+    main = `<section class="blk"><div class="grade"><div class="stampbig">${fmt(fs)}<small>/${max}</small></div><div><p class="lbl">Điểm giáo viên đã duyệt</p><p class="note-t">Xem nhận xét của giáo viên ngay bên dưới.</p></div></div></section>`;
   } else {
     main = `<div class="empty">${ic('spark')}<h3>Bài chưa được chấm</h3><p>${gv ? (aiOn() ? 'Bấm Chấm bằng AI để AI đọc bài, cho điểm và chỉ lỗi sai.' : 'Quản trị hệ thống chưa bật AI chấm bài. Thầy cô có thể chấm tay ở bên dưới.') : 'Thầy cô sẽ chấm sớm. Em quay lại sau nhé.'}</p></div>`;
   }
@@ -6822,6 +6853,7 @@ function drawSide() {
     <div class="pd-who"><div><h3>${esc(p.studentName)}</h3><p class="meta">${timeAgo(p.createdAt)} · ${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên đăng'}${p.aiAt ? ' · AI chấm ' + timeAgo(p.aiAt) : ''}</p></div><div class="row-gap" style="align-items:center">${gv ? `<button class="preact${(tmeta(p).likes || []).includes(S.meId) ? ' on' : ''}" data-pd="like" aria-label="Thích bài">${ic((tmeta(p).likes || []).includes(S.meId) ? 'heart-f' : 'heart', 'ic-sm')}${(tmeta(p).likes || []).length || ''}</button>` : ''}${chip(p)}</div></div>
     ${detail.err ? `<p class="warnline">${esc(detail.err)}</p>` : ''}
     ${gv ? (grading ? main : "") : main}
+    ${!gv ? studentFeedbackDetail(p) : ''}
     ${!gv && studentCanEdit(p) ? `<div class="student-post-actions student-post-actions-detail"><button type="button" class="btn btn-sm" data-pd="student-edit">${ic('pencil','ic-sm')}Sửa bài đã nộp</button><button type="button" class="btn btn-sm btn-danger" data-pd="student-delete">${ic('trash','ic-sm')}Xóa bài</button></div>` : !gv && p.by === 'hs' && p.studentAcc === S.meId ? '<p class="student-post-locked">Bài đã chấm và được khóa để giữ nguyên kết quả.</p>' : ''}
     ${!gv ? studentPracticeHtml(p) : ''}
     ${!gv && detail.studentError ? `<p class="as-err" role="alert">${esc(detail.studentError)}</p>` : ''}
