@@ -78,11 +78,22 @@ test('Server authenticates teacher before finalized scores and checks lock to fo
  assert.match(edge,/if\(attempt.locked_at\) throw new Fail\("locked"/);
  assert.match(edge,/\.is\("locked_at",null\)/);
  assert.match(edge,/needActive\(me\)/);
- assert.match(edge,/similarQuestion\(post,index\)/);
+ assert.match(edge,/similarQuestion\(post,index,str\(body.question,2000\)\)/);
  assert.match(edge,/student_token",token/);
  assert.match(edge,/aiGradeSimilar\(/);
  assert.match(edge,/teacher_score:Math.round\(score\*4\)\/4/);
  assert.match(edge,/teacher_note:str\(body.note,2000\)/);
+});
+test('Photographed practice solutions can be graded by AI and reviewed by teacher privately',()=>{
+ assert.match(html,/data-sim-photo/);
+ assert.match(html,/capture="environment"/);
+ assert.match(html,/d\.similarPhotos\[key\]=await blobB64\(blob\)/);
+ assert.match(html,/image:d\.similarPhotos\?\.\[key\]\|\|''/);
+ assert.match(html,/teacher-similar-photo/);
+ assert.match(edge,/decodeBase64\(image\)/);
+ assert.match(edge,/db\.storage\.from\("work"\)\.upload\(path/);
+ assert.match(edge,/db\.storage\.from\("work"\)\.download\(item.image_path\)/);
+ assert.match(edge,/images:await signed\(/);
 });
 test('All inline JS remains valid with both student and teacher forms',()=>{
  for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){
