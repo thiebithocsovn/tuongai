@@ -29,10 +29,10 @@ test('Both submission entry points remain above the posts and target their own c
       assert.equal(buttons.length, 2);
       for (const button of buttons) {
         assert.equal(button.type, 'button');
-        assert.equal(button['data-act'], teacher ? 'capture' : 'submit');
+        assert.equal(button['data-act'], teacher ? 'publish-class' : 'submit');
         assert.equal(button['data-id'], board.id);
         assert.equal(button['data-col'], board.columns[index].id);
-        assert.equal(button['aria-label'], esc((teacher ? 'Thêm bài' : 'Nộp bài') + ' vào ' + board.columns[index].name));
+        assert.equal(button['aria-label'], esc((teacher ? 'Đăng bài' : 'Nộp bài') + ' vào ' + board.columns[index].name));
       }
       assert.ok(column.indexOf('col-submit-btn') < column.indexOf('col-addpost'));
       assert.ok(column.indexOf('col-addpost') < column.indexOf('col-post-viewport'));
@@ -41,19 +41,20 @@ test('Both submission entry points remain above the posts and target their own c
   }
 });
 
-async function submitTo(columnId, {demo = false, teacher = false} = {}) {
+async function submitTo(columnId, {demo = false, teacher = false, publish = false} = {}) {
   const b = {...board, demo};
   const nodes = new Map();
   const node = (selector, value = '') => nodes.set(selector, {value, addEventListener() {}, focus() {}});
   for (const selector of ['#sf', '#sf-shots', '#sf-err', '#sf-save', '#sf-link', '#sf-ai']) node(selector);
-  node('#sf-name', 'Học sinh thử'); node('#sf-student-name', 'Học sinh thử');
+  if (!publish) node('#sf-name', 'Học sinh thử');
+  node('#sf-student-name', 'Học sinh thử');
   node('#sf-student-class', '8A'); node('#sf-text', 'Nội dung bài làm thử');
   if (teacher) node('#sf-col', b.columns[0].id);
   let saved;
   let closed = false;
   const S = {auth:{accounts:[]}, posts:new Map(), meId:'hs-test', guest:null};
   const submit = vm.runInNewContext(section('function submitForm(', '/* Editing and deleting student submissions') + '\nsubmitForm', {
-    ME:() => ({id:'hs-test', role:teacher ? 'gv' : 'hs'}), S,
+    ME:() => ({id:'hs-test', name:'Giáo viên thử', role:teacher ? 'gv' : 'hs'}), ownerLabel:() => 'Giáo viên thử', S,
     postsOf:() => [], esc, ic:() => '', aiOn:() => false, attachPickerHtml:() => '',
     openModal:() => ({el:{querySelector:() => ({})}, close:() => {closed = true;}}),
     initAttachPicker:() => ({files:[]}), $:(selector) => nodes.get(selector) || null, $$:() => [],
@@ -63,7 +64,7 @@ async function submitTo(columnId, {demo = false, teacher = false} = {}) {
     rememberUrls() {}, rowToPost:(p) => p, enterGuest() {}, toast() {}, studentReloadMine() {}, openDetail() {},
     now:() => 123, savePost:async (p) => {saved = p; return true;},
   });
-  submit(b, teacher, columnId);
+  submit(b, teacher, columnId, publish);
   await nodes.get('#sf-save').onclick();
   assert.equal(nodes.get('#sf-err').textContent, '');
   assert.equal(closed, true);
@@ -79,5 +80,10 @@ test('Submitting from the second column or Bài chung preserves that destination
     assert.equal(demoPost.columnId, columnId);
     const teacherPost = await submitTo(columnId, {demo:true, teacher:true});
     assert.equal(teacherPost.columnId, columnId);
+    assert.equal(teacherPost.teacher.postType, 'student_work');
+    const teacherAssignment = await submitTo(columnId, {demo:true, teacher:true, publish:true});
+    assert.equal(teacherAssignment.columnId, columnId);
+    assert.equal(teacherAssignment.studentName, 'Giáo viên thử');
+    assert.equal(teacherAssignment.teacher.postType, 'announcement');
   }
 });
