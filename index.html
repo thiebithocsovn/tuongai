@@ -2336,6 +2336,12 @@ html,body{max-width:100%;overflow-x:clip}
 .student-similar-name input{width:100%;display:block;margin-top:5px;padding:9px;border:1px solid #bacbe4;border-radius:8px;background:#fff}
 .student-similar-submit{margin-top:12px;display:grid;gap:10px}
 .student-similar-submit label{font-size:12px;font-weight:750;color:#29496a}
+.student-similar-photo-pick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:11px;border:1px dashed #8baed5;border-radius:10px;color:#265a87;background:#f7fbff;font-size:13px!important}
+.student-similar-photo-pick input{max-width:100%;font-size:12px}
+.student-similar-uploaded{font-size:12px;color:#247550}
+.student-similar-saved-photo,.teacher-similar-photo{max-width:100%;max-height:320px;object-fit:contain;display:block;background:#fff;border:1px solid #d1e3ee;border-radius:10px}
+.teacher-similar-photo{max-width:320px}
+
 .student-similar-submit textarea{width:100%;display:block;margin-top:6px;padding:12px;border-radius:9px;border:1px solid #bcd2e7;background:#fff;min-height:108px;resize:vertical;font-size:14px;line-height:1.55}
 .student-similar-submit .btn{justify-self:start;white-space:normal}
 .student-similar-status{background:#f1f9f4;border:1px solid #c5e6d0;padding:11px;border-radius:9px;line-height:1.6;color:#216044;font-size:13px}
@@ -6738,7 +6744,7 @@ async function studentSimilarRefresh(id) {
   if(!b?.code || b.demo || !name || name.length<2 || !p.teacher?.approvedAt) return;
   try {
     const r=await api('similar_attempt_mine',{code:b.code,post_id:id,token:similarStudentToken(name)});
-    if(detail===d){d.similarAttempts=Array.isArray(r.attempts)?r.attempts:[];drawSide();}
+    if(detail===d){d.similarAttempts=Array.isArray(r.attempts)?r.attempts:[];d.similarUrls=r.images||{};drawSide();}
   } catch(e) { if(detail===d) {d.similarError=aiMsg(e);drawSide();} }
 }
 async function studentSimilarSubmit(index) {
@@ -6753,16 +6759,17 @@ async function studentSimilarSubmit(index) {
   const question=index===-1?($('[data-sim-question]',d.m.el)?.value||d.similarSelfQuestion||'').trim():'';
   if(name.length<2){d.similarError='Em cần điền họ tên trước khi nộp bài.';nameInput?.focus();return;}
   if(index===-1 && question.length<10){d.similarError='Em hãy nhập đề bài tương tự trước (ít nhất 10 ký tự).';alert(d.similarError);return;}
-  if(response.length<3){d.similarError='Em hãy gõ lời giải trước khi nộp (ít nhất 3 ký tự).';answer?.focus();return;}
+  if(response.length<3&&!d.similarPhotos?.[key]){d.similarError='Em hãy gõ lời giải hoặc chụp ảnh bài làm.';answer?.focus();return;}
   d.similarName=name;d.similarDrafts[key]=response;if(index===-1)d.similarSelfQuestion=question;
   SS.set('tuongai-similar-name-'+b.code,name);
   d.similarBusy=key;d.similarError='';drawSide();
   try {
-    const result=await api('similar_attempt_submit',{code:b.code,post_id:p.id,token:similarStudentToken(name),name,index,question,response});
+    const result=await api('similar_attempt_submit',{code:b.code,post_id:p.id,token:similarStudentToken(name),name,index,question,response,image:d.similarPhotos?.[key]||''});
     if(detail!==d)return;
     d.similarAttempts=(d.similarAttempts||[]).filter(a=>a.exercise_key!==key);
     d.similarAttempts.push(result.attempt);
-    delete d.similarDrafts[key];
+    d.similarUrls={...(d.similarUrls||{}),...(result.images||{})};
+    delete d.similarPhotos[key];delete d.similarPhotoNames[key];delete d.similarDrafts[key];
     d.similarMessage=result.warning||result.message||'Đã nộp. Chờ giáo viên khóa sổ.';
   }catch(e){if(detail===d)d.similarError=aiMsg(e)}
   finally {if(detail===d){d.similarBusy='';drawSide();}}
@@ -6772,6 +6779,19 @@ function bindStudentSimilar(el) {
   if(name)name.oninput=()=>{if(detail)detail.similarName=name.value;};
   $$('[data-sim-answer]',el).forEach(x=>x.oninput=()=>{if(detail)detail.similarDrafts[x.dataset.simAnswer==='-1'?'self':'q'+x.dataset.simAnswer]=x.value});
   $('[data-sim-question]',el)?.addEventListener('input',event=>{if(detail)detail.similarSelfQuestion=event.target.value});
+  $$('[data-sim-photo]',el).forEach(input=>input.onchange=async()=>{
+    const d=detail;if(!d)return;
+    const key=input.dataset.simPhoto,file=input.files?.[0];
+    if(!file)return;
+    d.similarError='';
+    try{
+      const blob=await shrink(file,1400,.77);
+      if(!blob || blob.size>3*1024*1024)throw new Error('Ảnh vượt 3 MB. Hãy chụp lại hoặc chọn ảnh nhỏ hơn.');
+      d.similarPhotos[key]=await blobB64(blob);
+      d.similarPhotoNames[key]=file.name;
+    }catch(e){d.similarError=e.message||'Không đọc được ảnh. Hãy thử ảnh khác.';}
+    if(detail===d)drawSide();
+  });
   $$('[data-sim-send]',el).forEach(x=>x.onclick=()=>studentSimilarSubmit(+x.dataset.simSend));
   $('[data-sim-refresh]',el)?.addEventListener('click',()=>studentSimilarRefresh(detail.id));
 }
@@ -6787,6 +6807,7 @@ function teacherSimilarReviewHtml(p) {
       ${!attempts.length?'<p class="meta">Chưa có lượt nộp nào.</p>':attempts.map(a=>`<article class="teacher-similar-item" data-sim-teacher-id="${esc(a.id)}"><strong>${esc(a.student_name)} · ${a.exercise_key==='self'?'Bài tự luyện': 'Câu '+esc(String(a.exercise_key).replace('q',''))}</strong><p class="meta">${esc(a.exercise_question||'')}</p>
        <small>${esc(vnTime(a.submitted_at))} · ${a.locked_at?'Đã khóa sổ':'Chờ giáo viên chấm'}</small>
        <p class="teacher-similar-response">${esc(a.response)}</p>
+       ${a.image_path && d.teacherSimilarUrls?.[a.image_path]?`<a target="_blank" rel="noopener noreferrer" href="${esc(d.teacherSimilarUrls[a.image_path])}" title="Mở ảnh bài làm"><img class="teacher-similar-photo" alt="Ảnh bài tập tương tự của ${esc(a.student_name)}" src="${esc(d.teacherSimilarUrls[a.image_path])}"></a>`:''}
        <p class="meta">AI đề xuất: <b>${a.ai_score==null?'Chưa chấm':fmt(a.ai_score)+'/10'}</b> · ${esc(a.ai_note||'Không có nhận xét AI')}</p>
        ${a.locked_at?`<p class="as-ok">Đã khóa sổ: ${fmt(a.teacher_score)}/10 · ${esc(a.teacher_note||'Giáo viên đã duyệt')}</p>`:
        `<label>Điểm giáo viên /10<input data-sim-teacher-score="${esc(a.id)}" type="number" min="0" max="10" step="0.25" value="${a.teacher_score??a.ai_score??''}" placeholder="0–10"></label>
@@ -6803,7 +6824,7 @@ async function teacherSimilarAction(action,source) {
     d.teacherSimilarLoading=true;d.teacherSimilarError='';drawSide();
     try {
       const r=await api('similar_attempts_teacher',{post_id:p.id});
-      if(detail===d){d.teacherSimilar=r.attempts||[];d.teacherSimilarSummary=r.summary||{};d.teacherSimilarLoaded=true;}
+      if(detail===d){d.teacherSimilar=r.attempts||[];d.teacherSimilarSummary=r.summary||{};d.teacherSimilarUrls=r.images||{};d.teacherSimilarLoaded=true;}
     }catch(e){if(detail===d)d.teacherSimilarError=aiMsg(e)}
     finally{if(detail===d){d.teacherSimilarLoading=false;drawSide()}}
     return;
@@ -6822,7 +6843,7 @@ async function teacherSimilarAction(action,source) {
   try {
     await api(action==='sim-teacher-lock'?'similar_attempt_finalize':'similar_attempt_ai_grade',payload);
     const r=await api('similar_attempts_teacher',{post_id:p.id});
-    if(detail===d){d.teacherSimilar=r.attempts||[];d.teacherSimilarSummary=r.summary||{};d.teacherSimilarLoaded=true;d.teacherSimilarMessage=action==='sim-teacher-lock'?'Đã chốt điểm và khóa sổ kết quả.':'AI đã cập nhật điểm đề xuất. Giáo viên kiểm tra và khóa sổ.';}
+    if(detail===d){d.teacherSimilar=r.attempts||[];d.teacherSimilarSummary=r.summary||{};d.teacherSimilarUrls=r.images||{};d.teacherSimilarLoaded=true;d.teacherSimilarMessage=action==='sim-teacher-lock'?'Đã chốt điểm và khóa sổ kết quả.':'AI đã cập nhật điểm đề xuất. Giáo viên kiểm tra và khóa sổ.';}
   }catch(e){if(detail===d)d.teacherSimilarError=aiMsg(e)}
   finally{if(detail===d)drawSide()}
 }
@@ -6851,7 +6872,11 @@ function studentSimilarPreviewHtml(p) {
             ${q.self?`<label>Đề bài tương tự em chọn
               <textarea data-sim-question rows="3" maxlength="2000" placeholder="Chép đề bài tương tự do thầy cô giao hoặc em tự chọn…">${esc(detail?.similarSelfQuestion??at?.exercise_question??'')}</textarea></label>`:''}
             <label>Bài làm của em
-            <textarea data-sim-answer="${q.self?-1:index}" rows="4" maxlength="8000" placeholder="Viết lời giải, các bước tính hoặc câu trả lời vào đây…" ${locked||busy?'disabled':''}>${esc(draft[k]??at?.response??'')}</textarea></label>
+            <textarea data-sim-answer="${q.self?-1:index}" rows="4" maxlength="8000" placeholder="Viết lời giải, các bước tính hoặc câu trả lời vào đây (hoặc chụp ảnh ở dưới)…" ${locked||busy?'disabled':''}>${esc(draft[k]??at?.response??'')}</textarea></label>
+            ${!locked?`<label class="student-similar-photo-pick">${ic('camera','ic-sm')} Chụp ảnh hoặc chọn ảnh bài làm
+              <input type="file" accept="image/*" capture="environment" data-sim-photo="${esc(k)}" ${busy?'disabled':''}></label>`:''}
+            ${detail?.similarPhotoNames?.[k]?`<small class="student-similar-uploaded">Đã chọn ảnh: ${esc(detail.similarPhotoNames[k])}</small>`:''}
+            ${at?.image_path && detail?.similarUrls?.[at.image_path]?`<img class="student-similar-saved-photo" src="${esc(detail.similarUrls[at.image_path])}" alt="Ảnh bài tương tự em đã nộp">`:''}
             ${at?`<div class="student-similar-status"><b>${locked?'Đã khóa sổ · Kết quả chính thức':'Đã nộp · Đang chờ giáo viên khóa sổ'}</b>
               ${locked?`<p>Điểm giáo viên: <strong>${fmt(at.teacher_score)}/10</strong> · ${esc(at.teacher_note||'Đã được giáo viên chốt')}</p>`:`<p>${at.ai_score!=null?'AI chấm sơ bộ: '+fmt(at.ai_score)+'/10 · '+esc(at.ai_note||''): 'AI chưa chấm được; giáo viên có thể chấm thủ công.'}</p>`}
               <small>${esc(vnTime(at.submitted_at))}</small></div>`:''}
@@ -6879,7 +6904,7 @@ function openDetail(id, autoGrade, focus) {
     onClose: () => { window.TuongAiFilePreview?.dispose(m.el); const c = ctlOf.get(id); if (c) c.abort(); detail?.as?.ctl?.abort(); detail = null; },
   });
   detail = { id, m, started: 0, studentDrafts: {}, studentBusy: '', studentMessage: '', studentError: '',
-    similarDrafts:{},similarAttempts:[],similarName:S.guest?.preview?(SS.get('tuongai-similar-name-'+b.code)||''):(S.guest?.name||''),
+    similarDrafts:{},similarPhotos:{},similarPhotoNames:{},similarUrls:{},similarAttempts:[],similarName:S.guest?.preview?(SS.get('tuongai-similar-name-'+b.code)||''):(S.guest?.name||''),
     similarBusy:'',similarError:'',similarMessage:'',teacherSimilar:[],teacherSimilarLoaded:false,teacherSimilarLoading:false };
   // Nhận xét là nội dung chính của cửa sổ: luôn hiển thị trước khi nạp ảnh và tệp.
   drawSide();
