@@ -4929,7 +4929,7 @@ function renderBoard(b) {
         ${manage ? `<button class="btn btn-soft" data-act="bg-pick" data-id="${b.id}">${ic('imgplus')}Đổi nền</button>` : ''}
         ${['cot', 'tuong'].includes(layoutKey(b.layout)) || !gv ? `<div class="bdirs" role="group" aria-label="Hướng sắp xếp nội dung bảng"><button class="btn btn-soft" data-act="bdir" data-v="h" aria-pressed="${dir === 'h'}">${ic('cols3')}<span>Chiều ngang</span></button><button class="btn btn-soft" data-act="bdir" data-v="v" aria-pressed="${dir === 'v'}">${ic('rows')}<span>Chiều dọc</span></button></div>` : ''}
         <select id="b-sort" data-chg="psort" aria-label="Sắp xếp bài đăng">${SORTS.map(([k, t]) => `<option value="${k}" ${k === S.psort ? 'selected' : ''}>${t}</option>`).join('')}</select>
-        ${manage ? `<button class="btn btn-brand" data-act="publish-class" data-id="${b.id}">${ic('plus')}Đăng bài cho cả lớp</button>` : ''}
+        ${manage ? `<button class="btn btn-brand" data-act="publish-class" data-id="${b.id}">${ic('plus')}Đăng bài cho cả lớp</button><button class="btn btn-soft" data-act="capture" data-id="${b.id}">${ic('camera')}Chụp bài học sinh</button>` : ''}
         ${gv ? `<button class="btn btn-soft" data-act="progress" data-id="${b.id}">📈 Tiến bộ học sinh</button>` : ''}
         ${manage ? `<select id="b-layout" data-chg="blayout" data-id="${b.id}" aria-label="Bố cục bảng">${LAYOUTS.map(([k, t]) => `<option value="${k}" ${layoutKey(b.layout) === k ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
         ${gv ? `<button class="btn btn-soft" data-act="review" data-id="${b.id}" aria-label="Chờ duyệt${review ? ', ' + review + ' bài' : ''}">${ic('inbox')}Chờ duyệt${review ? `<b class="bcnt">${review}</b>` : ''}</button>` : ''}
@@ -4948,7 +4948,7 @@ function renderBoard(b) {
       <span class="column-scroll-counter" id="column-scroll-counter" aria-live="off"></span>
     </div>
     <section id="posts" class="full" aria-label="Bài làm và các cột của lớp">${boardPostsHtml(b)}</section>
-    <button class="fab" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}" aria-label="${gv ? 'Thêm bài học sinh' : 'Nộp bài'}" title="${gv ? 'Thêm bài học sinh' : 'Nộp bài'}">${ic('plus')}</button>`;
+    <button class="fab" data-act="${gv ? 'publish-class' : 'submit'}" data-id="${b.id}" aria-label="${gv ? 'Đăng bài cho cả lớp' : 'Nộp bài'}" title="${gv ? 'Đăng bài cho cả lớp' : 'Nộp bài'}">${ic('plus')}</button>`;
   $('#bq').addEventListener('input', (e) => {
     S.view.pq = e.target.value;
     const box = $('#posts');
@@ -5044,7 +5044,7 @@ function renderPosts(b, ps, gv, q) {
   const dir = ' dir-' + boardDir(b);
   const manage = canManage(b);
   if (!ps.length && (q || lay !== 'cot' || (!gv && !(b.columns || []).length))) {
-    return `<div class="empty pad">${ic(q ? 'search' : 'msg')}<h3>${q ? 'Chưa có bài phù hợp' : gv ? 'Bắt đầu bằng một bài làm' : 'Em chưa nộp bài ở lớp này'}</h3><p>${q ? 'Thử một từ khóa khác.' : gv ? 'Bấm Chụp bài học sinh hoặc nút + để chụp vở bằng điện thoại. Muốn học sinh tự nộp, bấm Chia sẻ để lấy đường link.' : 'Bấm Nộp bài vào lớp, chụp vở hoặc gõ câu trả lời. AI sẽ chỉ lỗi và gợi ý cách luyện.'}</p>${q ? '' : `<button class="btn" data-act="${gv ? 'capture' : 'submit'}" data-id="${b.id}">${ic('plus')}${gv ? 'Thêm bài đầu tiên' : 'Nộp bài đầu tiên'}</button>`}</div>`;
+    return `<div class="empty pad">${ic(q ? 'search' : 'msg')}<h3>${q ? 'Chưa có bài phù hợp' : gv ? 'Bắt đầu bằng bài giáo viên giao' : 'Em chưa nộp bài ở lớp này'}</h3><p>${q ? 'Thử một từ khóa khác.' : gv ? 'Bấm nút + để đăng bài tập hoặc thông báo cho cả lớp. Muốn chụp bài học sinh để AI chấm, chọn Chụp bài học sinh trên thanh công cụ.' : 'Bấm Nộp bài vào lớp, chụp vở hoặc gõ câu trả lời. AI sẽ chỉ lỗi và gợi ý cách luyện.'}</p>${q ? '' : `<button class="btn" data-act="${gv ? 'publish-class' : 'submit'}" data-id="${b.id}">${ic('plus')}${gv ? 'Đăng bài đầu tiên' : 'Nộp bài đầu tiên'}</button>`}</div>`;
   }
   const cards = (list) => list.map((p) => postCard(p, false)).join('');
   if (lay === 'luoi') return `<div class="gridl pad">${cards(ps)}</div>`;
@@ -5076,8 +5076,8 @@ function renderPosts(b, ps, gv, q) {
   const groups = [];
   if (loose.length || !cols.length) groups.push({ id: '', name: 'Bài chung', items: loose, own: false });
   cols.forEach((c) => groups.push({ id: c.id, name: c.name, items: ps.filter((p) => p.columnId === c.id), own: true }));
-  const action = gv ? 'capture' : 'submit';
-  const actionLabel = gv ? 'Thêm bài' : 'Nộp bài';
+  const action = gv ? 'publish-class' : 'submit';
+  const actionLabel = gv ? 'Đăng bài' : 'Nộp bài';
   return `<div class="cols-wrap"><div class="cols${dir}">${groups.map((g) => {
     const target = `data-act="${action}" data-id="${esc(b.id)}" data-col="${esc(g.id)}"`;
     const label = esc(actionLabel + ' vào ' + g.name);
