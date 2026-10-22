@@ -2305,6 +2305,10 @@ html,body{max-width:100%;overflow-x:clip}
 
 
 
+<style id="student-own-result-sidebar">
+.student-own-graded-score{padding:10px 12px!important;background:#e8f6ef;color:#166b42!important;border-radius:9px;font-size:14px!important}
+.student-own-graded-score strong{font-size:22px;font-weight:850;font-variant-numeric:tabular-nums}
+</style>
 <style id="peer-feedback-and-similar">
 .board-student-view-settings{display:grid;gap:10px;padding:16px;margin:16px 0;border:1px solid #d3e5f6;border-radius:12px;background:#f6faff}
 .board-student-view-settings h3{font-size:16px;color:#17486e;margin:0}
@@ -6879,6 +6883,35 @@ function drawSide() {
     drawMedia();
     return;
   }
+  // Bài của chính học sinh đã duyệt: luôn vẽ kết quả riêng, không dùng cấu trúc AI chấm cũ.
+  // Các bản AI đời cũ có thể thiếu loi_sai/diem_manh/luyen_tap; đọc .length gây trắng cột nhận xét.
+  if (!gv && S.guest && p.studentAcc === S.meId && p.teacher?.approvedAt) {
+    detail.key = detailKey(p);
+    const el = $('#pd-side', detail.m.el);
+    const score = finalScore(p);
+    const maxScore = b?.assignment?.maxScore || 10;
+    const safeSection = (fn, title) => {
+      try { return fn() || ''; }
+      catch (error) {
+        console.warn('Không hiển thị được ' + title + ':', error);
+        return `<section class="blk student-feedback-detail"><h4>${esc(title)}</h4><p class="meta">Nội dung tạm thời chưa tải được. Em hãy bấm Cập nhật điểm để xem lại.</p></section>`;
+      }
+    };
+    el.innerHTML = `<header class="student-peer-result-head" aria-label="Kết quả đã chấm của em">
+      <span class="chip chip-ok">${ic('check','ic-sm')} Giáo viên đã duyệt</span>
+      <h3>Điểm và nhận xét của em</h3>
+      <p class="student-own-graded-score">${score == null ? 'Bài đã duyệt' : 'Điểm: <strong>' + fmt(score) + ' / ' + fmt(maxScore) + '</strong>'}</p>
+      <p>Em có thể xem lời nhận xét của giáo viên và luyện tập lại bằng các câu hỏi tương tự.</p>
+    </header>
+    ${safeSection(() => studentFeedbackDetail(p), 'Nhận xét sau khi chấm')}
+    ${safeSection(() => studentSimilarPreviewHtml(p), 'Bài tập tương tự')}
+    ${safeSection(() => studentPracticeHtml(p), 'Bài tập được giáo viên giao')}
+    <button class="btn btn-ghost" type="button" data-pd="close">Đóng</button>`;
+    $('[data-pd=close]', el)?.addEventListener('click', () => detail.m.close());
+    $('[data-st-pr-answer]', el).forEach((input) => (input.oninput = () => { if (detail) detail.studentDrafts[input.dataset.stPrAnswer] = input.value; }));
+    $('[data-st-pr-send]', el).forEach((button) => (button.onclick = () => studentPracticeSubmit(button.dataset.stPrSend)));
+    return;
+  }
   const max = b.assignment?.maxScore || 10;
   detail.key = detailKey(p);
   const el = $('#pd-side', detail.m.el);
@@ -7095,7 +7128,7 @@ function asSimilarSheet(p, b, as) {
     ...x.exercises.map((e, i) => 'Bài ' + (i + 1) + ': ' + e.question + (e.hint ? '\nGợi ý: ' + e.hint : '') + '\nBài làm: ....................................................................................'),
     'Thầy cô sẽ nhận xét sau khi học sinh nộp bài.'].filter(Boolean).join('\n\n');
 }
-const detailKey = (p) => JSON.stringify([p.ai, p.teacher ? { ...p.teacher, assist: undefined } : null, p.text, p.images, p.attachments, p.graded, p.practice || [], p.practiceSubmissions || [], S.grading.has(p.id), detail?.err || '']);
+const detailKey = (p) => JSON.stringify([p.ai, p.teacher ? { ...p.teacher, assist: undefined } : null, p.text, p.images, p.attachments, p.graded, p.practice || [], p.practiceSubmissions || [], p.similarQuestions || [], S.grading.has(p.id), detail?.err || '']);
 
 async function answerImage(blob) {
   const compressed = await shrink(blob, 1600, .8);
