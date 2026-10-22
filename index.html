@@ -2335,6 +2335,12 @@ html,body{max-width:100%;overflow-x:clip}
 .student-result-feedback b{font-size:12px;font-weight:800;color:#174c7c}
 .student-feedback-inline{margin:6px 0 8px;padding:10px 12px;border:1px solid #d5e7f4;border-radius:10px;background:#f4f9ff;color:#284565}
 .student-feedback-inline strong{display:flex;align-items:center;gap:5px;font-size:12px}
+.student-feedback-inline-text{display:grid;gap:7px;margin-top:8px}
+.student-feedback-inline-text p{margin:0!important;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55;font-size:13px}
+.student-feedback-inline-text b{color:#17466d}
+.student-feedback-inline small{display:block;margin-top:7px;color:#576b80;font-size:11px}
+.student-feedback-open{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:7px 10px;border-radius:8px;border:1px solid #9ebfe0;color:#174c7c;background:#fff;cursor:pointer;font-weight:700;font-size:12px}
+.student-feedback-open:hover,.student-feedback-open:focus-visible{background:#e4f1ff;border-color:#5d9acd}
 .student-feedback-inline p{font-size:12px;line-height:1.5;margin:5px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
 .student-feedback-detail{border:1px solid #c4ddf1;background:#f7fbff;border-radius:12px;padding:16px!important}
 .student-feedback-detail h4{display:flex;align-items:center;gap:7px;color:#18588c}
@@ -5144,6 +5150,26 @@ function studentFeedbackExcerpt(p) {
   if (f.aiText) return { label: 'Nhận xét AI đã duyệt', text: f.aiText };
   return { label: 'Nhận xét', text: 'Giáo viên chưa ghi nhận xét bằng chữ.' };
 }
+/* Hiển thị lời phê ngay trên thẻ bài cho mọi học sinh có link lớp.
+   Chỉ hiện sau duyệt và khi lớp bật chia sẻ nhận xét; điểm của bạn vẫn riêng tư. */
+function studentFeedbackInlineHtml(p) {
+  if (!S.guest || isTeacherAnnouncement(p) || !p?.teacher?.approvedAt
+      || getBoard(p.boardId)?.assignment?.studentView?.showFeedback === false) return '';
+  const f = publishedStudentFeedback(p);
+  const texts = [];
+  if (f.note) texts.push('<p><b>Nhận xét chốt:</b> ' + esc(f.note) + '</p>');
+  const recent = f.comments.slice(-2);
+  for (const c of recent) texts.push('<p><b>' + esc(c.name || 'Giáo viên') + ':</b> ' + esc(c.text) + '</p>');
+  if (!texts.length && f.aiText) texts.push('<p><b>Gợi ý AI đã duyệt:</b> ' + esc(f.aiText) + '</p>');
+  if (!texts.length) texts.push('<p>Giáo viên đã duyệt bài nhưng chưa công bố nhận xét bằng chữ.</p>');
+  const more = f.comments.length > 2 ? '<small>Còn ' + (f.comments.length - 2) + ' nhận xét khác trong chi tiết bài.</small>' : '';
+  return `<section class="student-feedback-inline" aria-label="Nhận xét của giáo viên sau khi chấm">
+    <strong>${ic('msg','ic-sm')} Nhận xét của giáo viên sau khi chấm</strong>
+    <div class="student-feedback-inline-text">${texts.join('')}</div>
+    ${more}
+    <button type="button" class="student-feedback-open" data-act="open-post" data-id="${esc(p.id)}">${ic('eye','ic-sm')} Xem bài và nhận xét đầy đủ</button>
+  </section>`;
+}
 function studentFeedbackDetail(p) {
   if (!p?.teacher?.approvedAt) return '';
   if (getBoard(p.boardId)?.assignment?.studentView?.showFeedback === false) return '<section class="blk student-feedback-detail"><h4>Nhận xét sau khi chấm</h4><p class="meta">Giáo viên đang tắt chia sẻ nhận xét cho lớp này.</p></section>';
@@ -5294,9 +5320,9 @@ function postCard(p, studentView) {
   const media = img ? `<span class="pthumb">${src ? `<img src="${esc(src)}" alt="Ảnh bài làm của ${esc(p.studentName)}" loading="lazy">` : ''}${p.images.length > 1 ? `<span class="more">${p.images.length} ảnh</span>` : ''}</span>` : '';
   const text = body ? `<span class="ptext">${esc(body)}</span>` : '';
   const approved = !!tm.approvedAt;
-  const aiLabel = announcement ? '📘 Xem bài giáo viên giao' : !gv && p.studentAcc === S.meId && approved ? '📝 Xem điểm và nhận xét' : grading ? '✨ AI đang phân tích…'
+  const aiLabel = announcement ? '📘 Xem bài giáo viên giao' : !gv && p.studentAcc === S.meId && approved ? '📝 Xem điểm và nhận xét' : !gv && approved ? '📝 Xem bài và nhận xét' : grading ? '✨ AI đang phân tích…'
     : gv ? (fileOnly ? '📎 Xem tệp · Chấm thủ công' : '✨ Phân tích AI' + (approved ? ' · Đã duyệt' : p.ai ? ' · Chờ duyệt' : ''))
-    : p.by === 'gv' ? '📘 Xem bài giáo viên giao'
+    : p.by === 'gv' ? '📘 Xem bài đã đăng'
     : p.practice?.length ? '📚 Làm bài luyện tập (' + p.practice.reduce((n, v) => n + (v.exercises?.length || 0), 0) + ' bài)'
     : p.ai || tm.note ? '✨ Xem nhận xét' : 'Xem bài đã nộp';
   const color = postColor(p);
@@ -5308,7 +5334,7 @@ function postCard(p, studentView) {
     ${p.attachments?.length ? `<button type="button" class="attach-card-count" data-act="open-post" data-id="${p.id}">${ic('download','ic-sm')}${p.attachments.length} tệp đính kèm</button>` : ''}
     ${peerPost(p) ? '' : linkChips(links, false)}
     ${!gv ? `<p class="student-post-label">${announcement ? '📘 Bài giáo viên · Cả lớp xem' : p.studentAcc === S.meId ? 'Bài của em' : 'Bài của bạn · Chỉ xem'}</p>` : ''}
-    ${!gv && p.studentAcc === S.meId && approved ? `<div class="student-feedback-inline" aria-label="Nhận xét đã duyệt"><strong>${ic('msg','ic-sm')} ${esc(studentFeedbackExcerpt(p).label)}</strong><p>${esc(studentFeedbackExcerpt(p).text.slice(0,240))}${studentFeedbackExcerpt(p).text.length>240?'…':''}</p></div>` : ''}
+    ${!gv && approved ? studentFeedbackInlineHtml(p) : ''}
     <button class="btn ${announcement ? 'btn-soft' : 'btn-ai ai-entry'}" data-act="open-post" data-id="${p.id}" ${autoGrade ? 'data-grade="1"' : ''}>${aiLabel}</button>
     ${!gv && studentCanEdit(p) ? `<div class="student-post-actions"><button class="btn btn-sm" data-act="student-edit" data-id="${p.id}">${ic('pencil','ic-sm')}Sửa bài</button><button class="btn btn-sm btn-danger" data-act="student-delete" data-id="${p.id}">${ic('trash','ic-sm')}Xóa bài</button></div>` : !gv && p.by === 'hs' && p.studentAcc === S.meId ? `<p class="student-post-locked">${ic('lock','ic-sm')}Bài đã chấm · không thể sửa hoặc xóa</p>` : ''}
     ${showFoot ? `<div class="pfoot">${gv ? `<button class="preact${liked ? ' on' : ''}" data-act="p-like" data-id="${p.id}" aria-pressed="${liked}" aria-label="Thích bài của ${esc(p.studentName)}">${ic(liked ? 'heart-f' : 'heart', 'ic-sm')}${likes.length}</button>` : `<span class="preact${likes.length ? ' on' : ''}">${ic(likes.length ? 'heart-f' : 'heart', 'ic-sm')}${likes.length}</span>`}<button class="preact" data-act="open-post" data-id="${p.id}" data-focus="cmt" aria-label="Nhận xét bài của ${esc(p.studentName)}">${ic('msg', 'ic-sm')}${comments.length}<span>Nhận xét</span></button>${fs != null ? `<span class="score-pill" title="${approved ? 'Điểm thầy cô đã duyệt' : 'Điểm AI đề xuất'}">${fmt(fs)}<small>/${max}</small></span>` : ''}</div>` : ''}
