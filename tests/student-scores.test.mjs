@@ -78,7 +78,7 @@ test('Student feedback shows published teacher notes and comments, with AI clear
   assert.equal(f.comments.length,2);
   assert.equal(f.aiText,'AI gợi ý ôn quy tắc nhân');
   const html=tools.studentFeedbackDetail(ownView);
-  assert.match(html,/Nhận xét của giáo viên/);
+  assert.match(html,/Nhận xét sau khi chấm/);
   assert.match(html,/Nhận xét chốt/);
   assert.match(html,/Tốt: tiếp tục luyện tập/);
   assert.match(html,/Bổ sung cách trình bày ở câu 2/);
