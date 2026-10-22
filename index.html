@@ -6908,8 +6908,8 @@ function drawSide() {
     ${safeSection(() => studentPracticeHtml(p), 'Bài tập được giáo viên giao')}
     <button class="btn btn-ghost" type="button" data-pd="close">Đóng</button>`;
     $('[data-pd=close]', el)?.addEventListener('click', () => detail.m.close());
-    $('[data-st-pr-answer]', el).forEach((input) => (input.oninput = () => { if (detail) detail.studentDrafts[input.dataset.stPrAnswer] = input.value; }));
-    $('[data-st-pr-send]', el).forEach((button) => (button.onclick = () => studentPracticeSubmit(button.dataset.stPrSend)));
+    $$('[data-st-pr-answer]', el).forEach((input) => (input.oninput = () => { if (detail) detail.studentDrafts[input.dataset.stPrAnswer] = input.value; }));
+    $$('[data-st-pr-send]', el).forEach((button) => (button.onclick = () => studentPracticeSubmit(button.dataset.stPrSend)));
     return;
   }
   const max = b.assignment?.maxScore || 10;
