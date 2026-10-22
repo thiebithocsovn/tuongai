@@ -2329,6 +2329,29 @@ html,body{max-width:100%;overflow-x:clip}
 .student-similar-foot{font-size:11px;color:#748097}
 @media(max-width:580px){.student-peer-result-head,.student-similar-preview{padding:12px}.board-student-view-settings{padding:12px}}
 </style>
+
+<style id="similar-attempt-grading-ui">
+.student-similar-name{display:flex;flex-wrap:wrap;gap:10px;align-items:end;padding:12px;background:#f0f6ff;border:1px solid #dce8f9;border-radius:10px}
+.student-similar-name label{flex:1;min-width:155px;font-size:12px;color:#405576;font-weight:700}
+.student-similar-name input{width:100%;display:block;margin-top:5px;padding:9px;border:1px solid #bacbe4;border-radius:8px;background:#fff}
+.student-similar-submit{margin-top:12px;display:grid;gap:10px}
+.student-similar-submit label{font-size:12px;font-weight:750;color:#29496a}
+.student-similar-submit textarea{width:100%;display:block;margin-top:6px;padding:12px;border-radius:9px;border:1px solid #bcd2e7;background:#fff;min-height:108px;resize:vertical;font-size:14px;line-height:1.55}
+.student-similar-submit .btn{justify-self:start;white-space:normal}
+.student-similar-status{background:#f1f9f4;border:1px solid #c5e6d0;padding:11px;border-radius:9px;line-height:1.6;color:#216044;font-size:13px}
+.student-similar-status p{margin:4px 0;white-space:pre-wrap}
+.student-similar-status small{color:#547767}
+.teacher-similar-review{background:#f8fcff;border:1px solid #bfdaea;padding:14px;border-radius:13px}
+.teacher-similar-review h4{color:#185d86}
+.teacher-similar-stats{background:#e9f6ef;padding:10px;border-radius:9px;font-size:12px}
+.teacher-similar-item{display:grid;gap:8px;margin-top:12px;padding:12px;border-radius:10px;border:1px solid #d7e3ef;background:#fff}
+.teacher-similar-item strong{font-size:13px;color:#173957}
+.teacher-similar-item small{color:#62768d;font-size:12px}
+.teacher-similar-response{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.5;margin:4px 0}
+.teacher-similar-item label{font-size:12px;color:#37546a;display:block}
+.teacher-similar-item input,.teacher-similar-item textarea{display:block;width:100%;margin-top:5px;border-radius:8px;border:1px solid #b8ccdf;padding:9px;background:#fff}
+@media(max-width:600px){.student-similar-name{display:grid}.student-similar-name input{font-size:16px}.student-similar-submit textarea{font-size:16px}.teacher-similar-item .as-row{flex-wrap:wrap}}
+</style>
 <style id="student-feedback-styles">
 .student-result-entry>span{flex:1;min-width:0}
 .student-result-feedback{margin-top:3px!important;font-size:12px!important;color:#285277!important;line-height:1.5;white-space:normal;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
@@ -6802,16 +6825,34 @@ async function teacherSimilarAction(action,source) {
 
 /* Đề tương tự đã lọc trên máy chủ; không bao giờ hiển thị đáp án riêng của giáo viên. */
 function studentSimilarPreviewHtml(p) {
-  if (!p?.teacher?.approvedAt) return '';
-  if (getBoard(p.boardId)?.assignment?.studentView?.showSimilar === false) return '';
-  if (!peerPost(p) && p.practice?.length) return '';
-  const questions = Array.isArray(p.similarQuestions) ? p.similarQuestions : [];
+  if (!p?.teacher?.approvedAt || getBoard(p.boardId)?.assignment?.studentView?.showSimilar === false) return '';
+  const questions=Array.isArray(p.similarQuestions)?p.similarQuestions:[];
+  const attempts=detail?.similarAttempts||[];
+  const draft=detail?.similarDrafts||{};
+  const name=similarStudentName(p);
   return `<section class="blk student-similar-preview" aria-label="Bài tập tương tự sau khi chấm">
-    <h4>${ic('bookopen','ic-sm')} Bài tập tương tự</h4>
-    ${questions.length ? `<p class="meta">Các đề để tự luyện. ${questions.some(q=>q.origin==='ai')?'Đây là đề do AI gợi ý; em nên đối chiếu cùng thầy cô nếu có nội dung chưa rõ.':'Các bài đã được giáo viên duyệt.'}</p>
-      <ol class="student-similar-questions">${questions.map(q=>`<li><p>${esc(q.question)}</p>${q.hint?`<div class="student-similar-hint"><b>Gợi ý:</b> ${esc(q.hint)}</div>`:''}</li>`).join('')}</ol>`
-      : '<p class="meta">Bài này chưa có bài tập tương tự để chia sẻ. Em có thể hỏi thầy cô để được hướng dẫn thêm.</p>'}
-    <p class="student-similar-foot">Không hiển thị đáp án, lời giải hoặc điểm riêng của bạn khác.</p>
+    <h4>${ic('bookopen','ic-sm')} Bài tập tương tự · Nộp lời giải để AI và giáo viên chấm</h4>
+    ${questions.length?`<p class="meta">Đọc đề, nhập lời giải và nộp bài. AI chấm sơ bộ, giáo viên chấm chính thức và khóa sổ kết quả.</p>
+      <div class="student-similar-name"><label>Họ tên học sinh
+        <input data-sim-name type="text" maxlength="120" autocomplete="name" value="${esc(name)}" placeholder="Nhập họ tên để nhận kết quả cá nhân" ${!S.guest?.preview?'readonly':''}></label>
+        <button type="button" class="btn btn-sm btn-soft" data-sim-refresh>${ic('restore','ic-sm')} Xem kết quả của em</button>
+      </div>
+      <ol class="student-similar-questions">${questions.map((q,index)=>{
+        const k='q'+index,at=attempts.find(a=>a.exercise_key===k);
+        const busy=detail?.similarBusy===k,locked=!!at?.locked_at;
+        return `<li><p>${esc(q.question)}</p>
+          ${q.hint?`<div class="student-similar-hint"><b>Gợi ý:</b> ${esc(q.hint)}</div>`:''}
+          <div class="student-similar-submit"><label>Bài làm của em
+            <textarea data-sim-answer="${index}" rows="4" maxlength="8000" placeholder="Viết lời giải, các bước tính hoặc câu trả lời vào đây…" ${locked||busy?'disabled':''}>${esc(draft[k]??at?.response??'')}</textarea></label>
+            ${at?`<div class="student-similar-status"><b>${locked?'Đã khóa sổ · Kết quả chính thức':'Đã nộp · Đang chờ giáo viên khóa sổ'}</b>
+              ${locked?`<p>Điểm giáo viên: <strong>${fmt(at.teacher_score)}/10</strong> · ${esc(at.teacher_note||'Đã được giáo viên chốt')}</p>`:`<p>${at.ai_score!=null?'AI chấm sơ bộ: '+fmt(at.ai_score)+'/10 · '+esc(at.ai_note||''): 'AI chưa chấm được; giáo viên có thể chấm thủ công.'}</p>`}
+              <small>${esc(vnTime(at.submitted_at))}</small></div>`:''}
+            ${!locked?`<button type="button" class="btn btn-brand btn-sm" data-sim-send="${index}" ${busy?'disabled':''}>${ic('send','ic-sm')} ${busy?'Đang nộp và AI chấm…':at?'Nộp lại lời giải':'Nộp bài tập tương tự'}</button>`:''}
+          </div></li>`;}).join('')}</ol>`:
+      '<p class="meta">Bài này chưa có bài tập tương tự để chia sẻ. Em có thể hỏi thầy cô để được hướng dẫn thêm.</p>'}
+    ${detail?.similarError?`<p class="as-err" role="alert">${esc(detail.similarError)}</p>`:''}
+    ${detail?.similarMessage?`<p class="as-ok" role="status">${esc(detail.similarMessage)}</p>`:''}
+    <p class="student-similar-foot">Điểm AI chỉ là gợi ý. Chỉ giáo viên được chấm cuối cùng và khóa sổ. Em chỉ xem được kết quả luyện tập của mình trên thiết bị đã nộp, theo mã cá nhân.</p>
   </section>`;
 }
 
@@ -6829,7 +6870,9 @@ function openDetail(id, autoGrade, focus) {
     body: `<div class="pd"${peerPost(p) ? ' data-peer-protected="1"' : ''}><div class="pd-media" id="pd-media"></div><div class="pd-side" id="pd-side"></div></div>`,
     onClose: () => { window.TuongAiFilePreview?.dispose(m.el); const c = ctlOf.get(id); if (c) c.abort(); detail?.as?.ctl?.abort(); detail = null; },
   });
-  detail = { id, m, started: 0, studentDrafts: {}, studentBusy: '', studentMessage: '', studentError: '' };
+  detail = { id, m, started: 0, studentDrafts: {}, studentBusy: '', studentMessage: '', studentError: '',
+    similarDrafts:{},similarAttempts:[],similarName:S.guest?.preview?(SS.get('tuongai-similar-name-'+b.code)||''):(S.guest?.name||''),
+    similarBusy:'',similarError:'',similarMessage:'',teacherSimilar:[],teacherSimilarLoaded:false,teacherSimilarLoading:false };
   // Nhận xét là nội dung chính của cửa sổ: luôn hiển thị trước khi nạp ảnh và tệp.
   drawSide();
   try { drawMedia(); }
@@ -6838,7 +6881,7 @@ function openDetail(id, autoGrade, focus) {
     const media = $('#pd-media', m.el);
     if (media && !media.innerHTML.trim()) media.innerHTML = '<p class="meta">Ảnh hoặc tệp đính kèm chưa tải được. Nhận xét vẫn hiển thị ở bên cạnh.</p>';
   }
-  if (!announcement && !gv && S.guest) studentPracticeRefresh(id);
+  if (!announcement && !gv && S.guest) { studentPracticeRefresh(id); studentSimilarRefresh(id); }
   if (!announcement && autoGrade && gv && !p.ai) runGrade(id);
   if (focus === 'cmt') setTimeout(() => { $('#pd-cmt', m.el)?.scrollIntoView({ block: 'center' }); $('#cm-text', m.el)?.focus(); }, 80);
 }
@@ -7014,6 +7057,7 @@ function drawSide() {
     ${ready ? studentFeedbackDetail(p)+studentSimilarPreviewHtml(p) : '<p class="meta">Giáo viên chưa duyệt nội dung này.</p>'}
     <button class="btn btn-ghost" type="button" data-pd="close">Đóng</button>`;
     $('[data-pd=close]',el)?.addEventListener('click',()=>detail.m.close());
+    bindStudentSimilar(el);
     drawMedia();
     return;
   }
@@ -7044,6 +7088,7 @@ function drawSide() {
     $('[data-pd=close]', el)?.addEventListener('click', () => detail.m.close());
     $$('[data-st-pr-answer]', el).forEach((input) => (input.oninput = () => { if (detail) detail.studentDrafts[input.dataset.stPrAnswer] = input.value; }));
     $$('[data-st-pr-send]', el).forEach((button) => (button.onclick = () => studentPracticeSubmit(button.dataset.stPrSend)));
+    bindStudentSimilar(el);
     return;
   }
   const max = b.assignment?.maxScore || 10;
@@ -7109,6 +7154,7 @@ function drawSide() {
     ${!gv && detail.studentError ? `<p class="as-err" role="alert">${esc(detail.studentError)}</p>` : ''}
     ${!gv && detail.studentMessage ? `<p class="as-ok" role="status">${esc(detail.studentMessage)}</p>` : ''}
     ${cmtHtml}
+    ${gv ? teacherSimilarReviewHtml(p) : ''}
     <div class="row-between">${canGrade ? `<button class="btn ${ai ? 'btn-ghost' : 'btn-brand'}" data-pd="grade">${ic('spark')}${ai ? 'Chấm lại bằng AI' : 'Chấm bằng AI'}</button>` : '<span></span>'}<button class="btn btn-ghost" data-pd="close">Đóng</button></div>`;
   if (dirty) { if (keepNote != null && $('#td-note', el)) $('#td-note', el).value = keepNote; if (keepScore != null && $('#td-score', el)) $('#td-score', el).value = keepScore; }
   if (keepCm && $('#cm-text', el)) $('#cm-text', el).value = keepCm;
@@ -7124,6 +7170,7 @@ function drawSide() {
   $$('[data-pd]', el).forEach((x) => (x.onclick = () => detailAct(x.dataset.pd, x)));
   $$('[data-st-pr-answer]', el).forEach((x) => (x.oninput = () => { if (detail) detail.studentDrafts[x.dataset.stPrAnswer] = x.value; }));
   $$('[data-st-pr-send]', el).forEach((x) => (x.onclick = () => studentPracticeSubmit(x.dataset.stPrSend)));
+  if(!gv)bindStudentSimilar(el);
   drawMedia();
 }
 let secT = 0;
@@ -7158,6 +7205,7 @@ function aiComment(ai) {
 }
 async function detailAct(a, src) {
   const id = detail.id; const p = getPost(id); const b = getBoard(p.boardId);
+  if (a.startsWith('sim-teacher-')) return teacherSimilarAction(a,src);
   if (a === 'close') return detail.m.close();
   if (a === 'student-edit') { detail.m.close(); return studentEditForm(p); }
   if (a === 'student-delete') { detail.m.close(); return studentDeletePost(p); }
