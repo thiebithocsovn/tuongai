@@ -6776,7 +6776,16 @@ async function studentSimilarSubmit(index) {
 }
 function bindStudentSimilar(el) {
   const name=$('[data-sim-name]',el);
-  if(name)name.oninput=()=>{if(detail)detail.similarName=name.value;};
+  if(name)name.oninput=()=>{
+    if(!detail)return;
+    if(detail.similarName!==name.value){
+      detail.similarName=name.value;detail.similarAttempts=[];detail.similarUrls={};
+      detail.similarDrafts={};detail.similarSelfQuestion='';
+      $$('[data-sim-answer]',el).forEach(x=>{x.value='';});
+      $$('[data-sim-question]',el).forEach(x=>{x.value='';});
+      $$('.student-similar-status,.student-similar-saved-photo',el).forEach(x=>x.remove());
+    }
+  };
   $$('[data-sim-answer]',el).forEach(x=>x.oninput=()=>{if(detail)detail.similarDrafts[x.dataset.simAnswer==='-1'?'self':'q'+x.dataset.simAnswer]=x.value});
   $('[data-sim-question]',el)?.addEventListener('input',event=>{if(detail)detail.similarSelfQuestion=event.target.value});
   $$('[data-sim-photo]',el).forEach(input=>input.onchange=async()=>{
@@ -6799,7 +6808,7 @@ function teacherSimilarReviewHtml(p) {
   if(!p?.teacher?.approvedAt)return '';
   const d=detail,attempts=d.teacherSimilar||[],summary=d.teacherSimilarSummary||{};
   return `<section class="blk teacher-similar-review"><h4>${ic('bookopen','ic-sm')} Nộp bài tập tương tự · Chấm và khóa sổ</h4>
-    <p class="meta">Học sinh làm bài ngay trong link lớp. AI chấm sơ bộ; giáo viên quyết định điểm, nhận xét và khóa sổ kết quả.</p>
+    <p class="meta">Học sinh làm bài ngay trong link lớp. ${CAP.aiReady?'AI máy chủ có thể chấm sơ bộ.':'AI máy chủ chưa kích hoạt; giáo viên vẫn chấm thủ công được.'} Giáo viên quyết định điểm, nhận xét và khóa sổ kết quả.</p>
     <button class="btn btn-soft btn-sm" data-pd="sim-teacher-load">${d.teacherSimilarLoading?'Đang tải…':d.teacherSimilarLoaded?'Làm mới danh sách':'Xem học sinh đã nộp bài tương tự'}</button>
     ${d.teacherSimilarError?`<p class="as-err" role="alert">${esc(d.teacherSimilarError)}</p>`:''}
     ${d.teacherSimilarMessage?`<p class="as-ok" role="status">${esc(d.teacherSimilarMessage)}</p>`:''}
@@ -6812,7 +6821,7 @@ function teacherSimilarReviewHtml(p) {
        ${a.locked_at?`<p class="as-ok">Đã khóa sổ: ${fmt(a.teacher_score)}/10 · ${esc(a.teacher_note||'Giáo viên đã duyệt')}</p>`:
        `<label>Điểm giáo viên /10<input data-sim-teacher-score="${esc(a.id)}" type="number" min="0" max="10" step="0.25" value="${a.teacher_score??a.ai_score??''}" placeholder="0–10"></label>
         <label>Nhận xét giáo viên<textarea data-sim-teacher-note="${esc(a.id)}" rows="2" maxlength="2000" placeholder="Điểm mạnh, lỗi cần sửa, hướng luyện tập…">${esc(a.teacher_note||a.ai_note||'')}</textarea></label>
-        <div class="as-row"><button class="btn btn-sm btn-soft" data-pd="sim-teacher-ai" data-attempt="${esc(a.id)}">AI chấm lại</button>
+        <div class="as-row"><button class="btn btn-sm btn-soft" data-pd="sim-teacher-ai" data-attempt="${esc(a.id)}" ${!CAP.aiReady?'disabled title="AI máy chủ chưa kích hoạt"':''}>AI chấm lại</button>
           <button class="btn btn-sm btn-brand" data-pd="sim-teacher-lock" data-attempt="${esc(a.id)}">Giáo viên chấm · Khóa sổ</button></div>`}
        </article>`).join('')}
       `:''}
@@ -6858,7 +6867,7 @@ function studentSimilarPreviewHtml(p) {
   const name=similarStudentName(p);
   return `<section class="blk student-similar-preview" aria-label="Bài tập tương tự sau khi chấm">
     <h4>${ic('bookopen','ic-sm')} Bài tập tương tự · Nộp lời giải để AI và giáo viên chấm</h4>
-    ${questions.length?`<p class="meta">Đọc đề, nhập lời giải và nộp bài. AI chấm sơ bộ, giáo viên chấm chính thức và khóa sổ kết quả.</p>
+    ${questions.length?`<p class="meta">Đọc đề, gõ lời giải hoặc chụp ảnh rồi nộp bài. ${CAP.aiReady?'AI máy chủ chấm sơ bộ, giáo viên chấm chính thức và khóa sổ kết quả.':'AI máy chủ chưa được quản trị viên kích hoạt; bài vẫn được lưu để giáo viên chấm và khóa sổ.'}</p>
       <div class="student-similar-name"><label>Họ tên học sinh
         <input data-sim-name type="text" maxlength="120" autocomplete="name" value="${esc(name)}" placeholder="Nhập họ tên để nhận kết quả cá nhân" ${!S.guest?.preview?'readonly':''}></label>
         <button type="button" class="btn btn-sm btn-soft" data-sim-refresh>${ic('restore','ic-sm')} Xem kết quả của em</button>
