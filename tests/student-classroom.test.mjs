@@ -33,6 +33,30 @@ test('Classroom visibility cannot be claimed by an empty or another student toke
   assert.equal(visibleToStudent(approved,''),true);
   assert.equal(ownsStudentPost({...pending,student_token:''},''),false);
 });
+test('Teacher posts are published to every class visitor without grade approval',()=>{
+  const teacherPost={...pending,id:'teacher-announcement',by:'gv',student_token:null,body:'Làm bài tập trang 10',ai:null,ai_at:null,
+    teacher:{assist:{answer:'Không công khai đáp án'},score:9,note:'Nhận xét riêng'},
+    attachments:[{name:'Huong-dan.docx',path:'teacher/lesson.docx',type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',size:100}]};
+  assert.equal(visibleToStudent(teacherPost,''),true);
+  assert.equal(visibleToStudent(teacherPost,'another-student-token'),true);
+  const p=studentPost(teacherPost,false);
+  assert.equal(p.visibility,'class');
+  assert.equal(p.editable,false);
+  assert.equal(p.body,'Làm bài tập trang 10');
+  assert.equal(p.attachments[0].path,'teacher/lesson.docx');
+  assert.equal(p.attachments[0].viewOnly,false);
+  assert.equal(p.teacher.score,undefined);
+  assert.equal(p.teacher.note,undefined);
+  assert.equal(p.ai,null);
+  assert.equal(JSON.stringify(p).includes('Không công khai đáp án'),false);
+  assert.equal(visibleToStudent(pending,'another-student-token'),false);
+});
+test('Class wall includes teacher posts immediately without exposing pending student work',()=>{
+  assert.match(html,/p\.by === 'gv' \|\| p\.studentAcc === me\.id/);
+  assert.match(html,/case 'publish-class': if \(b && canManage\(b\)\)/);
+  assert.match(html,/Bài giáo viên · Cả lớp xem/);
+});
+
 test('Unsupported peer attachments never expose the original path',()=>{
   const p={...approved,attachments:[{name:'Bài.doc',path:'private/original.doc',type:'application/msword',size:1},{name:'Bài.pdf',path:'private/preview.pdf',type:'application/pdf',size:2}]};
   assert.equal(studentPost(p,false).attachments[0].path,'');
