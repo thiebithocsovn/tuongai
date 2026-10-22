@@ -18,7 +18,7 @@ function openGuestDetail(opts={}){
  const $=(selector)=>selector==='#pd-media'?media:selector==='#pd-side'?sidebar:null;
  const $$=(selector)=>{calls.push(selector);return []};
  const context={S:{guest:{preview:true},meId:'preview'},SIGNED:new Map(),window:{TuongAiFilePreview:{dispose:()=>{}}},
-   getPost:()=>post,getBoard:()=>board,isGV:()=>false,isTeacherAnnouncement:()=>false,
+   getPost:()=>post,getBoard:()=>board,isGV:()=>false,isTeacherAnnouncement:()=>false,SS:{get:()=>''},studentSimilarRefresh:()=>{},
    peerPost:()=>true,openModal:()=>modal,drawSide:()=>{calls.push('sidebar');sidebar.innerHTML='<section>Giáo viên góp ý: chú ý cách trình bày.</section>';},
    $,$$,splitLinks:()=>({text:'',links:[]}),postImageSrcs:()=>['https://example.test/image.jpg'],
    now:()=>123,esc:String,attachmentList:()=>'',previewPeerFile:()=>{},previewAttachmentFile:()=>{},
