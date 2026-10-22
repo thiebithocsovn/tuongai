@@ -19,7 +19,7 @@ function renderStudent(p,{peer=false,boardSettings={}}={}) {
  const detail={id:p.id,key:'',m:{el:{}}};
  const S={guest:{id:'this-student'},meId:'this-student',grading:new Set()};
  const ctx={S,detail,document:{activeElement:null},console,getPost:()=>p,getBoard:()=>board,isGV:()=>false,isAdmin:()=>false,
-   isTeacherAnnouncement:()=>false,peerPost:()=>peer,detailKey:()=> 'test-key',
+   isTeacherAnnouncement:()=>false,peerPost:()=>peer,detailKey:()=> 'test-key',similarStudentName:()=>'',bindStudentSimilar:()=>{},
    $:(sel)=>sel==='#pd-side'?side:null,$$:()=>[],
    ic:()=>'',esc:encode,vnTime:()=> '22/10/2026',fmt:v=>String(v),timeAgo:()=> 'vừa xong',
    drawMedia:()=>{},studentPracticeHtml:()=>'',studentPracticeSubmit:()=>{},
