@@ -8,8 +8,24 @@ export function isTeacherAnnouncement(p: any, ownerName = ""): boolean {
   return !!(ownerName && studentName && studentName === String(ownerName).trim().toLocaleLowerCase("vi"));
 }
 
+/* Học sinh chỉ nhận câu hỏi an toàn của bài đã duyệt, không gửi đáp án hay tiêu chí nội bộ. */
+export function studentSimilarQuestions(p: any, enabled = true) {
+  if (!enabled || !p?.teacher?.approvedAt || p.by !== "hs") return [];
+  const assigned = p.teacher?.assist?.similar;
+  const sources: any[] = assigned?.status === "assigned"
+    ? (Array.isArray(assigned.exercises) ? assigned.exercises : [])
+    : (Array.isArray(p.ai?.bai_tap) && p.ai.bai_tap.length ? p.ai.bai_tap : p.ai?.bai_tap_goi_y || []);
+  return sources.slice(0, 6).map((item: any) => {
+    const question = (typeof item === "string" ? item : item?.question || item?.de || "").trim().slice(0, 1400);
+    const hint = assigned?.status === "assigned" && typeof item?.hint === "string" ? item.hint.trim().slice(0, 500) : "";
+    return { question, hint, origin: assigned?.status === "assigned" ? "teacher" : "ai" };
+  }).filter((item: any) => item.question);
+}
+
 /* Explicit student response fields: never serialize raw rows or teacher.assist. */
-export function studentPost(p: any, mine = true, ownerName = "") {
+export function studentPost(p: any, mine = true, ownerName = "", classroomSettings: any = {}) {
+  const showFeedback = classroomSettings?.showFeedback !== false;
+  const showSimilar = classroomSettings?.showSimilar !== false;
   const approved = !!p.teacher?.approvedAt;
   const teacherPost = isTeacherAnnouncement(p, ownerName);
   const graded = !!(p.ai || p.ai_at || approved || typeof p.teacher?.score === "number");
@@ -20,10 +36,12 @@ export function studentPost(p: any, mine = true, ownerName = "") {
   };
   if (approved) {
     teacher.approvedAt = p.teacher.approvedAt;
-    teacher.note = typeof p.teacher.note === "string" ? p.teacher.note : "";
-    teacher.comments = (Array.isArray(p.teacher.comments) ? p.teacher.comments : []).map((c: any) => ({
+    if (showFeedback) {
+      teacher.note = typeof p.teacher.note === "string" ? p.teacher.note : "";
+      teacher.comments = (Array.isArray(p.teacher.comments) ? p.teacher.comments : []).map((c: any) => ({
       id: c.id, name: c.name, text: c.text, at: c.at,
-    }));
+      }));
+    }
     if (mine && typeof p.teacher.score === "number") teacher.score = p.teacher.score;
   }
   return {
@@ -34,7 +52,8 @@ export function studentPost(p: any, mine = true, ownerName = "") {
       const previewable = /\.(pdf|docx|xlsx?|txt|csv|mp4|mov|webm|mp3|m4a|wav)$/i.test(a.name || "");
       return { name: a.name, type: a.type, size: a.size, path: mine || teacherPost || previewable ? a.path : "", viewOnly: !mine && !teacherPost };
     }),
-    ai: mine && approved ? p.ai : null,
+    ai: mine && approved ? (showFeedback ? p.ai : null) : null,
+    similar_questions: studentSimilarQuestions(p, showSimilar),
     ai_at: mine && approved ? p.ai_at : null,
     teacher, created_at: p.created_at,
     visibility: mine ? "mine" : "class", graded,
