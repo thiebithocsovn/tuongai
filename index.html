@@ -4141,7 +4141,17 @@ const getPost = (id) => S.posts.get(id) || S.demoPosts.get(id);
 const allPosts = () => [...S.posts.values(), ...S.demoPosts.values()];
 const postsOf = (bid) => allPosts().filter((p) => p.boardId === bid).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 const boardByCode = (code) => { const c = String(code || '').toUpperCase(); return c === DEMO.code ? DEMO : [...S.boards.values()].find((b) => b.code === c && !b.trashed); };
+function isTeacherAnnouncement(p) {
+  if (!p || p.by !== 'gv') return false;
+  if (p.teacher?.postType === 'announcement') return true;
+  if (p.teacher?.postType) return false;
+  // Nhận diện bài giao trước khi bổ sung postType, dựa trên tên người quản trị lớp.
+  const b = getBoard(p.boardId);
+  const ownerName = b?.teacherName || (b?.ownerAcc === S.meId && isGV() ? ME()?.name : S.members.get(b?.ownerAcc)?.full_name);
+  return !!(ownerName && String(p.studentName || '').trim().toLocaleLowerCase('vi') === String(ownerName).trim().toLocaleLowerCase('vi'));
+}
 const finalScore = (p) => {
+  if (isTeacherAnnouncement(p)) return null;
   if (S.guest && (p.studentAcc !== S.meId || !p.teacher?.approvedAt)) return null;
   return p.teacher && isNum(p.teacher.score) ? p.teacher.score : p.ai && isNum(p.ai.diem) ? p.ai.diem : null;
 };
@@ -4170,6 +4180,7 @@ document.addEventListener('keydown',e=>{
 const studentCanEdit = (p) => !!(p && S.guest && p.by === 'hs' && p.studentAcc === S.meId &&
   p.editable !== false && !p.graded && !p.ai && !p.aiAt && !p.teacher?.approvedAt && !isNum(p.teacher?.score) && !S.grading.has(p.id));
 function status(p) {
+  if (isTeacherAnnouncement(p)) return 'notice';
   if (S.grading.has(p.id)) return 'dang';
   if (p.teacher?.approvedAt) return 'duyet';
   if (p.ai || p.graded) return 'ai';
@@ -4177,6 +4188,7 @@ function status(p) {
 }
 function chip(p) {
   const s = status(p);
+  if (s === 'notice') return '<span class="chip chip-info">Bài giáo viên</span>';
   if (s === 'dang') return '<span class="chip chip-info chip-run"><i></i>AI đang chấm</span>';
   if (s === 'duyet') return '<span class="chip chip-ok"><i></i>Thầy cô đã duyệt</span>';
   if (s === 'ai') return '<span class="chip chip-info"><i></i>' + (S.guest ? 'Chờ thầy cô duyệt' : 'AI đã chấm') + '</span>';
@@ -4947,7 +4959,7 @@ function renderBoard(b) {
   setupColumnPostScroll();
 }
 /* Bài chờ thầy cô duyệt: chưa chấm, đang chấm hoặc AI đã chấm nhưng thầy cô chưa duyệt điểm. */
-const reviewPosts = (b) => sortPosts(boardPostList(b).filter((p) => status(p) !== 'duyet'), 'old');
+const reviewPosts = (b) => sortPosts(boardPostList(b).filter((p) => !isTeacherAnnouncement(p) && status(p) !== 'duyet'), 'old');
 function reviewForm(b) {
   const draw = () => {
     const list = reviewPosts(b);
@@ -5096,33 +5108,34 @@ const vnTime = (t) => (t ? new Date(t).toLocaleString('vi-VN', { day: '2-digit',
 function postCard(p, studentView) {
   const fs = finalScore(p); const b = getBoard(p.boardId); const max = b?.assignment?.maxScore || 10;
   const img = p.images?.[0]; const src = img ? imgSrc(img) : '';
-  const who = studentView ? (b?.name || '') : p.studentName;
+  const announcement = isTeacherAnnouncement(p);
+  const who = announcement ? 'Giáo viên · ' + (p.studentName || b?.teacherName || 'Giáo viên') : studentView ? (b?.name || '') : p.studentName;
   const gv = isGV();
   const tm = tmeta(p);
   const likes = tm.likes || [], comments = tm.comments || [];
   const liked = likes.includes(S.meId);
   const grading = S.grading.has(p.id);
   const fileOnly = !!p.attachments?.length && !(p.images||[]).length && !String(p.text||'').trim();
-  const autoGrade = gv && !fileOnly && !p.ai && !grading && aiOn();
+  const autoGrade = gv && !announcement && !fileOnly && !p.ai && !grading && aiOn();
   const { text: body, links } = splitLinks(p.text);
   const media = img ? `<span class="pthumb">${src ? `<img src="${esc(src)}" alt="Ảnh bài làm của ${esc(p.studentName)}" loading="lazy">` : ''}${p.images.length > 1 ? `<span class="more">${p.images.length} ảnh</span>` : ''}</span>` : '';
   const text = body ? `<span class="ptext">${esc(body)}</span>` : '';
   const approved = !!tm.approvedAt;
-  const aiLabel = grading ? '✨ AI đang phân tích…'
+  const aiLabel = announcement ? '📘 Xem bài giáo viên giao' : grading ? '✨ AI đang phân tích…'
     : gv ? (fileOnly ? '📎 Xem tệp · Chấm thủ công' : '✨ Phân tích AI' + (approved ? ' · Đã duyệt' : p.ai ? ' · Chờ duyệt' : ''))
     : p.by === 'gv' ? '📘 Xem bài giáo viên giao'
     : p.practice?.length ? '📚 Làm bài luyện tập (' + p.practice.reduce((n, v) => n + (v.exercises?.length || 0), 0) + ' bài)'
     : p.ai || tm.note ? '✨ Xem nhận xét' : 'Xem bài đã nộp';
   const color = postColor(p);
   const time = p.createdAt ? new Date(p.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date(p.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }).replace(/\//g, '-') : 'Đang đồng bộ';
-  const showFoot = gv || likes.length || comments.length || fs != null;
+  const showFoot = !announcement && (gv || likes.length || comments.length || fs != null);
   return `<article class="pcard${tm.pinned ? ' pinned' : ''}"${peerPost(p) ? ' data-peer-protected="1"' : ''}${color !== '#ffffff' ? ` style="background:${color}"` : ''}>
-    <div class="pmeta-row"><span class="pav" aria-hidden="true">${esc(String(who || '?').trim().slice(0, 1) || '?')}</span><div><strong>${esc(who || 'Chưa có tên')}</strong><small title="${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}">${time}</small></div>${tm.pinned ? `<span class="ppin" title="Bài đã ghim">${ic('pin', 'ic-sm')}</span>` : ''}${gv && canManage(b) ? `<button class="icon-btn pmenu-btn" data-act="post-menu" data-id="${p.id}" aria-label="Tùy chọn bài của ${esc(p.studentName)}" aria-haspopup="true">${ic('dots')}</button>` : ''}</div>
+    <div class="pmeta-row"><span class="pav" aria-hidden="true">${esc(String(who || '?').trim().slice(0, 1) || '?')}</span><div><strong>${esc(who || 'Chưa có tên')}</strong><small title="${announcement ? 'Giáo viên giao bài' : p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}">${time}</small></div>${tm.pinned ? `<span class="ppin" title="Bài đã ghim">${ic('pin', 'ic-sm')}</span>` : ''}${gv && canManage(b) ? `<button class="icon-btn pmenu-btn" data-act="post-menu" data-id="${p.id}" aria-label="Tùy chọn bài của ${esc(p.studentName)}" aria-haspopup="true">${ic('dots')}</button>` : ''}</div>
     ${media || text ? `<button class="pmedia" data-act="open-post" data-id="${p.id}" aria-label="Xem bài của ${esc(p.studentName)}">${media}${text}</button>` : ''}
     ${p.attachments?.length ? `<button type="button" class="attach-card-count" data-act="open-post" data-id="${p.id}">${ic('download','ic-sm')}${p.attachments.length} tệp đính kèm</button>` : ''}
     ${peerPost(p) ? '' : linkChips(links, false)}
-    ${!gv ? `<p class="student-post-label">${p.by === 'gv' ? '📘 Bài giáo viên · Cả lớp xem' : p.studentAcc === S.meId ? 'Bài của em' : 'Bài của bạn · Chỉ xem'}</p>` : ''}
-    <button class="btn btn-ai ai-entry" data-act="open-post" data-id="${p.id}" ${autoGrade ? 'data-grade="1"' : ''}>${aiLabel}</button>
+    ${!gv ? `<p class="student-post-label">${announcement ? '📘 Bài giáo viên · Cả lớp xem' : p.studentAcc === S.meId ? 'Bài của em' : 'Bài của bạn · Chỉ xem'}</p>` : ''}
+    <button class="btn ${announcement ? 'btn-soft' : 'btn-ai ai-entry'}" data-act="open-post" data-id="${p.id}" ${autoGrade ? 'data-grade="1"' : ''}>${aiLabel}</button>
     ${!gv && studentCanEdit(p) ? `<div class="student-post-actions"><button class="btn btn-sm" data-act="student-edit" data-id="${p.id}">${ic('pencil','ic-sm')}Sửa bài</button><button class="btn btn-sm btn-danger" data-act="student-delete" data-id="${p.id}">${ic('trash','ic-sm')}Xóa bài</button></div>` : !gv && p.by === 'hs' && p.studentAcc === S.meId ? `<p class="student-post-locked">${ic('lock','ic-sm')}Bài đã chấm · không thể sửa hoặc xóa</p>` : ''}
     ${showFoot ? `<div class="pfoot">${gv ? `<button class="preact${liked ? ' on' : ''}" data-act="p-like" data-id="${p.id}" aria-pressed="${liked}" aria-label="Thích bài của ${esc(p.studentName)}">${ic(liked ? 'heart-f' : 'heart', 'ic-sm')}${likes.length}</button>` : `<span class="preact${likes.length ? ' on' : ''}">${ic(likes.length ? 'heart-f' : 'heart', 'ic-sm')}${likes.length}</span>`}<button class="preact" data-act="open-post" data-id="${p.id}" data-focus="cmt" aria-label="Nhận xét bài của ${esc(p.studentName)}">${ic('msg', 'ic-sm')}${comments.length}<span>Nhận xét</span></button>${fs != null ? `<span class="score-pill" title="${approved ? 'Điểm thầy cô đã duyệt' : 'Điểm AI đề xuất'}">${fmt(fs)}<small>/${max}</small></span>` : ''}</div>` : ''}
   </article>`;
@@ -5594,9 +5607,9 @@ function submitForm(b, asTeacher, colId, publishToClass = false) {
     title: publishToClass ? 'Đăng bài cho cả lớp · ' + b.name : asTeacher ? 'Chụp bài học sinh' : 'Nộp bài · ' + b.name,
     body: `<form class="modal-b" id="sf" novalidate>
       ${publishToClass ? `<p class="info-box">Bài giáo viên đăng sẽ hiển thị ngay cho học sinh khi lớp đã bật chia sẻ; không cần duyệt. Bài học sinh nộp vẫn cần duyệt trước khi chia sẻ với bạn khác.</p>${!b.shared ? `<p class="warnline">Lớp này chưa bật chia sẻ. Sau khi đăng, bấm Chia sẻ để cho học sinh mở lớp bằng liên kết.</p>` : ""}` : ''}
-      ${asTeacher ? `<label class="fld"><span>${publishToClass ? 'Tên giáo viên đăng bài' : 'Họ tên học sinh'}</span><input id="sf-name" list="sf-names" autocomplete="off" placeholder="${publishToClass ? 'Tên giáo viên' : 'Gõ hoặc chọn tên học sinh'}" value="${publishToClass ? esc(me?.name || 'Giáo viên') : ''}"><datalist id="sf-names">${[...names].map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist></label>` : `<p class="sf-submission-info">${ic('book','ic-sm')} ${selectedColumn ? 'Nộp vào ' + esc(selectedColumn.name) + '. ' : ''}${b.assignment?.title ? 'Bài: ' + esc(b.assignment.title) + '. ' : ''}Chụp ảnh hoặc gõ bài, rồi điền tên để gửi cho thầy cô.</p>`}
+      ${publishToClass ? `<p class="sf-submission-info">${ic('users', 'ic-sm')} Người đăng: <strong>${esc(me?.name || ownerLabel(b) || 'Giáo viên')}</strong> · Bài được chia sẻ với cả lớp.</p>` : asTeacher ? `<label class="fld"><span>Họ tên học sinh</span><input id="sf-name" list="sf-names" autocomplete="off" placeholder="Gõ hoặc chọn tên học sinh"><datalist id="sf-names">${[...names].map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist></label>` : `<p class="sf-submission-info">${ic('book','ic-sm')} ${selectedColumn ? 'Nộp vào ' + esc(selectedColumn.name) + '. ' : ''}${b.assignment?.title ? 'Bài: ' + esc(b.assignment.title) + '. ' : ''}Chụp ảnh hoặc gõ bài, rồi điền tên để gửi cho thầy cô.</p>`}
       ${asTeacher && b.layout !== 'tuong' && cols.length ? `<label class="fld"><span>Cột</span><select id="sf-col">${cols.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}<option value="">Bài chung</option></select></label>` : ''}
-      <div class="fld"><span>Ảnh bài làm <em>(tối đa ${maxShots} trang)</em></span>
+      <div class="fld"><span>${publishToClass ? "Ảnh bài tập / tài liệu" : "Ảnh bài làm"} <em>(tối đa ${maxShots} trang)</em></span>
         <div class="shots" id="sf-shots"></div>
       </div>
       <label class="fld"><span>${publishToClass ? 'Nội dung bài tập / thông báo' : asTeacher ? 'Ghi chú hoặc bài gõ' : 'Hoặc gõ bài làm'} <em>(không bắt buộc)</em></span><textarea id="sf-text" rows="4" placeholder="${publishToClass ? 'Nhập yêu cầu học sinh thực hiện, thời hạn và hướng dẫn nộp bài…' : asTeacher ? 'Có thể dán bài làm dạng chữ ở đây.' : 'Em có thể gõ câu trả lời ở đây nếu không chụp ảnh.'}"></textarea></label>
@@ -5634,13 +5647,13 @@ function submitForm(b, asTeacher, colId, publishToClass = false) {
   $('#sf', el).addEventListener('submit', (e) => e.preventDefault());
   $('#sf-save', el).onclick = async () => {
     const err = $('#sf-err', el); err.textContent = '';
-    const name = (asTeacher ? $('#sf-name', el) : $('#sf-student-name', el)).value.trim().replace(/\s+/g, ' ');
+    const name = publishToClass ? (me?.name || ownerLabel(b) || 'Giáo viên').trim() : (asTeacher ? $('#sf-name', el) : $('#sf-student-name', el)).value.trim().replace(/\s+/g, ' ');
     const className = asTeacher ? '' : $('#sf-student-class', el).value.trim().toUpperCase();
     const linkRaw = $('#sf-link', el).value.trim();
     const links = linkRaw ? linkRaw.split(/\s+/).map(safeUrl) : [];
     if (links.some((u) => !u)) { err.textContent = 'Liên kết cần bắt đầu bằng https:// hoặc http://.'; $('#sf-link', el).focus(); return; }
     const text = [$('#sf-text', el).value.trim(), ...links.slice(0, 3).map((u) => '🔗 ' + u)].filter(Boolean).join('\n');
-    if (name.length < 2) { err.textContent = 'Hãy nhập họ và tên học sinh.'; (asTeacher ? $('#sf-name', el) : $('#sf-student-name', el)).focus(); return; }
+    if (name.length < 2 && !publishToClass) { err.textContent = 'Hãy nhập họ và tên học sinh.'; (asTeacher ? $('#sf-name', el) : $('#sf-student-name', el)).focus(); return; }
     if (!shots.length && !text && !attachState.files.length) { err.textContent = 'Em hãy chụp ảnh, chọn tệp hoặc nhập nội dung bài làm.'; return; }
     try{checkAttachments(attachState.files);}catch(e){err.textContent=e.message;return;}
     const btn = $('#sf-save', el); btn.disabled = true;
@@ -5690,7 +5703,8 @@ function submitForm(b, asTeacher, colId, publishToClass = false) {
       const p = {
         id: pid, boardId: b.id, ownerAcc: b.ownerAcc, columnId: colSel ? colSel.value : (selectedColumn?.id || (colId == null ? cols[0]?.id || '' : '')),
         studentName: name, studentClass: '', studentAcc: null,
-        by: asTeacher ? 'gv' : 'hs', images: refs, attachments: uploadedFiles, text, createdAt: now(),
+        by: asTeacher ? 'gv' : 'hs', teacher: asTeacher ? { postType: publishToClass ? 'announcement' : 'student_work' } : null,
+        images: refs, attachments: uploadedFiles, text, createdAt: now(),
       };
       btn.textContent = 'Đang lưu bài…';
       const ok = await savePost(p);
@@ -5698,7 +5712,7 @@ function submitForm(b, asTeacher, colId, publishToClass = false) {
       m.close();
       if (b.demo) toast('Bảng mẫu chỉ để thử, bài sẽ mất khi tải lại trang.');
       else toast(publishToClass ? (b.shared ? 'Đã đăng bài cho cả lớp. Học sinh có thể xem ngay.' : 'Đã đăng bài. Hãy bật Chia sẻ lớp để học sinh xem được.') : asTeacher ? 'Đã lưu bài của ' + name + '.' : 'Em đã nộp bài thành công!');
-      const wantAI = asTeacher ? $('#sf-ai', el)?.checked : b.autoGrade !== false;
+      const wantAI = publishToClass ? false : asTeacher ? $('#sf-ai', el)?.checked : b.autoGrade !== false;
       if (wantAI && aiOn() && (shots.length || text.trim()) && !(me.guest && b.demo)) openDetail(p.id, true);
     } catch (e) {
       err.textContent = e?.message || 'Chưa lưu được bài. Hãy thử lại.';
@@ -6367,6 +6381,7 @@ confidence là low, medium hoặc high. Không tìm thấy lỗi có căn cứ t
 }
 async function gradePost(id, signal) {
   const p = getPost(id); if (!p) return;
+  if (isTeacherAnnouncement(p)) throw { code: 'forbidden', message: 'Bài giáo viên giao cho lớp không được chấm điểm.' };
   const b = getBoard(p.boardId);
   const me = ME();
   S.grading.add(id); renderSoon();
@@ -6400,7 +6415,7 @@ async function gradePost(id, signal) {
   } finally { S.grading.delete(id); renderSoon(); }
 }
 async function gradeAll(b) {
-  const pend = postsOf(b.id).filter((p) => !p.ai && !S.grading.has(p.id) && ((p.images||[]).length || String(p.text||'').trim()));
+  const pend = postsOf(b.id).filter((p) => !isTeacherAnnouncement(p) && !p.ai && !S.grading.has(p.id) && ((p.images||[]).length || String(p.text||'').trim()));
   if (!pend.length) { toast('Không có ảnh hoặc bài gõ để AI chấm. Tệp Word, PDF, video cần thầy cô xem và chấm thủ công.'); return; }
   const ctl = new AbortController();
   S.batch = { boardId: b.id, done: 0, total: pend.length, ctl };
@@ -6481,8 +6496,9 @@ function openDetail(id, autoGrade, focus) {
   const p = getPost(id); if (!p) return;
   const b = getBoard(p.boardId);
   const gv = isGV();
+  const announcement = isTeacherAnnouncement(p);
   const m = openModal({
-    title: (gv || peerPost(p) ? p.studentName : b.name) + ' · ' + (b.assignment?.title || 'Bài làm'),
+    title: announcement ? 'Bài giáo viên · ' + (p.studentName || 'Giáo viên') : (gv || peerPost(p) ? p.studentName : b.name) + ' · ' + (b.assignment?.title || 'Bài làm'),
     wide: true,
     cls: gv ? "pd-review-modal" : "",
     body: `<div class="pd"${peerPost(p) ? ' data-peer-protected="1"' : ''}><div class="pd-media" id="pd-media"></div><div class="pd-side" id="pd-side"></div></div>`,
@@ -6490,8 +6506,8 @@ function openDetail(id, autoGrade, focus) {
   });
   detail = { id, m, started: 0, studentDrafts: {}, studentBusy: '', studentMessage: '', studentError: '' };
   drawMedia(); drawSide();
-  if (!gv && S.guest) studentPracticeRefresh(id);
-  if (autoGrade && gv && !p.ai) runGrade(id);
+  if (!announcement && !gv && S.guest) studentPracticeRefresh(id);
+  if (!announcement && autoGrade && gv && !p.ai) runGrade(id);
   if (focus === 'cmt') setTimeout(() => { $('#pd-cmt', m.el)?.scrollIntoView({ block: 'center' }); $('#cm-text', m.el)?.focus(); }, 80);
 }
 function drawMedia() {
@@ -6640,6 +6656,16 @@ function aiPartsHtml(p, b) {
 }
 function drawSide() {
   const p = getPost(detail.id); const b = getBoard(p.boardId); const gv = isGV();
+  if (isTeacherAnnouncement(p)) {
+    detail.key = detailKey(p);
+    const el = $('#pd-side', detail.m.el);
+    el.innerHTML = `<div class="pd-who"><div><h3>Giáo viên · ${esc(p.studentName || b?.teacherName || 'Giáo viên')}</h3><p class="meta">${timeAgo(p.createdAt)} · Đã giao cho cả lớp</p></div><span class="chip chip-info">Bài giáo viên</span></div>
+      <section class="blk"><h4>${ic('bookopen','ic-sm')} Bài tập / thông báo</h4><p class="meta">Nội dung, hình ảnh và tài liệu do giáo viên đăng hiển thị ở bên cạnh. ${gv ? 'Không cần chấm, duyệt điểm hoặc nhận xét AI cho bài giao lớp.' : 'Em đọc yêu cầu và nộp bài làm vào lớp khi hoàn thành.'}</p></section>
+      <div class="row-between"><button class="btn btn-ghost" data-pd="close">Đóng</button></div>`;
+    $('[data-pd=close]', el)?.addEventListener('click', () => detail.m.close());
+    drawMedia();
+    return;
+  }
   const max = b.assignment?.maxScore || 10;
   detail.key = detailKey(p);
   const el = $('#pd-side', detail.m.el);
@@ -6691,7 +6717,7 @@ function drawSide() {
       ? `<section class="blk"><h4>Nhận xét của thầy cô</h4><p class="note-t">${esc(p.teacher?.note || 'Thầy cô đã duyệt bài này.')}</p><p class="meta">Em chỉ xem được điểm của bài do mình nộp.</p></section>`
       : `<section class="blk"><h4>${p.graded ? 'Đang chờ thầy cô duyệt' : 'Đã lưu bài nộp'}</h4><p class="meta">Em có thể đóng trang và quay lại bằng trình duyệt này. Điểm và nhận xét sẽ hiện khi thầy cô duyệt.</p>${p.teacher?.approvedAt && p.teacher?.note ? `<p class="note-t">${esc(p.teacher.note)}</p>` : ''}</section>`;
   }
-  const canGrade = gv && aiOn() && !grading;
+  const canGrade = gv && aiOn() && !grading && !isTeacherAnnouncement(p);
   el.innerHTML = `
     <div class="pd-who"><div><h3>${esc(p.studentName)}</h3><p class="meta">${timeAgo(p.createdAt)} · ${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên đăng'}${p.aiAt ? ' · AI chấm ' + timeAgo(p.aiAt) : ''}</p></div><div class="row-gap" style="align-items:center">${gv ? `<button class="preact${(tmeta(p).likes || []).includes(S.meId) ? ' on' : ''}" data-pd="like" aria-label="Thích bài">${ic((tmeta(p).likes || []).includes(S.meId) ? 'heart-f' : 'heart', 'ic-sm')}${(tmeta(p).likes || []).length || ''}</button>` : ''}${chip(p)}</div></div>
     ${detail.err ? `<p class="warnline">${esc(detail.err)}</p>` : ''}
@@ -6758,6 +6784,7 @@ async function detailAct(a, src) {
   if (a === 'ai-use-score') { const inp = $('#td-score', detail.m.el); if (inp && p.ai) { inp.value = p.ai.diem; detail.dirty = true; inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); inp.focus({ preventScroll: true }); toast('Đã điền điểm AI đề xuất. Hãy kiểm tra và bấm Lưu điểm để xác nhận.'); } return; }
   if (a === 'ai-ex-note') { const box = $('#cm-text', detail.m.el); if (box && p.ai) { const t = 'Bài tập luyện thêm cho em:\n' + airExercises(p.ai).map((x, i) => (i + 1) + ') ' + x.de).join('\n'); box.value = box.value.trim() ? box.value.trim() + '\n\n' + t : t; box.scrollIntoView({ behavior: 'smooth', block: 'center' }); box.focus({ preventScroll: true }); } return; }
   if (a === 'stop') { ctlOf.get(id)?.abort(); return; }
+  if (isTeacherAnnouncement(p) && ['grade','save-score','approve','cadd','ai-use-score','ai-ex-note'].includes(a)) return;
   if (a === 'grade') return runGrade(id);
   if (a === 'like') { const likes = tmeta(p).likes || []; await patchTeacher(p, { likes: likes.includes(S.meId) ? likes.filter((x) => x !== S.meId) : [...likes, S.meId] }); return; }
   if (a === 'cadd') {
