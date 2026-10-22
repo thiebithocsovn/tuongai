@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {studentPost, ownsStudentPost, visibleToStudent} from '../supabase/functions/tuongai/student-visibility.ts';
+import {studentPost, ownsStudentPost, visibleToStudent, isTeacherAnnouncement} from '../supabase/functions/tuongai/student-visibility.ts';
 
 const token='student-a-private-token';
 const pending={id:'a',board_id:'class',by:'hs',student_token:token,body:'Bài A',ai:{diem:9},ai_at:'2026-10-20',teacher:{score:8.5,note:'Nháp riêng',comments:[{text:'Nháp'}],assist:{answer:'Đáp án bí mật'}}};
@@ -35,12 +35,13 @@ test('Classroom visibility cannot be claimed by an empty or another student toke
 });
 test('Teacher posts are published to every class visitor without grade approval',()=>{
   const teacherPost={...pending,id:'teacher-announcement',by:'gv',student_token:null,body:'Làm bài tập trang 10',ai:null,ai_at:null,
-    teacher:{assist:{answer:'Không công khai đáp án'},score:9,note:'Nhận xét riêng'},
+    teacher:{postType:'announcement',assist:{answer:'Không công khai đáp án'},score:9,note:'Nhận xét riêng'},
     attachments:[{name:'Huong-dan.docx',path:'teacher/lesson.docx',type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',size:100}]};
   assert.equal(visibleToStudent(teacherPost,''),true);
   assert.equal(visibleToStudent(teacherPost,'another-student-token'),true);
   const p=studentPost(teacherPost,false);
   assert.equal(p.visibility,'class');
+  assert.equal(p.teacher.postType,'announcement');
   assert.equal(p.editable,false);
   assert.equal(p.body,'Làm bài tập trang 10');
   assert.equal(p.attachments[0].path,'teacher/lesson.docx');
@@ -51,10 +52,28 @@ test('Teacher posts are published to every class visitor without grade approval'
   assert.equal(JSON.stringify(p).includes('Không công khai đáp án'),false);
   assert.equal(visibleToStudent(pending,'another-student-token'),false);
 });
+test('Teacher-photographed student work stays hidden until approval',()=>{
+  const captured={...pending,id:'captured',by:'gv',student_name:'Em Mai',student_token:null,
+    teacher:{postType:'student_work',assist:{answer:'Đáp án riêng'}},
+    attachments:[{name:'Bai.doc',path:'secret/private.doc',type:'application/msword'}]};
+  assert.equal(isTeacherAnnouncement(captured,'Nguyễn Trung Tuyền'),false);
+  assert.equal(visibleToStudent(captured,'' ,'Nguyễn Trung Tuyền'),false);
+  assert.equal(studentPost(captured,false,'Nguyễn Trung Tuyền').attachments[0].path,'');
+  assert.equal(visibleToStudent({...captured,teacher:{...captured.teacher,approvedAt:123}},'', 'Nguyễn Trung Tuyền'),true);
+  const legacy={...captured,student_name:'Nguyễn Trung Tuyền',teacher:{}};
+  assert.equal(isTeacherAnnouncement(legacy,'Nguyễn Trung Tuyền'),true);
+  assert.equal(visibleToStudent(legacy,'','Nguyễn Trung Tuyền'),true);
+});
+
 test('Class wall includes teacher posts immediately without exposing pending student work',()=>{
   assert.match(html,/p\.by === 'gv' \|\| p\.studentAcc === me\.id/);
   assert.match(html,/case 'publish-class': if \(b && canManage\(b\)\)/);
   assert.match(html,/Bài giáo viên · Cả lớp xem/);
+  assert.match(html,/publishToClass \? \(me\?\.name \|\| ownerLabel\(b\)/);
+  assert.match(html,/teacher: asTeacher \? \{ postType: publishToClass \? 'announcement' : 'student_work' \}/);
+  assert.match(html,/if \(isTeacherAnnouncement\(p\)\) \{/);
+  assert.match(html,/const reviewPosts = .* !isTeacherAnnouncement\(p\)/);
+  assert.match(html,/if \(!announcement && autoGrade && gv/);
 });
 
 test('Unsupported peer attachments never expose the original path',()=>{
@@ -70,11 +89,11 @@ const section=(a,b)=>html.slice(html.indexOf(a),html.indexOf(b,html.indexOf(a)))
 function frontend(){
   const storage=()=>{const m=new Map();return{get:k=>m.get(k)||null,set:(k,v)=>m.set(k,v),del:k=>m.delete(k)}};
   const listeners={};
-  const context={LS:storage(),SS:storage(),K_GUEST:'tuongai.guest',S:{posts:new Map(),boards:new Map(),grading:new Set(),meId:'a',guest:{id:'a'}},
+  const context={LS:storage(),SS:storage(),K_GUEST:'tuongai.guest',S:{posts:new Map(),boards:new Map(),members:new Map(),grading:new Set(),meId:'a',guest:{id:'a'}},
     ts:v=>Date.parse(v)||0,isNum:v=>typeof v==='number'&&Number.isFinite(v),rememberUrls:()=>{},pubToBoard:b=>b,SIGNED:new Map(),now:()=>Date.now(),
     document:{addEventListener:(name,fn)=>listeners[name]=fn},window:{getSelection:()=>null},Element:class{},
-    $:()=>null,$$:()=>[],detail:null,getPost:()=>null,listeners};
-  const code=section('const rowToPost =','const postToRow =')+'\n'+section('function readGuest()','async function addGuestBoard')+'\n'+section('const finalScore =','function status(p)')+'\n({readGuest,saveGuest,applyStudentFeed,rowToPost,finalScore,studentCanEdit,peerPost})';
+    $:()=>null,$:()=>[],detail:null,getPost:()=>null,getBoard:()=>null,isGV:()=>false,ME:()=>null,listeners};
+  const code=section('const rowToPost =','const postToRow =')+'\n'+section('function readGuest()','async function addGuestBoard')+'\n'+section('function isTeacherAnnouncement(p)','function status(p)')+'\n({readGuest,saveGuest,applyStudentFeed,rowToPost,finalScore,studentCanEdit,peerPost,isTeacherAnnouncement})';
   const methods=vm.runInNewContext(code,context);
   return {context,methods,listeners};
 }
