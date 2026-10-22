@@ -2302,6 +2302,26 @@ html,body{max-width:100%;overflow-x:clip}
 @media(max-width:480px){.attach-pick-btn{min-height:46px;width:100%;justify-content:center}.attached-file{flex-wrap:wrap}.attached-file a{min-height:40px}}
 </style>
 
+
+<style id="student-score-results">
+.student-result-panel{margin:12px 16px 14px;padding:18px 20px;background:linear-gradient(125deg,#f1f7ff,#fff 70%);border:1px solid #bfd3ec;border-radius:16px;box-shadow:0 5px 24px #16396a0e}
+.student-result-top{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+.student-result-eyebrow{margin:0 0 3px;font-size:11px;font-weight:800;letter-spacing:.08em;color:#285fa9}
+.student-result-panel h2{font-size:18px;color:#143760;margin:0 0 5px}
+.student-result-sub{margin:0;max-width:760px;font-size:13px;line-height:1.5;color:#506682}
+.student-result-actions{display:flex;gap:8px;flex-wrap:wrap}
+.student-result-actions .btn{font-size:12px}
+.student-result-list{margin-top:14px;display:grid;gap:7px}
+.student-result-entry{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;padding:12px 15px;background:#fff;border:1px solid #d7e4f4;border-radius:10px;color:#223956;cursor:pointer}
+.student-result-entry:hover{border-color:#7daee0;background:#f9fcff}
+.student-result-entry>span{display:grid;gap:3px;min-width:0}
+.student-result-entry b{font-size:13px}
+.student-result-entry small{font-size:11px;color:#657b94}
+.student-result-score{font-size:17px;white-space:nowrap;color:#187344;font-variant-numeric:tabular-nums}
+.student-result-score.pending{font-size:12px;color:#b07522}
+.student-result-safety{font-size:11px;color:#637792;margin:10px 0 0}
+@media(max-width:600px){.student-result-panel{margin:10px 8px;padding:15px}.student-result-actions{width:100%}.student-result-actions .btn{flex:1}.student-result-entry{padding:10px;gap:8px}}
+</style>
 <style id="in-app-file-preview">
 .file-actions{display:flex!important;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .file-eye{display:inline-flex;align-items:center;gap:5px;min-height:34px;border:1px solid #9bbfe8;color:#0f5595;background:#eaf4ff;border-radius:8px;font-weight:700}
@@ -3732,7 +3752,32 @@ function saveGuest() {
     SS.set(K_GUEST, value); LS.set(K_GUEST, value);
   }
 }
+/* Liên kết điểm riêng dùng đoạn #ketqua= (không truyền mã bí mật vào yêu cầu trang). */
+function privateStudentResultLink(guest, board) {
+  if (!guest?.token || guest.token.length < 16 || !board?.code) return '';
+  const url = new URL(shareLink(board));
+  url.hash = 'ketqua=' + encodeURIComponent(guest.token);
+  return url.href;
+}
 async function openStudentLink(code) {
+  const resultToken = new URLSearchParams(location.hash.replace(/^#/, '')).get('ketqua') || '';
+  if (resultToken.length >= 16 && resultToken.length <= 80) {
+    try {
+      const response = await api('student_mine', { code, token:resultToken });
+      const first = response.posts?.[0];
+      if (first?.student_name) {
+        const guest = { id:guestId(first.student_name), token:resultToken,
+          name:first.student_name, className:first.student_class || '',
+          role:'hs', guest:true, joined:[], codes:[code] };
+        if (await restoreGuest(guest, code)) {
+          history.replaceState(null, '', location.pathname + location.search);
+          return;
+        }
+      }
+    } catch(e) {
+      // Liên kết cá nhân không hợp lệ hoặc đã hết quyền: chỉ mở lớp ở chế độ công khai.
+    }
+  }
   const g = readGuest();
   if (g) { try { if (await restoreGuest(g, code)) return; } catch (e) { /* keep identity for retry */ } }
   await showJoin(code);
@@ -4929,6 +4974,9 @@ function renderBoard(b) {
   const me = ME(); const gv = me.role === 'gv'; const manage = canManage(b);
   if (!gv) maybeStudentSync();
   const ps = boardPostList(b);
+  const ownStudentPosts = gv ? [] : ps.filter(p => p.by === 'hs' && p.studentAcc === S.meId);
+  const ownGradedPosts = ownStudentPosts.filter(p => finalScore(p) != null);
+  const ownWaitingPosts = ownStudentPosts.filter(p => finalScore(p) == null);
   const a = b.assignment || {};
   const review = gv ? reviewPosts(b).length : 0;
   const backTab = gv ? (['mine', 'starred', 'archived', 'trash'].includes(S.view.tab) ? S.view.tab : 'mine') : 'classes';
@@ -4961,7 +5009,16 @@ function renderBoard(b) {
         ${b.demo ? `<p class="bcount">Bảng mẫu: thử chấm thật, không lưu lại.</p>` : ''}
       </div>
     </section>
-    ${!gv ? `<div class="gbanner" role="status"><div><strong>Bài giáo viên giao, bài của em và bài đã duyệt trong lớp</strong><p>Bài do giáo viên đăng hiển thị ngay cho cả lớp. Quay lại bằng trình duyệt này để xem bài và nhận xét của thầy cô. Điểm chỉ hiển thị cho chủ bài sau khi duyệt. Bài của bạn chỉ được xem, không có nút tải hoặc sao chép.</p>${S.guest?.preview&&!b.demo?`<button class="btn btn-sm" data-act="student-restore" data-id="${b.id}">${ic('restore','ic-sm')}Tìm bài em đã nộp</button>`:''}</div><button class="btn btn-brand" data-act="submit" data-id="${b.id}">${ic('send')}Nộp bài vào lớp</button></div>` : ''}
+    ${!gv ? `<section class="student-result-panel" aria-label="Điểm số bài làm của em">
+      <div class="student-result-top"><div><p class="student-result-eyebrow">KẾT QUẢ HỌC TẬP CỦA EM</p>
+        <h2>${S.guest?.preview ? 'Xem điểm bài em đã nộp' : ownGradedPosts.length ? 'Điểm của em đã được công bố' : 'Theo dõi điểm của em'}</h2>
+        <p class="student-result-sub">${S.guest?.preview ? 'Em cần mở lại bài bằng mã cá nhân hoặc dùng chính trình duyệt đã nộp để xem điểm của mình.' : ownStudentPosts.length ? ownGradedPosts.length + ' bài đã có điểm · ' + ownWaitingPosts.length + ' bài đang chờ duyệt' : 'Em chưa có bài nộp trong lớp này.'} Điểm của các bạn khác luôn được giữ riêng.</p></div>
+        <div class="student-result-actions">${S.guest?.preview ? `<button class="btn btn-brand" data-act="student-restore" data-id="${b.id}">${ic('search')}Tìm bài và điểm của em</button>` : `<button class="btn btn-soft" data-act="student-refresh" data-id="${b.id}">${ic('refresh-cw')}Cập nhật điểm</button><button class="btn btn-soft" data-act="student-private-link" data-id="${b.id}">${ic('copy')}Sao chép liên kết điểm riêng</button>`}</div>
+      </div>
+      ${ownStudentPosts.length ? `<div class="student-result-list">${ownStudentPosts.slice(0,6).map(p => {const sc=finalScore(p); const max=b.assignment?.maxScore||10; return `<button type="button" class="student-result-entry" data-act="open-post" data-id="${p.id}"><span><b>${esc(p.studentName)}</b><small>${esc(vnTime(p.createdAt))} · ${sc == null ? 'Giáo viên chưa duyệt điểm' : 'Điểm giáo viên đã duyệt'}</small></span><strong class="student-result-score${sc==null?' pending':''}">${sc==null?'Chờ duyệt':fmt(sc)+' / '+fmt(max)}</strong>${ic('eye','ic-sm')}</button>`;}).join('')}</div>` : ''}
+      ${!S.guest?.preview && ownStudentPosts.length ? '<p class="student-result-safety">Liên kết xem điểm là riêng tư: chỉ chia sẻ với người được phép xem kết quả của em.</p>' : ''}
+    </section>` : ''}
+    ${!gv ? `<div class="gbanner" role="status"><div><strong>Bài giáo viên giao, bài của em và bài đã duyệt trong lớp</strong><p>Thầy cô đăng bài cho cả lớp. Bài của em được hiển thị điểm số khi giáo viên đã duyệt. Học sinh khác không xem được điểm của em.</p></div><button class="btn btn-brand" data-act="submit" data-id="${b.id}">${ic('send')}Nộp bài vào lớp</button></div>` : ''}
     ${S.batch && S.batch.boardId === b.id ? `<div class="batch" role="status"><span class="spin"></span><span>AI đang chấm bài ${Math.min(S.batch.done + 1, S.batch.total)}/${S.batch.total}</span><span class="bar"><i style="width:${(S.batch.done / S.batch.total) * 100}%"></i></span><button class="btn btn-sm btn-ghost" data-act="stop-batch">${ic('stop', 'ic-sm')}Dừng</button></div>` : ''}
     ${!aiOn() && !b.demo && isAdmin() ? `<div class="warnline row-between"><span>AI chấm bài chưa bật. Dán một khóa Gemini để mọi giáo viên dùng chung.</span><button class="btn btn-sm btn-navy" data-act="ai-settings">${ic('spark', 'ic-sm')}Bật AI chấm bài</button></div>` : ''}
     <div class="btool" role="toolbar" aria-label="Công cụ quản lý lớp">
@@ -8040,6 +8097,14 @@ document.addEventListener('click', async (e) => {
     case 'capture': if (b) submitForm(b, true, t.dataset.col); break;
     case 'submit': if (b) submitForm(b, false, t.dataset.col || ''); break;
     case 'student-restore': if (b && S.guest?.preview) recoverStudentForm(b); break;
+    case 'student-refresh': if (b && S.guest && !S.guest.preview) { await studentReloadMine(b); toast('Đã cập nhật kết quả bài làm của em.'); } break;
+    case 'student-private-link': if (b && S.guest && !S.guest.preview) {
+      const url=privateStudentResultLink(S.guest,b);
+      if (!url) { toast('Không tạo được liên kết điểm riêng.'); break; }
+      try { await navigator.clipboard.writeText(url); toast('Đã sao chép liên kết xem điểm riêng của em. Không chia sẻ công khai.'); }
+      catch (e) { copyText(url); }
+      break;
+    }
     case 'open-post': $('.pmenu')?.remove(); openDetail(id, t.dataset.grade === '1', t.dataset.focus); break;
     case 'student-edit': { const post = getPost(id); if (post) studentEditForm(post); break; }
     case 'student-delete': { const post = getPost(id); if (post) await studentDeletePost(post); break; }
