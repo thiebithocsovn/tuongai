@@ -2304,6 +2304,27 @@ html,body{max-width:100%;overflow-x:clip}
 
 
 
+
+<style id="peer-feedback-and-similar">
+.board-student-view-settings{display:grid;gap:10px;padding:16px;margin:16px 0;border:1px solid #d3e5f6;border-radius:12px;background:#f6faff}
+.board-student-view-settings h3{font-size:16px;color:#17486e;margin:0}
+.board-student-view-settings .chk{display:flex;align-items:flex-start;gap:9px;padding:9px 6px;line-height:1.5}
+.student-peer-result-head{padding:15px 16px;background:#f5faff;border:1px solid #dae9f7;border-radius:13px;display:grid;gap:8px}
+.student-peer-result-head h3{font-size:18px;color:#1a385b;margin:0}
+.student-peer-result-head p{font-size:13px;line-height:1.55;color:#4d617c;margin:0}
+.student-peer-result-head .chip{justify-self:start}
+.student-peer-result-head .student-peer-privacy{display:flex;align-items:center;gap:6px;color:#68778b;font-size:12px}
+.student-similar-preview{padding:16px;background:#fcfaff;border:1px solid #ddd7f2;border-radius:13px}
+.student-similar-preview h4{display:flex;gap:7px;align-items:center;color:#4e347a;font-size:16px}
+.student-similar-preview .meta{line-height:1.55}
+.student-similar-questions{padding:0;margin:12px 0 4px;list-style:none;counter-reset:sim}
+.student-similar-questions li{counter-increment:sim;margin:10px 0;padding:13px 14px;background:#fff;border:1px solid #e2deee;border-radius:10px;overflow-wrap:anywhere}
+.student-similar-questions li::before{content:'Bài ' counter(sim);display:block;font-size:12px;color:#654f92;font-weight:800;margin-bottom:7px}
+.student-similar-questions p{white-space:pre-wrap;margin:0;line-height:1.65;color:#263855;font-size:14px}
+.student-similar-hint{font-size:12px;color:#516482;margin-top:8px;padding:8px;background:#f0f5fc;border-radius:7px}
+.student-similar-foot{font-size:11px;color:#748097}
+@media(max-width:580px){.student-peer-result-head,.student-similar-preview{padding:12px}.board-student-view-settings{padding:12px}}
+</style>
 <style id="student-feedback-styles">
 .student-result-entry>span{flex:1;min-width:0}
 .student-result-feedback{margin-top:3px!important;font-size:12px!important;color:#285277!important;line-height:1.5;white-space:normal;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
@@ -3247,7 +3268,7 @@ const rowToPost = (r, studentAcc = null) => ({
   studentAcc: r.visibility === 'class' ? null : studentAcc, visibility: r.visibility || '', graded: !!r.graded, editable: r.editable,
   by: r.by || 'gv', text: r.body || '', images: (r.images || []).filter((i) => i && i.path).map((i) => ({ k: 's', path: i.path })),
   attachments: Array.isArray(r.attachments) ? r.attachments.filter(a=>a?.name && (a.path || a.viewOnly)) : [],
-  ai: r.ai || null, aiAt: r.ai_at ? ts(r.ai_at) : null, teacher: r.teacher || null,
+  ai: r.ai || null, aiAt: r.ai_at ? ts(r.ai_at) : null, teacher: r.teacher || null, similarQuestions: r.similar_questions || [],
   practice: r.practice || [], practiceSubmissions: r.practice_submissions || [], createdAt: ts(r.created_at),
 });
 const postToRow = (p) => ({
@@ -5120,7 +5141,7 @@ function studentFeedbackExcerpt(p) {
   return { label: 'Nhận xét', text: 'Giáo viên chưa ghi nhận xét bằng chữ.' };
 }
 function studentFeedbackDetail(p) {
-  if (!p?.teacher?.approvedAt) return '';
+  if (!p?.teacher?.approvedAt || getBoard(p.boardId)?.assignment?.studentView?.showFeedback === false) return '';
   const f = publishedStudentFeedback(p);
   return `<section class="blk student-feedback-detail" aria-label="Nhận xét đã công bố">
     <h4>${ic('msg','ic-sm')} Nhận xét của giáo viên</h4>
@@ -5594,6 +5615,7 @@ function boardForm(b) {
   const me = ME();
   const d = b || { name: '', cover: COVER_KEYS[S.boards.size % COVER_KEYS.length], layout: 'tuong', columns: [], assignment: { maxScore: 10 }, autoGrade: true, private: true, pinned: false };
   const a = d.assignment || {};
+  const studentView = a.studentView || {};
   const legacySymbol = { '📚': 'book', '📐': 'math', '📖': 'literature', '💻': 'computer', '🌏': 'language', '🔬': 'science', '🗺️': 'geography', '🎵': 'music', '🎨': 'art' };
   let pickedSymbol = a.icon?.startsWith('bi:') && boardSymbolInfo(a.icon.slice(3)) ? a.icon.slice(3) : (legacySymbol[a.icon] || 'book');
   let savedSymbol = a.icon || 'bi:book';
@@ -5633,6 +5655,12 @@ function boardForm(b) {
       <input id="bf-upload" type="file" accept="image/jpeg,image/png,image/webp" hidden>
       <p class="board-bg-help">Ảnh JPG, PNG, WebP tối đa 12 MB; ảnh được nén trước khi lưu. Nền được lưu cho lớp và hiển thị cả trên liên kết chia sẻ.</p>
       <button type="button" class="btn btn-ghost board-reset" id="bf-reset">Khôi phục nền mặc định</button>
+      <section class="board-student-view-settings" aria-label="Hiển thị sau khi giáo viên chấm bài">
+        <h3>Học sinh xem kết quả sau khi chấm</h3>
+        <p class="meta">Các nội dung chỉ hiển thị với bài đã được giáo viên duyệt. Điểm cá nhân vẫn chỉ dành cho chủ bài.</p>
+        <label class="chk"><input type="checkbox" id="bf-feedback" ${studentView.showFeedback!==false?'checked':''}> Hiển thị nhận xét của giáo viên ở bên phải khi xem bài đã duyệt</label>
+        <label class="chk"><input type="checkbox" id="bf-similar" ${studentView.showSimilar!==false?'checked':''}> Hiển thị câu hỏi bài tập tương tự (không có đáp án) sau khi chấm</label>
+      </section>
       ${isNew ? '' : `<label class="chk"><input type="checkbox" id="bf-arch" ${d.archived ? 'checked' : ''}> Lưu trữ bảng</label>`}
       <p class="form-err" id="bf-err" role="alert"></p>
     </form>`,
@@ -5698,7 +5726,8 @@ function boardForm(b) {
       ...base, name, cover: d.cover, layout,
       school: d.school || me.school || '', subject: d.subject || '', grade: d.grade || '',
       columns: b ? (b.columns || []) : (layout === 'cot' ? [{ id: uid('c'), name: 'Bài nộp' }] : []),
-      assignment: { ...a, description: $('#bf-desc', el).value.trim(), icon: savedSymbol, bg, bgColor, bgImage, maxScore: a.maxScore || 10 },
+      assignment: { ...a, description: $('#bf-desc', el).value.trim(), icon: savedSymbol, bg, bgColor, bgImage, maxScore: a.maxScore || 10,
+        studentView: { showFeedback: $('#bf-feedback', el).checked, showSimilar: $('#bf-similar', el).checked } },
       autoGrade: d.autoGrade !== false, private: d.private !== false,
       pinned: !!d.pinned, starred: !!d.starred,
       archived: $('#bf-arch', el) ? $('#bf-arch', el).checked : !!d.archived
@@ -6638,6 +6667,21 @@ async function aiSettingsForm() {
   };
 }
 
+
+/* Đề tương tự đã lọc trên máy chủ; không bao giờ hiển thị đáp án riêng của giáo viên. */
+function studentSimilarPreviewHtml(p) {
+  if (!p?.teacher?.approvedAt || getBoard(p.boardId)?.assignment?.studentView?.showSimilar === false) return '';
+  if (!peerPost(p) && p.practice?.length) return '';
+  const questions = Array.isArray(p.similarQuestions) ? p.similarQuestions : [];
+  return `<section class="blk student-similar-preview" aria-label="Bài tập tương tự sau khi chấm">
+    <h4>${ic('bookopen','ic-sm')} Bài tập tương tự</h4>
+    ${questions.length ? `<p class="meta">Các đề để tự luyện. ${questions.some(q=>q.origin==='ai')?'Đây là đề do AI gợi ý; em nên đối chiếu cùng thầy cô nếu có nội dung chưa rõ.':'Các bài đã được giáo viên duyệt.'}</p>
+      <ol class="student-similar-questions">${questions.map(q=>`<li><p>${esc(q.question)}</p>${q.hint?`<div class="student-similar-hint"><b>Gợi ý:</b> ${esc(q.hint)}</div>`:''}</li>`).join('')}</ol>`
+      : '<p class="meta">Bài này chưa có bài tập tương tự để chia sẻ. Em có thể hỏi thầy cô để được hướng dẫn thêm.</p>'}
+    <p class="student-similar-foot">Không hiển thị đáp án, lời giải hoặc điểm riêng của bạn khác.</p>
+  </section>`;
+}
+
 /* ---------- chi tiết bài ---------- */
 let detail = null;
 function openDetail(id, autoGrade, focus) {
@@ -6816,6 +6860,23 @@ function drawSide() {
     drawMedia();
     return;
   }
+  if (!gv && peerPost(p)) {
+    // Học sinh xem bài của bạn: thông tin công khai được duyệt, không hiển thị điểm của bạn.
+    detail.key = detailKey(p);
+    const el = $('#pd-side',detail.m.el);
+    const ready = !!p.teacher?.approvedAt;
+    el.innerHTML = `<header class="student-peer-result-head">
+      <span class="chip chip-ok">${ic('check','ic-sm')} ${ready?'Bài đã được duyệt':'Bài chưa được duyệt'}</span>
+      <h3>${esc(p.studentName)} · Bài đã chấm</h3>
+      <p>Em có thể học cách trình bày bài làm của bạn và tham khảo nhận xét, bài tập tương tự bên dưới.</p>
+      <p class="student-peer-privacy">${ic('lock','ic-sm')} Điểm và nhận xét AI riêng của bạn không hiển thị.</p>
+    </header>
+    ${ready ? studentFeedbackDetail(p)+studentSimilarPreviewHtml(p) : '<p class="meta">Giáo viên chưa duyệt nội dung này.</p>'}
+    <button class="btn btn-ghost" type="button" data-pd="close">Đóng</button>`;
+    $('[data-pd=close]',el)?.addEventListener('click',()=>detail.m.close());
+    drawMedia();
+    return;
+  }
   const max = b.assignment?.maxScore || 10;
   detail.key = detailKey(p);
   const el = $('#pd-side', detail.m.el);
@@ -6873,6 +6934,7 @@ function drawSide() {
     ${detail.err ? `<p class="warnline">${esc(detail.err)}</p>` : ''}
     ${gv ? (grading ? main : "") : main}
     ${!gv ? studentFeedbackDetail(p) : ''}
+    ${!gv ? studentSimilarPreviewHtml(p) : ''}
     ${!gv && studentCanEdit(p) ? `<div class="student-post-actions student-post-actions-detail"><button type="button" class="btn btn-sm" data-pd="student-edit">${ic('pencil','ic-sm')}Sửa bài đã nộp</button><button type="button" class="btn btn-sm btn-danger" data-pd="student-delete">${ic('trash','ic-sm')}Xóa bài</button></div>` : !gv && p.by === 'hs' && p.studentAcc === S.meId ? '<p class="student-post-locked">Bài đã chấm và được khóa để giữ nguyên kết quả.</p>' : ''}
     ${!gv ? studentPracticeHtml(p) : ''}
     ${!gv && detail.studentError ? `<p class="as-err" role="alert">${esc(detail.studentError)}</p>` : ''}
