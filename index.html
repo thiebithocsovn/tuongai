@@ -4281,7 +4281,7 @@ const finalScore = (p) => {
   if (S.guest && (p.studentAcc !== S.meId || !p.teacher?.approvedAt)) return null;
   return p.teacher && isNum(p.teacher.score) ? p.teacher.score : p.ai && isNum(p.ai.diem) ? p.ai.diem : null;
 };
-const peerPost = (p) => !!(S.guest && p && p.by !== 'gv' && p.studentAcc !== S.meId);
+const peerPost = (p) => !!(S.guest && p && !isTeacherAnnouncement(p) && p.studentAcc !== S.meId);
 /* Browser-level deterrents, scoped to classmates' work; own work and teacher tools remain usable. */
 function protectedSelection() {
   const selection=window.getSelection();
@@ -5141,13 +5141,14 @@ function studentFeedbackExcerpt(p) {
   return { label: 'Nhận xét', text: 'Giáo viên chưa ghi nhận xét bằng chữ.' };
 }
 function studentFeedbackDetail(p) {
-  if (!p?.teacher?.approvedAt || getBoard(p.boardId)?.assignment?.studentView?.showFeedback === false) return '';
+  if (!p?.teacher?.approvedAt) return '';
+  if (getBoard(p.boardId)?.assignment?.studentView?.showFeedback === false) return '<section class="blk student-feedback-detail"><h4>Nhận xét sau khi chấm</h4><p class="meta">Giáo viên đang tắt chia sẻ nhận xét cho lớp này.</p></section>';
   const f = publishedStudentFeedback(p);
   return `<section class="blk student-feedback-detail" aria-label="Nhận xét đã công bố">
-    <h4>${ic('msg','ic-sm')} Nhận xét của giáo viên</h4>
+    <h4>${ic('msg','ic-sm')} Nhận xét sau khi chấm</h4>
     ${f.note ? `<div class="student-feedback-note"><b>Nhận xét chốt</b><p>${esc(f.note)}</p></div>` : ''}
     ${f.comments.length ? `<div class="student-feedback-comments"><h5>Nhận xét bổ sung (${f.comments.length})</h5>${f.comments.map(c => `<div class="student-feedback-comment"><b>${esc(c.name)}</b><small>${esc(vnTime(c.at))}</small><p>${esc(c.text)}</p></div>`).join('')}</div>` : ''}
-    ${!f.note && !f.comments.length ? '<p class="meta">Giáo viên đã duyệt bài nhưng chưa ghi lời nhận xét bằng chữ.</p>' : ''}
+    ${!f.note && !f.comments.length ? '<p class="meta">Bài đã được duyệt. Giáo viên chưa công bố nhận xét bằng chữ cho bài này.</p>' : ''}
     ${f.aiText ? `<div class="student-feedback-ai"><h5>${ic('spark','ic-sm')} Gợi ý từ AI (đã duyệt)</h5><p>${esc(f.aiText)}</p></div>` : ''}
   </section>`;
 }
@@ -6670,7 +6671,8 @@ async function aiSettingsForm() {
 
 /* Đề tương tự đã lọc trên máy chủ; không bao giờ hiển thị đáp án riêng của giáo viên. */
 function studentSimilarPreviewHtml(p) {
-  if (!p?.teacher?.approvedAt || getBoard(p.boardId)?.assignment?.studentView?.showSimilar === false) return '';
+  if (!p?.teacher?.approvedAt) return '';
+  if (getBoard(p.boardId)?.assignment?.studentView?.showSimilar === false) return '';
   if (!peerPost(p) && p.practice?.length) return '';
   const questions = Array.isArray(p.similarQuestions) ? p.similarQuestions : [];
   return `<section class="blk student-similar-preview" aria-label="Bài tập tương tự sau khi chấm">
@@ -6867,8 +6869,8 @@ function drawSide() {
     const ready = !!p.teacher?.approvedAt;
     el.innerHTML = `<header class="student-peer-result-head">
       <span class="chip chip-ok">${ic('check','ic-sm')} ${ready?'Bài đã được duyệt':'Bài chưa được duyệt'}</span>
-      <h3>${esc(p.studentName)} · Bài đã chấm</h3>
-      <p>Em có thể học cách trình bày bài làm của bạn và tham khảo nhận xét, bài tập tương tự bên dưới.</p>
+      <h3>Nhận xét bài làm · ${esc(p.studentName)}</h3>
+      <p>Giáo viên đã duyệt bài. Em có thể đọc lời nhận xét và tham khảo bài tập tương tự ở bên dưới.</p>
       <p class="student-peer-privacy">${ic('lock','ic-sm')} Điểm và nhận xét AI riêng của bạn không hiển thị.</p>
     </header>
     ${ready ? studentFeedbackDetail(p)+studentSimilarPreviewHtml(p) : '<p class="meta">Giáo viên chưa duyệt nội dung này.</p>'}
