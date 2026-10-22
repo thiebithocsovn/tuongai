@@ -270,11 +270,12 @@ function studentPracticeSets(post: any) {
 }
 
 /* Paginate explicitly: the Data API otherwise truncates a large class at 1,000 rows. */
-async function studentRows(boardId: string, token: string, classroom: boolean) {
+async function studentRows(boardId: string, token: string, scope: "mine" | "approved" | "teacher") {
   const rows: any[] = [];
   for (let offset = 0; ; offset += 500) {
     let q = db.from("posts").select("*").eq("board_id", boardId);
-    q = classroom ? q.not("teacher->>approvedAt", "is", null) : q.eq("student_token", token);
+    q = scope === "approved" ? q.not("teacher->>approvedAt", "is", null)
+      : scope === "teacher" ? q.eq("by", "gv") : q.eq("student_token", token);
     const { data, error } = await q.order("created_at", { ascending: false }).order("id").range(offset, offset + 499);
     if (error) throw new Fail("server", "Không tải được bài trong lớp.", 500);
     rows.push(...(data || []));
@@ -385,11 +386,12 @@ async function handle(req: Request) {
       const b = await boardByCode(body.code);
       const token = str(body.token, 80);
       const feed = action === "student_feed";
-      const [mine, classroom] = await Promise.all([
-        token.length >= 16 ? studentRows(b.id, token, false) : Promise.resolve([]),
-        feed ? studentRows(b.id, token, true) : Promise.resolve([]),
+      const [mine, classroom, teacherPosts] = await Promise.all([
+        token.length >= 16 ? studentRows(b.id, token, "mine") : Promise.resolve([]),
+        feed ? studentRows(b.id, token, "approved") : Promise.resolve([]),
+        feed ? studentRows(b.id, token, "teacher") : Promise.resolve([]),
       ]);
-      const rows = new Map([...classroom, ...mine].map((p: any) => [p.id, p]));
+      const rows = new Map([...classroom, ...teacherPosts, ...mine].map((p: any) => [p.id, p]));
       const posts = [...rows.values()].filter((p: any) => visibleToStudent(p, token)).map((p: any) => {
         const own = ownsStudentPost(p, token);
         return { ...publicPost(p, own), practice: own ? studentPracticeSets(p) : [] };
@@ -405,6 +407,7 @@ async function handle(req: Request) {
       const grouped = new Map<string, any[]>();
       for (const entry of submitted) grouped.set(entry.post_id, [...(grouped.get(entry.post_id) || []), entry]);
       for (const post of posts) post.practice_submissions = grouped.get(post.id) || [];
+      // Chỉ ký đường dẫn đã qua bộ lọc quyền xem; không gửi tệp ẩn của học sinh khác.
       return { board: publicBoard(b), posts, urls: await signed(posts.flatMap((p: any) => [...(p.images || []), ...(p.attachments || [])].map((i: any) => i.path)).filter(Boolean)) };
     }
     case "student_practice_submit": {
