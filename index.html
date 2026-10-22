@@ -5593,7 +5593,7 @@ function submitForm(b, asTeacher, colId, publishToClass = false) {
   const m = openModal({
     title: publishToClass ? 'Đăng bài cho cả lớp · ' + b.name : asTeacher ? 'Chụp bài học sinh' : 'Nộp bài · ' + b.name,
     body: `<form class="modal-b" id="sf" novalidate>
-      ${publishToClass ? `<p class="info-box">Bài đăng sẽ hiển thị ngay cho tất cả học sinh có liên kết lớp đã chia sẻ; không cần giáo viên duyệt. Chỉ các bài học sinh nộp mới cần duyệt trước khi chia sẻ với bạn khác.</p>` : ''}
+      ${publishToClass ? `<p class="info-box">Bài giáo viên đăng sẽ hiển thị ngay cho học sinh khi lớp đã bật chia sẻ; không cần duyệt. Bài học sinh nộp vẫn cần duyệt trước khi chia sẻ với bạn khác.</p>${!b.shared ? `<p class="warnline">Lớp này chưa bật chia sẻ. Sau khi đăng, bấm Chia sẻ để cho học sinh mở lớp bằng liên kết.</p>` : ""}` : ''}
       ${asTeacher ? `<label class="fld"><span>${publishToClass ? 'Tên giáo viên đăng bài' : 'Họ tên học sinh'}</span><input id="sf-name" list="sf-names" autocomplete="off" placeholder="${publishToClass ? 'Tên giáo viên' : 'Gõ hoặc chọn tên học sinh'}" value="${publishToClass ? esc(me?.name || 'Giáo viên') : ''}"><datalist id="sf-names">${[...names].map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist></label>` : `<p class="sf-submission-info">${ic('book','ic-sm')} ${selectedColumn ? 'Nộp vào ' + esc(selectedColumn.name) + '. ' : ''}${b.assignment?.title ? 'Bài: ' + esc(b.assignment.title) + '. ' : ''}Chụp ảnh hoặc gõ bài, rồi điền tên để gửi cho thầy cô.</p>`}
       ${asTeacher && b.layout !== 'tuong' && cols.length ? `<label class="fld"><span>Cột</span><select id="sf-col">${cols.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}<option value="">Bài chung</option></select></label>` : ''}
       <div class="fld"><span>Ảnh bài làm <em>(tối đa ${maxShots} trang)</em></span>
@@ -5697,7 +5697,7 @@ function submitForm(b, asTeacher, colId, publishToClass = false) {
       if (!ok) return;
       m.close();
       if (b.demo) toast('Bảng mẫu chỉ để thử, bài sẽ mất khi tải lại trang.');
-      else toast(publishToClass ? 'Đã đăng bài cho cả lớp. Học sinh có thể xem ngay.' : asTeacher ? 'Đã lưu bài của ' + name + '.' : 'Em đã nộp bài thành công!');
+      else toast(publishToClass ? (b.shared ? 'Đã đăng bài cho cả lớp. Học sinh có thể xem ngay.' : 'Đã đăng bài. Hãy bật Chia sẻ lớp để học sinh xem được.') : asTeacher ? 'Đã lưu bài của ' + name + '.' : 'Em đã nộp bài thành công!');
       const wantAI = asTeacher ? $('#sf-ai', el)?.checked : b.autoGrade !== false;
       if (wantAI && aiOn() && (shots.length || text.trim()) && !(me.guest && b.demo)) openDetail(p.id, true);
     } catch (e) {
