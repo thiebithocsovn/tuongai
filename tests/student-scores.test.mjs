@@ -62,6 +62,47 @@ test('Student result links keep the secret in URL fragment, not in a query strin
   assert.match(html,/api\('student_mine', \{ code, token:resultToken \}\)/);
   assert.match(html,/history\.replaceState\(null, '', location\.pathname \+ location\.search\)/);
 });
+test('Student feedback shows published teacher notes and comments, with AI clearly separate',()=>{
+  const src=section('function publishedStudentFeedback(p)','const postColor =');
+  const escape=(v)=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const context={S:{guest:{id:'my-student'},meId:'my-student'},ic:()=>'<svg></svg>',esc:escape,vnTime:()=> '22/10/2026'};
+  const tools=vm.runInNewContext(src+'\n({publishedStudentFeedback,studentFeedbackExcerpt,studentFeedbackDetail})',context);
+  const raw={...approved,teacher:{...approved.teacher,note:'Tốt: tiếp tục luyện tập',comments:[
+    {name:'Cô giáo',text:'Bổ sung cách trình bày ở câu 2',at:123},
+    {name:'Giáo viên',text:'Xem lại phép tính cuối',at:124},
+  ]},ai:{diem:8,nhan_xet:'AI gợi ý ôn quy tắc nhân'}};
+  const own=studentPost(raw,true);
+  const ownView={...own,studentAcc:'my-student'};
+  const f=tools.publishedStudentFeedback(ownView);
+  assert.equal(f.note,'Tốt: tiếp tục luyện tập');
+  assert.equal(f.comments.length,2);
+  assert.equal(f.aiText,'AI gợi ý ôn quy tắc nhân');
+  const html=tools.studentFeedbackDetail(ownView);
+  assert.match(html,/Nhận xét của giáo viên/);
+  assert.match(html,/Nhận xét chốt/);
+  assert.match(html,/Tốt: tiếp tục luyện tập/);
+  assert.match(html,/Bổ sung cách trình bày ở câu 2/);
+  assert.match(html,/Xem lại phép tính cuối/);
+  assert.match(html,/Gợi ý từ AI/);
+  assert.match(html,/AI gợi ý ôn quy tắc nhân/);
+  assert.equal(tools.studentFeedbackExcerpt(ownView).text,'Tốt: tiếp tục luyện tập');
+});
+test('Feedback pending approval never leaks, including AI and internal teacher assist',()=>{
+  const src=section('function publishedStudentFeedback(p)','const postColor =');
+  const context={S:{guest:{id:'mine'},meId:'mine'},ic:()=>'',esc:String,vnTime:String};
+  const fn=vm.runInNewContext(src+'\n({publishedStudentFeedback,studentFeedbackDetail})',context);
+  const pending=studentPost({...approved,teacher:{note:'Nhận xét nháp',comments:[{text:'Bí mật'}],assist:{privateAnswer:'Riêng tư'}},ai:{diem:5,nhan_xet:'AI riêng tư'}},true);
+  const local={...pending,studentAcc:'mine'};
+  assert.equal(fn.studentFeedbackDetail(local),'');
+  assert.equal(fn.publishedStudentFeedback(local).note,'');
+  const owned=studentPost({...approved,teacher:{...approved.teacher,note:'Chỉ học sinh được duyệt mới thấy',comments:[{text:'Đã duyệt',name:'Giáo viên',at:123}],assist:{privateAnswer:'Riêng tư'}}},true);
+  assert.equal(JSON.stringify(owned).includes('privateAnswer'),false);
+  const peer={...studentPost(approved,false),studentAcc:null};
+  assert.equal(fn.publishedStudentFeedback(peer).aiText,'');
+  assert.equal(peer.teacher.score,undefined);
+  assert.match(html,/student-result-feedback/);
+  assert.match(html,/student-feedback-inline/);
+});
 test('All inline JavaScript sections compile',()=>{
   for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){
     if(match[1].trim()) assert.doesNotThrow(()=>new vm.Script(match[1]));
