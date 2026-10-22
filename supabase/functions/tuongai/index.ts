@@ -5,7 +5,7 @@
 // - Quản trị: danh sách thành viên, duyệt, khóa, đặt lại mật khẩu, tạo, xóa.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { encodeBase64, decodeBase64 } from "jsr:@std/encoding@1/base64";
-import { studentPost as publicPost, ownsStudentPost, visibleToStudent } from "./student-visibility.ts";
+import { studentPost as publicPost, ownsStudentPost, visibleToStudent, isTeacherAnnouncement } from "./student-visibility.ts";
 import { answerReference, answerImages, answerImageRules } from "./answer-reference.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
@@ -392,9 +392,9 @@ async function handle(req: Request) {
         feed ? studentRows(b.id, token, "teacher") : Promise.resolve([]),
       ]);
       const rows = new Map([...classroom, ...teacherPosts, ...mine].map((p: any) => [p.id, p]));
-      const posts = [...rows.values()].filter((p: any) => visibleToStudent(p, token)).map((p: any) => {
+      const posts = [...rows.values()].filter((p: any) => visibleToStudent(p, token, b.teacher_name)).map((p: any) => {
         const own = ownsStudentPost(p, token);
-        return { ...publicPost(p, own), practice: own ? studentPracticeSets(p) : [] };
+        return { ...publicPost(p, own, b.teacher_name), practice: own ? studentPracticeSets(p) : [] };
       });
       const ids = posts.filter((p: any) => p.visibility === "mine").map((p: any) => p.id);
       let submitted: any[] = [];
@@ -559,6 +559,14 @@ async function handle(req: Request) {
       if (!post) throw new Fail("not_found", "Không tìm thấy bài.", 404);
       if (post.owner !== u.id && u.role !== "admin") throw new Fail("forbidden", "Bạn không có quyền chấm bài này.", 403);
       const { data: b } = await db.from("boards").select("*").eq("id", post.board_id).single();
+      if (!b) throw new Fail("not_found", "Không tìm thấy lớp.", 404);
+      if (post.by === "gv") {
+        // Kiểm tra lại phía máy chủ, không dựa vào nút chấm AI trên giao diện.
+        const { data: ownerProfile } = await db.from("profiles").select("full_name").eq("id", b.owner).maybeSingle();
+        if (isTeacherAnnouncement(post, ownerProfile?.full_name || "")) {
+          throw new Fail("forbidden", "Bài giáo viên giao cho cả lớp không thuộc diện chấm điểm.", 403);
+        }
+      }
       return await gradePost(post, b);
     }
     case "grade_demo": {
