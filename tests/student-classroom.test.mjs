@@ -74,6 +74,8 @@ test('Class wall includes teacher posts immediately without exposing pending stu
   assert.match(html,/if \(isTeacherAnnouncement\(p\)\) \{/);
   assert.match(html,/const reviewPosts = .* !isTeacherAnnouncement\(p\)/);
   assert.match(html,/if \(!announcement && autoGrade && gv/);
+  assert.match(html,/const action = gv \? 'publish-class' : 'submit'/);
+  assert.match(html,/class=\"fab\" data-act=\"\$\{gv \? 'publish-class' : 'submit'\}/);
 });
 
 test('Unsupported peer attachments never expose the original path',()=>{
