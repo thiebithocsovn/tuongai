@@ -39,7 +39,7 @@ test('When no similar worksheet exists, pupils can supply a similar question and
  assert.match(result,/data-sim-send="-1"/);
  assert.match(result,/Đề bài tương tự em chọn/);
  assert.match(result,/Nộp bài tập tương tự/);
- assert.match(edge,/index===-1 && !questions.length/);
+ assert.match(edge,/if\(index===-1\) \{/);
  assert.match(edge,/exercise_question:task.question/);
  assert.match(edge,/if\(index===-1\) \{/);
  assert.match(edge,/attempt\.exercise_key==="self"\?-1:Number/);
