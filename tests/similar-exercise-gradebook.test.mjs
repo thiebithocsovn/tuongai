@@ -41,6 +41,8 @@ test('When no similar worksheet exists, pupils can supply a similar question and
  assert.match(result,/Nộp bài tập tương tự/);
  assert.match(edge,/index===-1 && !questions.length/);
  assert.match(edge,/exercise_question:task.question/);
+ assert.match(edge,/if\(index===-1\) \{/);
+ assert.match(edge,/attempt\.exercise_key==="self"\?-1:Number/);
 });
 test('Students can see only own provisional AI evaluation or final locked assessment',()=>{
  const pending=render({name:'Em A',attempts:[{id:'1',exercise_key:'q0',response:'S = 9 × 4 = 36',ai_score:9,ai_note:'Đúng phép tính'}]});
