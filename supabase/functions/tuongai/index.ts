@@ -340,7 +340,7 @@ async function similarContext(postId: string, boardId: string) {
 }
 function similarQuestion(post: any, index: number, ownQuestion = "") {
   const questions=studentSimilarQuestions(post,true);
-  if(index===-1 && !questions.length) {
+  if(index===-1) {
     const question=txt(ownQuestion,2000);
     if(question.length<10) throw new Fail("need_question","Chưa có đề do giáo viên giao; em hãy nhập đề bài tự luyện (ít nhất 10 ký tự).");
     return {question,key:"self",expectedAnswer:"",criteria:"Đánh giá lời giải cho đề do học sinh tự chọn; chỉ chấm sơ bộ, giáo viên xác nhận."};
@@ -549,7 +549,7 @@ async function handle(req: Request) {
       } else {
         const board=await db.from("boards").select("*").eq("id",attempt.board_id).maybeSingle();
         if(!board.data) throw new Fail("not_found","Không tìm thấy lớp.");
-        const index=Number(String(attempt.exercise_key).slice(1));
+        const index=attempt.exercise_key==="self"?-1:Number(String(attempt.exercise_key).slice(1));
         const task=similarQuestion(post,index,str(attempt.exercise_question,2000)),ai=await aiGradeSimilar(attempt,task,board.data);
         patch={ai_score:ai.score,ai_note:ai.note,ai_model:ai.model};
       }
