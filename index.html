@@ -2670,6 +2670,11 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 .student-own-grade-comment{min-width:0}
 .student-own-grade-comment b{font-size:12px;font-weight:800;color:#5e3640}
 .student-own-grade-comment p{font-size:12.5px;line-height:1.55;color:#4e5364;margin:4px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.student-own-grade-card .student-grade-open{margin-top:12px;width:100%;background:#fff;color:#a63240;border:1px solid #edbcc5;white-space:normal}
+.student-own-grade-circle.is-private{color:#ac5361;border-color:#e4a9b5;background:#fffafa}
+.student-own-grade-circle.is-private .ic{width:25px;height:25px}
+.student-own-grade-circle.is-private small{font-size:9px;margin-top:4px}
+.student-own-grade-summary{display:block;color:#a63240;font-size:12px;margin-top:10px}
 .student-recover-divider{text-align:center;font-size:11px;font-weight:800;color:#7888a1;letter-spacing:.035em;margin:4px 0}
 @media(max-width:410px){.student-own-grade-card{padding:12px}.student-own-grade-body{gap:10px}.student-own-grade-circle{width:59px;height:59px;font-size:23px}}
 
@@ -3889,14 +3894,15 @@ function studentResultTokenFromInput(raw, board) {
   }
   return /^[a-zA-Z0-9_-]{16,80}$/.test(token) ? token : '';
 }
-function recoverStudentForm(board) {
+function recoverStudentForm(board, postId = '') {
+  const requestedPost = postId ? getPost(postId) : null;
   const modal = openModal({
     title: 'Xem điểm bài làm của em',
     body: `<form class="modal-b" id="student-recover-form" novalidate>
       <p class="meta">Điểm là thông tin riêng. Em hãy dùng liên kết xem kết quả do thầy cô gửi hoặc liên kết em đã lưu lúc nộp bài.</p>
       <label class="fld"><span>Liên kết / mã xem điểm riêng</span><input id="student-recover-token" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Dán liên kết xem điểm riêng của em" maxlength="1200"></label>
       <p class="student-recover-divider">HOẶC TÌM TRÊN THIẾT BỊ ĐÃ NỘP BÀI</p>
-      <label class="fld"><span>Họ và tên khi nộp bài</span><input id="student-recover-name" autocomplete="name" maxlength="120" placeholder="Nhập đúng họ tên đã nộp"></label>
+      <label class="fld"><span>Họ và tên khi nộp bài</span><input id="student-recover-name" autocomplete="name" maxlength="120" placeholder="Nhập đúng họ tên đã nộp" value="${esc(requestedPost?.studentName || '')}"></label>
       <p class="meta">Nếu đổi điện thoại, em cần liên kết/mã cá nhân. Nhập tên không cho phép xem điểm của người khác.</p>
       <p class="form-err" id="student-recover-error" role="alert"></p>
     </form>`,
@@ -3920,11 +3926,16 @@ function recoverStudentForm(board) {
         error.textContent = raw ? 'Mã không có bài của em trong lớp. Hãy kiểm tra liên kết riêng.' : 'Không tìm thấy bài thuộc tên này trên thiết bị hiện tại. Hãy dùng thiết bị đã nộp hoặc liên kết riêng.';
         return;
       }
+      if (postId && !result.posts.some(p => p.id === postId && p.visibility === 'mine')) {
+        error.textContent = 'Liên kết hoặc thiết bị này không thuộc chủ bài đang xem. Em hãy dùng liên kết riêng của đúng bài làm.';
+        return;
+      }
       const ownName = first.student_name;
       const guest = { id: guestId(ownName), token, name: ownName, className: first.student_class || '', role: 'hs', guest: true, joined: [], codes: [] };
       await addGuestBoard(guest, board.code);
       modal.close();
       enterGuest(guest, board.id);
+      if (postId) openDetail(postId, false);
       toast('Đã mở kết quả riêng của ' + ownName + '.');
     } catch (e) { error.textContent = e?.message || 'Chưa mở được kết quả. Hãy thử lại.'; }
     finally { button.disabled = false; }
@@ -7146,9 +7157,22 @@ function drawSide() {
       <p>Giáo viên đã duyệt bài. Em có thể đọc lời nhận xét và tham khảo bài tập tương tự ở bên dưới.</p>
       <p class="student-peer-privacy">${ic('lock','ic-sm')} Điểm và nhận xét AI riêng của bạn không hiển thị.</p>
     </header>
+    <section class="student-own-grade-card" aria-label="Điểm bài làm">
+      <span class="student-own-grade-kicker">ĐIỂM BÀI LÀM${ready ? ' ĐÃ ĐƯỢC DUYỆT' : ' · CHỜ THẦY CÔ DUYỆT'}</span>
+      <div class="student-own-grade-body">
+        <span class="student-own-grade-circle is-private" aria-label="Điểm riêng của chủ bài">${ic('lock')}<small>/${fmt(b?.assignment?.maxScore || 10)}</small></span>
+        <div class="student-own-grade-comment"><b>${S.guest?.preview ? 'Đây là bài của em?' : 'Điểm riêng của chủ bài'}</b><p>${S.guest?.preview ? 'Mở kết quả cá nhân để xem điểm trong ô này, cùng nhận xét và các mục bên dưới.' : 'Em chỉ xem được điểm của bài mình đã nộp. Nhận xét đã công bố của bài này vẫn ở bên dưới.'}</p></div>
+      </div>
+      ${S.guest?.preview ? `<button type="button" class="btn student-grade-open" data-pd="student-open-grade">${ic('eye','ic-sm')} Xem điểm bài làm của em</button>` : ''}
+    </section>
     ${ready ? studentFeedbackDetail(p)+studentSimilarPreviewHtml(p) : '<p class="meta">Giáo viên chưa duyệt nội dung này.</p>'}
     <button class="btn btn-ghost" type="button" data-pd="close">Đóng</button>`;
     $('[data-pd=close]',el)?.addEventListener('click',()=>detail.m.close());
+    $('[data-pd=student-open-grade]',el)?.addEventListener('click',()=>{
+      const postId = p.id;
+      detail.m.close();
+      recoverStudentForm(b, postId);
+    });
     bindStudentSimilar(el);
     drawMedia();
     return;
@@ -7160,7 +7184,19 @@ function drawSide() {
     const el = $('#pd-side', detail.m.el);
     const score = finalScore(p);
     const maxScore = b?.assignment?.maxScore || 10;
-    const publicComment = b?.assignment?.studentView?.showFeedback === false ? '' : studentFeedbackExcerpt(p)?.text || '';
+    const publicComment = b?.assignment?.studentView?.showFeedback === false ? null : studentFeedbackExcerpt(p);
+    const approvedAiDetails = () => {
+      if (b?.assignment?.studentView?.showFeedback === false || !p.ai) return '';
+      const ai = p.ai;
+      const errors = Array.isArray(ai.loi_sai) ? ai.loi_sai.filter(e => e && typeof e === 'object') : null;
+      const strengths = Array.isArray(ai.diem_manh) ? ai.diem_manh.filter(x => typeof x === 'string' && x.trim()) : [];
+      const practice = Array.isArray(ai.luyen_tap) ? ai.luyen_tap.filter(x => x && (typeof x === 'string' || typeof x === 'object')) : [];
+      const severity = e => e.muc_do === 'nang' ? 'Sai kiến thức' : e.muc_do === 'nhe' ? 'Trình bày' : 'Tính toán';
+      return `${ai.canh_bao ? `<p class="warnline">${esc(ai.canh_bao)}</p>` : ''}
+        ${errors ? `<section class="blk"><h4>Lỗi sai cần sửa <span class="n">${errors.length}</span></h4>${errors.length ? `<ol class="errs">${errors.map(e => `<li class="err ${e.muc_do === 'nang' ? 'nang' : e.muc_do === 'nhe' ? 'nhe' : 'vua'}"><span class="where">${esc(e.vi_tri || e.cau || 'Trong bài')}<span class="sev">${severity(e)}</span></span><p>${esc(e.loi || '')}</p>${e.giai_thich ? `<p>${esc(e.giai_thich)}</p>` : ''}${e.sua ? `<p class="fix"><b>Sửa:</b> ${esc(e.sua)}</p>` : ''}</li>`).join('')}</ol>` : '<p class="meta">AI không phát hiện lỗi sai trong phần đã chấm.</p>'}</section>` : ''}
+        ${strengths.length ? `<section class="blk"><h4>Em đã làm tốt</h4><ul class="goods">${strengths.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
+        ${practice.length ? `<section class="blk"><h4>Định hướng luyện tập</h4><ul class="prac">${practice.map(x => `<li>${typeof x === 'string' ? esc(x) : `<b>${esc(x.ky_nang || '')}</b>${x.goi_y ? ' — ' + esc(x.goi_y) : ''}`}</li>`).join('')}</ul></section>` : ''}`;
+    };
     const safeSection = (fn, title) => {
       try { return fn() || ''; }
       catch (error) {
@@ -7174,13 +7210,15 @@ function drawSide() {
       <section class="student-own-grade-card" aria-label="Điểm và nhận xét đã duyệt">
         <span class="student-own-grade-kicker">ĐIỂM THẦY CÔ ĐÃ DUYỆT</span>
         <div class="student-own-grade-body">
-          <span class="student-own-grade-circle">${score == null ? '—' : fmt(score)}<small>/${fmt(maxScore)}</small></span>
-          <div class="student-own-grade-comment"><b>Nhận xét của thầy cô</b><p>${esc(publicComment || 'Bài đã được giáo viên duyệt. Em xem nhận xét và bài tập tương tự bên dưới.')}</p></div>
+          <span class="student-own-grade-circle" aria-label="${score == null ? 'Chưa có điểm số' : 'Điểm: ' + fmt(score) + ' trên ' + fmt(maxScore)}">${score == null ? '—' : fmt(score)}<small>/${fmt(maxScore)}</small></span>
+          <div class="student-own-grade-comment"><b>${esc(publicComment?.label || 'Nhận xét của thầy cô')}</b><p>${esc(publicComment?.text || 'Bài đã được giáo viên duyệt. Em xem nhận xét và bài tập tương tự bên dưới.')}</p></div>
         </div>
+        <span class="student-own-grade-summary">${score == null ? 'Thầy cô chưa nhập điểm số.' : `Điểm: <strong>${fmt(score)} / ${fmt(maxScore)}</strong>`}</span>
       </section>
       <p>Em có thể xem lời nhận xét của giáo viên và luyện tập lại bằng các câu hỏi tương tự.</p>
     </header>
     ${safeSection(() => studentFeedbackDetail(p), 'Nhận xét sau khi chấm')}
+    ${safeSection(approvedAiDetails, 'Phân tích bài làm đã duyệt')}
     ${safeSection(() => studentSimilarPreviewHtml(p), 'Bài tập tương tự')}
     ${safeSection(() => studentPracticeHtml(p), 'Bài tập được giáo viên giao')}
     <button class="btn btn-ghost" type="button" data-pd="close">Đóng</button>`;
