@@ -2242,6 +2242,11 @@ html,body{max-width:100%;overflow-x:clip}
 .student-post-actions{display:flex;gap:7px;flex-wrap:wrap;margin:9px 0 1px;align-items:center}
 .student-post-actions .btn{flex:1 1 100px;min-height:36px;padding:7px 11px;font-size:12.5px;font-weight:700}
 .student-post-actions-detail{margin:10px 0;padding:10px 0;border-top:1px solid #e1e9f3}
+.post-move-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+.post-move-location{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--muted)}
+.post-move-row .btn{flex:none;min-height:36px;font-size:12px;padding:6px 10px}
+.post-move-form .move-source{margin:0;padding:11px 13px;background:var(--soft);border:1px solid var(--line);border-radius:10px;line-height:1.6;overflow-wrap:anywhere}
+@media(max-width:560px){.post-move-row .btn{min-height:44px}}
 .student-post-locked{display:flex;align-items:center;gap:6px;margin:9px 0 1px;color:#677991;font-size:12px;line-height:1.4}
 .student-post-locked .ic{width:14px;height:14px}
 .student-edit-preview{display:flex;gap:8px;overflow-x:auto;max-width:100%;padding:5px 0 9px}
@@ -3580,6 +3585,26 @@ async function savePost(p) {
   const { error } = await CAP.sb.from('posts').upsert(postToRow(p));
   if (error) { if (prev) S.posts.set(p.id, prev); else S.posts.delete(p.id); renderSoon(); }
   return dbErr(error);
+}
+/* Move the existing submission without rewriting its files, marks or student token. */
+async function movePostToColumn(id, columnId) {
+  const p = getPost(id), b = p && getBoard(p.boardId);
+  if (!p || !canManage(b) || S.guest) throw new Error('Chỉ giáo viên quản lý lớp mới được di chuyển bài.');
+  if (typeof columnId !== 'string' || (columnId && !(b.columns || []).some(c => c.id === columnId))) {
+    throw new Error('Vị trí nhận bài không còn tồn tại. Hãy mở lại hộp di chuyển.');
+  }
+  if ((p.columnId || '') === columnId) throw new Error('Bài đã ở vị trí này. Hãy chọn vị trí khác.');
+  // Match the original location as well: another teacher may have just moved the post.
+  const { data, error } = await CAP.sb.from('posts').update({ column_id: columnId })
+    .eq('id', p.id).eq('board_id', p.boardId).eq('column_id', p.columnId || '')
+    .select('id, column_id').single();
+  if (error?.code === 'PGRST116') throw new Error('Bài đã thay đổi hoặc thầy cô không còn quyền di chuyển. Hãy tải lại lớp rồi thử lại.');
+  if (error) throw error;
+  if (!data || data.id !== p.id || data.column_id !== columnId) throw new Error('Chưa xác nhận được vị trí mới. Hãy tải lại lớp để kiểm tra.');
+  const current = getPost(id);
+  if (current && current.boardId === p.boardId) S.posts.set(id, { ...current, columnId });
+  renderSoon();
+  return true;
 }
 async function removePost(p) {
   if (p.boardId === DEMO_ID) { S.demoPosts.delete(p.id); renderSoon(); return true; }
@@ -5416,6 +5441,8 @@ function postCard(p, studentView) {
     : p.practice?.length ? '📚 Làm bài luyện tập (' + p.practice.reduce((n, v) => n + (v.exercises?.length || 0), 0) + ' bài)'
     : p.ai || tm.note ? '✨ Xem nhận xét' : 'Xem bài đã nộp';
   const color = postColor(p);
+  const moveColumn = (b?.columns || []).find(c => c.id === p.columnId);
+  const moveLabel = moveColumn?.name || 'Bài chung';
   const time = p.createdAt ? new Date(p.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date(p.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }).replace(/\//g, '-') : 'Đang đồng bộ';
   const showFoot = !announcement && (gv || likes.length || comments.length || fs != null);
   return `<article class="pcard${tm.pinned ? ' pinned' : ''}"${peerPost(p) ? ' data-peer-protected="1"' : ''}${color !== '#ffffff' ? ` style="background:${color}"` : ''}>
@@ -5426,6 +5453,7 @@ function postCard(p, studentView) {
     ${!gv ? `<p class="student-post-label">${announcement ? '📘 Bài giáo viên · Cả lớp xem' : p.studentAcc === S.meId ? 'Bài của em' : 'Bài của bạn · Chỉ xem'}</p>` : ''}
     ${!gv && approved ? studentFeedbackInlineHtml(p) : ''}
     <button class="btn ${announcement ? 'btn-soft' : 'btn-ai ai-entry'}" data-act="open-post" data-id="${p.id}" ${autoGrade ? 'data-grade="1"' : ''}>${aiLabel}</button>
+    ${gv && canManage(b) && !announcement && b.columns?.length ? `<div class="post-move-row"><span class="post-move-location" title="Vị trí hiện tại: ${esc(moveLabel)}">${esc(moveLabel)}</span><button type="button" class="btn btn-sm btn-soft" data-act="p-move" data-id="${esc(p.id)}" aria-label="Di chuyển bài của ${esc(p.studentName)}">${ic('next','ic-sm')}Di chuyển bài</button></div>` : ''}
     ${!gv && studentCanEdit(p) ? `<div class="student-post-actions"><button class="btn btn-sm" data-act="student-edit" data-id="${p.id}">${ic('pencil','ic-sm')}Sửa bài</button><button class="btn btn-sm btn-danger" data-act="student-delete" data-id="${p.id}">${ic('trash','ic-sm')}Xóa bài</button></div>` : !gv && p.by === 'hs' && p.studentAcc === S.meId ? `<p class="student-post-locked">${ic('lock','ic-sm')}Bài đã chấm · không thể sửa hoặc xóa</p>` : ''}
     ${showFoot ? `<div class="pfoot">${gv ? `<button class="preact${liked ? ' on' : ''}" data-act="p-like" data-id="${p.id}" aria-pressed="${liked}" aria-label="Thích bài của ${esc(p.studentName)}">${ic(liked ? 'heart-f' : 'heart', 'ic-sm')}${likes.length}</button>` : `<span class="preact${likes.length ? ' on' : ''}">${ic(likes.length ? 'heart-f' : 'heart', 'ic-sm')}${likes.length}</span>`}<button class="preact" data-act="open-post" data-id="${p.id}" data-focus="cmt" aria-label="Nhận xét bài của ${esc(p.studentName)}">${ic('msg', 'ic-sm')}${comments.length}<span>Nhận xét</span></button>${fs != null ? `<span class="score-pill" title="${approved ? 'Điểm thầy cô đã duyệt' : 'Điểm AI đề xuất'}">${fmt(fs)}<small>/${max}</small></span>` : ''}</div>` : ''}
   </article>`;
@@ -5433,16 +5461,16 @@ function postCard(p, studentView) {
 
 /* ---------- menu của một bài: ghim, màu thẻ, chuyển cột, xóa ---------- */
 function postMenu(btn, p) {
+  const b = getBoard(p.boardId);
+  if (!canManage(b)) return;
   const old = $('.pmenu'); if (old) { const same = old.dataset.id === p.id; old.remove(); if (same) return; }
-  const b = getBoard(p.boardId); const tm = tmeta(p);
-  const curCol = (b.columns || []).some((x) => x.id === p.columnId) ? p.columnId : '';
-  const cols = layoutKey(b.layout) === 'cot' ? [{ id: '', name: 'Bài chung' }, ...(b.columns || [])].filter((c) => c.id !== curCol) : [];
+  const tm = tmeta(p);
   const menu = document.createElement('div'); menu.className = 'menu pmenu'; menu.dataset.id = p.id; menu.setAttribute('role', 'menu');
   menu.innerHTML = `
     <button role="menuitem" data-act="p-pin" data-id="${p.id}">${ic('pin')}${tm.pinned ? 'Bỏ ghim bài' : 'Ghim bài lên đầu'}</button>
+    ${b.columns?.length ? `<button role="menuitem" data-act="p-move" data-id="${esc(p.id)}">${ic('next')}Di chuyển bài…</button>` : ''}
     <p class="menu-t">Màu thẻ</p>
     <div class="swatches">${POST_COLORS.map(([c, n]) => `<button data-act="p-color" data-id="${p.id}" data-c="${c}" style="background:${c}" aria-label="Màu thẻ ${n}" aria-pressed="${postColor(p) === c}">${postColor(p) === c ? ic('check', 'ic-sm') : ''}</button>`).join('')}</div>
-    ${cols.length ? `<p class="menu-t">Chuyển sang cột</p>${cols.map((c) => `<button role="menuitem" data-act="p-move" data-id="${p.id}" data-col="${esc(c.id)}">${ic('next')}${esc(c.name)}</button>`).join('')}` : ''}
     <button role="menuitem" data-act="open-post" data-id="${p.id}">${ic('eye')}Mở bài</button>
     <button role="menuitem" data-act="p-del" data-id="${p.id}" style="color:var(--pen)">${ic('trash')}Xóa bài</button>`;
   document.body.appendChild(menu);
@@ -5451,6 +5479,46 @@ function postMenu(btn, p) {
   menu.style.cssText = `position:fixed;width:${w}px;left:${Math.max(8, Math.min(innerWidth - w - 8, r.right - w))}px;top:${r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4}px;right:auto;z-index:90`;
 }
 window.addEventListener('scroll', () => $('.pmenu')?.remove(), true);
+
+function movePostForm(p) {
+  const b = getBoard(p.boardId);
+  if (!canManage(b) || S.guest || !(b.columns || []).length) return;
+  const vertical = boardDir(b) === 'v', word = vertical ? 'hàng' : 'cột';
+  const positions = [{ id: '', name: 'Bài chung' }, ...b.columns];
+  const source = positions.find(c => c.id === p.columnId) || positions[0];
+  const m = openModal({
+    title: 'Di chuyển bài học sinh', cls: 'post-move-form',
+    body: `<form class="modal-b" id="post-move-form" novalidate>
+      <p class="move-source"><b>${esc(p.studentName || 'Bài học sinh')}</b><br>Đang ở: <strong>${esc(source.name)}</strong></p>
+      <label class="fld"><span>${vertical ? 'Hàng' : 'Cột'} nhận bài</span><select id="post-move-column">${positions.map(c => `<option value="${esc(c.id)}"${c.id === source.id ? ' selected disabled' : ''}>${esc(c.name)}${c.id === source.id ? ' (đang ở đây)' : ''}</option>`).join('')}</select></label>
+      <p class="meta">Chọn đúng ${word} nộp bài. Ảnh, tệp đính kèm, điểm, nhận xét và thời gian nộp được giữ nguyên.</p>
+      <p class="form-err" id="post-move-error" role="alert"></p>
+    </form>`,
+    foot: '<button type="button" class="btn btn-ghost" data-close>Hủy</button><button type="submit" form="post-move-form" class="btn btn-brand" id="post-move-save" disabled>Di chuyển bài</button>',
+  });
+  const form = $('#post-move-form', m.el), select = $('#post-move-column', m.el);
+  const button = $('#post-move-save', m.el), error = $('#post-move-error', m.el);
+  let busy = false;
+  select.addEventListener('change', () => { error.textContent = ''; button.disabled = busy || select.value === source.id; });
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (busy || select.value === source.id) return;
+    const destination = positions.find(c => c.id === select.value);
+    if (!destination) { error.textContent = 'Hãy chọn vị trí nhận bài.'; return; }
+    busy = true; button.disabled = true; select.disabled = true; error.textContent = '';
+    button.textContent = 'Đang di chuyển…';
+    try {
+      await movePostToColumn(p.id, destination.id);
+      m.close();
+      toast('Đã chuyển bài của ' + (p.studentName || 'học sinh') + ' sang “' + destination.name + '”.');
+    } catch (e) {
+      error.textContent = e?.message || 'Chưa di chuyển được bài. Kiểm tra kết nối rồi thử lại.';
+    } finally {
+      busy = false; select.disabled = false; button.disabled = select.value === source.id;
+      button.textContent = 'Di chuyển bài';
+    }
+  });
+}
 
 /* ---------- xem ảnh: phóng to, xoay, toàn màn hình ---------- */
 function openViewer(srcs, start = 0, protectedView = false) {
@@ -8537,7 +8605,7 @@ document.addEventListener('click', async (e) => {
     case 'post-menu': { const p = getPost(id); if (p) postMenu(t, p); break; }
     case 'p-pin': { $('.pmenu')?.remove(); const p = getPost(id); if (p) { const on = !tmeta(p).pinned; await patchTeacher(p, { pinned: on }); toast(on ? 'Đã ghim bài lên đầu.' : 'Đã bỏ ghim bài.'); } break; }
     case 'p-color': { $('.pmenu')?.remove(); const p = getPost(id); if (p) await patchTeacher(p, { color: t.dataset.c === '#ffffff' ? '' : t.dataset.c }); break; }
-    case 'p-move': { $('.pmenu')?.remove(); const p = getPost(id); if (p) { await savePost({ ...p, columnId: t.dataset.col || '' }); toast('Đã chuyển bài của ' + p.studentName + '.'); } break; }
+    case 'p-move': { $('.pmenu')?.remove(); const p = getPost(id); if (p) movePostForm(p); break; }
     case 'p-del': { $('.pmenu')?.remove(); const p = getPost(id); if (p && await confirmBox('Xóa bài này?', 'Bài của <b>' + esc(p.studentName) + '</b> và kết quả chấm sẽ bị xóa vĩnh viễn.', 'Xóa bài', true)) { await removePost(p); toast('Đã xóa bài.'); } break; }
     case 'p-like': { const p = getPost(id); if (p) { const likes = tmeta(p).likes || []; await patchTeacher(p, { likes: likes.includes(S.meId) ? likes.filter((x) => x !== S.meId) : [...likes, S.meId] }); } break; }
     case 'slideshow': if (b) slideshow(b, shownPosts(b)); break;
