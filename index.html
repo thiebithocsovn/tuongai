@@ -6245,19 +6245,26 @@ const aiProv = () => {
   return v === 'server' && CAP.aiReady ? 'server' : 'google';
 };
 const aiOn = () => (isGV() ? true : !!CAP.aiReady);
-/* Khóa trang reCAPTCHA Enterprise cho Firebase App Check: là khóa công khai, giống biến VITE_FIREBASE_APP_CHECK_SITE_KEY
-   của Hệ sinh thái 4.0. Quản trị dán một lần trong Cài đặt hệ thống; để trống nếu dự án không bắt buộc App Check. */
+/* Khóa site key reCAPTCHA Enterprise là công khai, KHÔNG PHẢI khóa Gemini API.
+   Firebase AI Logic bắt buộc App Check hợp lệ từ 02/11/2026. */
 const gaiSiteKey = () => String(CAP.appCheckKey || '').trim();
-function gaiInit() {
+async function gaiInit() {
+  // Khi giáo viên vừa đăng nhập, trạng thái App Check có thể đang được tải về.
+  if (!gaiSiteKey() && isGV()) await aiStatus();
+  const siteKey = gaiSiteKey();
+  if (!/^6L[0-9A-Za-z_-]{30,}$/.test(siteKey)) {
+    throw { code: 'g_appcheck', message: 'Gemini · Google không cần khóa API riêng nhưng Firebase App Check chưa được cấu hình. Quản trị mở Cài đặt hệ thống → Khóa trang reCAPTCHA Enterprise, lưu khóa site key công khai, sau đó tải lại trang. Kiểm tra Web app và tên miền trong Firebase Console → App Check.' };
+  }
+  if (GAI.ready && GAI.key !== siteKey) {
+    throw { code: 'g_appcheck', message: 'Khóa App Check đã thay đổi. Hãy tải lại trang trước khi dùng Gemini · Google.' };
+  }
   if (!GAI.ready) {
     GAI.ready = (async () => {
       const lib = await import('./firebase-ai.js');
       const app = lib.getApps().find((a) => a.name === 'tuongai-ai') || lib.initializeApp(GAI_CONFIG, 'tuongai-ai');
-      GAI.key = gaiSiteKey();
-      if (GAI.key) {
-        try { GAI.appCheck = lib.initializeAppCheck(app, { provider: new lib.ReCaptchaEnterpriseProvider(GAI.key), isTokenAutoRefreshEnabled: true }); }
-        catch (e) { console.warn('Không khởi tạo được Firebase App Check.', e); }
-      }
+      // Chỉ khởi tạo Gemini sau khi App Check đã được tạo; không bỏ qua lỗi bảo mật.
+      GAI.appCheck = lib.initializeAppCheck(app, { provider: new lib.ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true });
+      GAI.key = siteKey;
       GAI.lib = lib; GAI.ai = lib.getAI(app, { backend: new lib.GoogleAIBackend() });
       return GAI;
     })().catch((e) => { GAI.ready = null; throw e; });
@@ -6319,13 +6326,13 @@ async function gaiJson(prompt, images = [], signal) {
   let timer, onAbort;
   try {
     const g = await gaiInit();
-    if (g.appCheck) {
-      try {
-        const t = await g.lib.getToken(g.appCheck, false);
-        if (!t?.token) throw new Error('app check token empty');
-      } catch (e) {
-        throw { code: 'g_appcheck', message: gaiError({ message: 'app check' }).message };
-      }
+    if (!g.appCheck) throw { code: 'g_appcheck', message: 'Firebase App Check chưa khởi tạo. Hãy kiểm tra site key và tải lại trang.' };
+    try {
+      const t = await g.lib.getToken(g.appCheck, false);
+      if (!t?.token) throw new Error('app check token empty');
+    } catch (e) {
+      console.warn('Firebase App Check không cấp được token hợp lệ:', e);
+      throw { code: 'g_appcheck', message: 'Firebase chưa cấp được token App Check. Kiểm tra khóa site key reCAPTCHA Enterprise, Web app gen-lang-client-0870957273 và các tên miền được cho phép trong Firebase Console.' };
     }
     const parts = [...images.map((i) => ({ inlineData: { mimeType: i.mime, data: i.data } })), { text: prompt }];
     const timeout = new Promise((_, reject) => {
@@ -6877,8 +6884,8 @@ async function aiSettingsForm() {
     title: 'Cài đặt hệ thống',
     body: `<form class="modal-b" id="st" novalidate>
       <p class="section-t">Kết nối Gemini · Google (không cần khóa API)</p>
-      <p class="info-box">Thầy cô dùng AI ngay, không cần dán khóa: trình duyệt gọi Gemini qua dự án Google của Hệ sinh thái 4.0 (Firebase AI Logic), được Firebase App Check xác minh trang thiebithocsovn.github.io. Đây là kết nối mặc định khi chấm bài và dùng Trợ lý AI.</p>
-      <label class="fld"><span>Khóa trang reCAPTCHA cho App Check <em>(công khai, bắt đầu bằng 6L; lấy trong Firebase Console → App Check của dự án Hệ sinh thái 4.0. Để trống nếu dự án không bắt buộc App Check)</em></span><input id="st-ack" spellcheck="false" autocapitalize="none" autocomplete="off" placeholder="6L…" value="${esc(CAP.appCheckKey || '')}"></label>
+      <p class="info-box">Giáo viên dùng Gemini · Google trực tiếp qua Firebase AI Logic, <b>không cần khóa Gemini API cá nhân</b>. Firebase App Check (reCAPTCHA Enterprise) bắt buộc để xác minh website. Quản trị chỉ cần cấu hình khóa site key công khai một lần; không tắt xác minh App Check.</p>
+      <label class="fld"><span>Khóa site key reCAPTCHA Enterprise cho App Check <em>(bắt buộc; công khai, bắt đầu bằng 6L; không phải khóa Gemini API. Cấu hình từ Firebase Console → App Check và cho phép thiebithocsovn.github.io, tuonghoctap.vercel.app)</em></span><input id="st-ack" spellcheck="false" autocapitalize="none" autocomplete="off" placeholder="6L…" value="${esc(CAP.appCheckKey || '')}"></label>
       <div class="row-gap" style="align-items:center"><button type="button" class="btn btn-sm" id="st-gping">${ic('spark', 'ic-sm')}Kiểm tra kết nối Gemini · Google</button><span class="meta" id="st-gres"></span></div>
       <p class="section-t">Khóa chung trên máy chủ (không bắt buộc)</p>
       <p class="info-box">${CAP.aiReady ? 'Khóa chung <b>đang bật</b> (mô hình ' + esc(CAP.aiModel) + '): AI chấm ngay khi học sinh nộp bài. Dán khóa mới nếu muốn thay.' : 'Chưa có khóa chung. Không có khóa, bài học sinh nộp được AI chấm khi thầy cô mở bài hoặc bấm Chờ duyệt → Chấm bằng AI. Có khóa Gemini thì máy chủ chấm ngay lúc em nộp.'}</p>
@@ -6895,7 +6902,11 @@ async function aiSettingsForm() {
   $('#st', el).addEventListener('submit', (e) => e.preventDefault());
   $('#st-gping', el).onclick = async (e) => {
     const btn = e.currentTarget; const out = $('#st-gres', el); btn.disabled = true; out.textContent = 'Đang kiểm tra…';
-    try { await gaiJson('Đây là kiểm tra kết nối, không có dữ liệu học sinh. Chỉ trả về đúng JSON sau: {"ok": true}', []); out.textContent = 'Đã kết nối Gemini · Google (' + (GAI.workingModel || GAI_MODEL) + ').'; }
+    try {
+      if ($('#st-ack', el).value.trim() !== gaiSiteKey()) throw { code: 'g_appcheck', message: 'Hãy bấm Kiểm tra và lưu khóa App Check, tải lại trang rồi mới kiểm tra kết nối.' };
+      await gaiJson('Đây là kiểm tra kết nối, không có dữ liệu học sinh. Chỉ trả về đúng JSON sau: {"ok": true}', []);
+      out.textContent = 'Đã kết nối Gemini · Google (' + (GAI.workingModel || GAI_MODEL) + ').';
+    }
     catch (x) { out.textContent = aiMsg(x); }
     finally { btn.disabled = false; }
   };
@@ -6915,8 +6926,10 @@ async function aiSettingsForm() {
     const btn = $('#st-save', el); btn.disabled = true; btn.textContent = key ? 'Đang kiểm tra khóa…' : 'Đang lưu…';
     try {
       const r = await api('admin_settings', payload);
-      CAP.aiReady = !!r.ai; CAP.aiModel = r.model || ''; if ('appcheck_key' in r) { const changed = CAP.appCheckKey !== r.appcheck_key; CAP.appCheckKey = r.appcheck_key || ''; if (changed && GAI.ready) toast('Đã lưu khóa App Check. Tải lại trang để dùng khóa mới.'); }
-      m.close(); toast(key ? 'Đã bật khóa chung: AI chấm ngay khi học sinh nộp bài.' : 'Đã lưu cài đặt.'); render();
+      CAP.aiReady = !!r.ai; CAP.aiModel = r.model || '';
+      const appCheckChanged = 'appcheck_key' in r && CAP.appCheckKey !== (r.appcheck_key || '');
+      if ('appcheck_key' in r) CAP.appCheckKey = r.appcheck_key || '';
+      m.close(); toast(appCheckChanged ? 'Đã lưu site key App Check. Hãy tải lại trang rồi kiểm tra kết nối Gemini.' : (key ? 'Đã bật khóa chung: AI chấm ngay khi học sinh nộp bài.' : 'Đã lưu cài đặt.')); render();
     } catch (e) { err.textContent = aiMsg(e); }
     finally { btn.disabled = false; btn.textContent = 'Kiểm tra và lưu'; }
   };
