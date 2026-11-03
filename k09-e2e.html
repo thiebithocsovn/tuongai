@@ -44,11 +44,15 @@ function download(body,name,mime){const a=document.createElement("a"),url=URL.cr
 function exportCSV(a){const cols=["runId","round","code","device","type","format","startAt","submitAt","aiAt","savedAt","submitMs","aiMs","e2eMs","success","error","model","postId","userAgent","version"];const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';download("\uFEFF"+cols.join(",")+"\r\n"+a.map(r=>cols.map(k=>q(r[k])).join(",")).join("\r\n"),runId()+".csv","text/csv;charset=utf-8");}
 async function api(action,payload={},token="",signal){const r=await fetch(URL_DB+"/functions/v1/tuongai",{method:"POST",signal,headers:{"Content-Type":"application/json",apikey:config.anon,...(token?{authorization:"Bearer "+token}:{})},body:JSON.stringify({action,...payload})});const json=await r.json();if(!r.ok||json.error)throw Error(json.error?.message||"HTTP "+r.status);return json;}
 async function refresh(){const r=await sb.from("posts").select("teacher").eq("board_id",board.id).eq("student_class","K09_TEST").limit(1000);if(r.error)throw r.error;cloud=(r.data||[]).map(x=>x.teacher?.k09E2E).filter(Boolean);update();}
+function k09TestColumn(b){
+  // Chấp nhận dấu chấm/khoảng trắng cuối tên cột; không chọn nhầm cột P1/P2 của học sinh.
+  return (b?.columns||[]).find(x=>String(x?.name||"").normalize("NFC").trim().replace(/[.!?。．\s]+$/g,"").toLocaleUpperCase("vi-VN")==="BÀI TẬP TEST CỦA GIÁO VIÊN");
+}
 async function login(){try{const u=await sb.auth.getUser();if(!u.data?.user)throw Error("Chưa đăng nhập: mở trang Tường AI đăng nhập Admin rồi quay lại.");
 const p=await sb.from("profiles").select("role").eq("id",u.data.user.id).single();if(p.data?.role!=="admin")throw Error("Chức năng thử tải chỉ dành cho quản trị hệ thống.");
-const b=await sb.from("boards").select("id,code,name,columns,auto_grade").eq("name","MC07-4").eq("trashed",false).limit(1);board=b.data?.[0];if(!board)throw Error("Không tìm thấy bảng MC07-4.");if(!board.columns?.some(x=>x.name==="BÀI TẬP TEST CỦA GIÁO VIÊN"))throw Error("Chưa có cột BÀI TẬP TEST CỦA GIÁO VIÊN.");
+const b=await sb.from("boards").select("id,code,name,columns,auto_grade").eq("name","MC07-4").eq("trashed",false).limit(1);board=b.data?.[0];if(!board)throw Error("Không tìm thấy bảng MC07-4.");if(!k09TestColumn(board))throw Error("MC07-4 chưa có cột TEST. Hãy tạo cột \"BÀI TẬP TEST CỦA GIÁO VIÊN\" và tải lại trang; không dùng cột P1/P2 của học sinh.");
 const status=await api("ai_status",{},(await sb.auth.getSession()).data?.session?.access_token||"");siteKey=status.appcheck_key;appId=status.appcheck_app_id;if(!siteKey||!appId)throw Error("App Check hoặc Firebase Web App ID chưa cấu hình.");
-$("auth").textContent="Đã xác thực Admin và bảng MC07-4. Có cấu hình Firebase App Check.";$("start").disabled=false;await refresh();info("K09 sẵn sàng để chạy.");
+$("auth").textContent="Đã xác thực Admin và bảng MC07-4. Cột kiểm thử: "+k09TestColumn(board).name+" (mã "+k09TestColumn(board).id+"). Firebase App Check đã cấu hình.";$("start").disabled=false;await refresh();info("K09 sẵn sàng để chạy.");
 }catch(e){$("auth").textContent="CHƯA SẴN SÀNG: "+message(e);info(message(e));}}
 let k09AppCheck=null,k09GeminiLoading=null;
 async function gemini(){
@@ -90,7 +94,7 @@ if(v.postId)try{await sb.from("posts").update({teacher:{k09E2E:v}}).eq("id",v.po
 finally{clearTimeout(deadline);local.push(v);save();$("status").textContent="Đợt "+round+": đã ghi "+local.filter(x=>x.runId===rid&&x.round===round).length+"/23 (bao gồm lỗi).";}return v;}
 $("start").onclick=async()=>{if(active)return;try{const rid=runId(),round=Number($("round").value),device=$("dev").value,type=/Android/i.test(navigator.userAgent)?"phone":"computer",format=$("format").value;if(!device)throw Error("Chọn thiết bị thực tế.");if(device.startsWith("HONOR")&&type!=="phone")throw Error("Không thể ghi HONOR khi đang dùng máy tính.");if(device==="Máy tính"&&type!=="computer")throw Error("Đang dùng Android, không được ghi máy tính.");
 await refresh();if(rows().some(x=>x.round===round))throw Error("Đợt này đã có dữ liệu cùng mã phiên. Không tạo trùng.");if(!confirm("Chạy thật 23 yêu cầu Gemini gần đồng thời, có thể tốn hạn mức/chi phí. Không ghi tên học sinh. Đồng ý?"))return;
-active=true;$("start").disabled=true;await gemini();await grading("PREFLIGHT",1,null);const token=(await sb.auth.getSession()).data?.session?.access_token||"";const col=board.columns.find(x=>x.name==="BÀI TẬP TEST CỦA GIÁO VIÊN");
+active=true;$("start").disabled=true;await gemini();await grading("PREFLIGHT",1,null);const token=(await sb.auth.getSession()).data?.session?.access_token||"";const col=k09TestColumn(board);if(!col)throw Error("Cột TEST đã bị đổi tên hoặc xóa. Tải lại trang để kiểm tra.");
 localStorage.setItem(runStore,rid);
 const prepared=Array.from({length:23},(_,i)=>{const code="KT"+String(i+1).padStart(2,"0");return{code,n:i+1,img:format==="image"?picture(code,i+1):null};});
 const cases=prepared.map(x=>caseRun(x.code,x.n,rid,round,device,type,format,token,col,x.img));
