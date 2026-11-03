@@ -5231,6 +5231,7 @@ function reviewForm(b) {
     return `<div class="modal-b rv">
       <p class="meta">Bài học sinh mới nộp và bài AI đã chấm nhưng thầy cô chưa duyệt điểm. Mở từng bài để xem lỗi, sửa điểm và ghi lời phê.</p>
       ${ungraded ? `<div class="rv-batch"><span>${ungraded} bài chưa chấm</span><button class="btn btn-ai" data-rv-all ${S.batch || !aiOn() ? 'disabled' : ''}>✨ Chấm ${ungraded} bài bằng AI</button></div>${aiOn() ? '' : '<p class="meta">AI chấm bài chưa bật. Thầy cô vẫn chấm tay được trong từng bài.</p>'}` : ''}
+      ${b.name === 'MC07-4' && (isGV() || isAdmin()) && k09Pending(b).length ? `<div class="rv-batch"><span>${k09Pending(b).length} bài KT01–KT23 chưa chấm (dữ liệu thử K09)</span><button class="btn btn-ai" data-rv-k09 ${S.batch ? 'disabled' : ''}>✨ Chấm riêng KT bằng Gemini · Google</button></div><p class="meta">Chỉ chấm bài có mã KT01–KT23, lớp K09_TEST; không chấm bài học sinh thật, không tự duyệt điểm. Kiểm tra kết nối Firebase AI Logic trước khi chấm.</p>` : ''}
       ${list.length ? `<ul class="rv-list">${list.map((p) => { const fs = finalScore(p); return `<li><span class="pav" aria-hidden="true">${esc(String(p.studentName || '?').trim().slice(0, 1) || '?')}</span><div><strong>${esc(p.studentName || 'Chưa có tên')}</strong><small>${vnTime(p.createdAt)} · ${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}</small></div>${chip(p)}${fs != null ? `<span class="rv-score">${fmt(fs)}<small>/${max}</small></span>` : ''}<button class="btn btn-sm btn-soft" data-rv-open="${p.id}">${ic('eye', 'ic-sm')}Mở bài</button></li>`; }).join('')}</ul>`
         : `<div class="empty">${ic('check')}<h3>Không còn bài chờ duyệt</h3><p>Mọi bài trong bảng đã có điểm thầy cô duyệt.</p></div>`}
     </div>`;
@@ -5238,6 +5239,7 @@ function reviewForm(b) {
   const m = openModal({ title: 'Chờ duyệt · ' + b.name, wide: true, body: draw(), foot: '<button class="btn btn-ghost" data-close>Đóng</button>' });
   const el = m.el;
   $('[data-rv-all]', el)?.addEventListener('click', () => { m.close(); gradeAll(b); });
+  $('[data-rv-k09]', el)?.addEventListener('click', () => { m.close(); gradeK09WithFirebase(b); });
   $$('[data-rv-open]', el).forEach((x) => (x.onclick = () => { m.close(); openDetail(x.dataset.rvOpen, false); }));
 }
 /* ---------- bố cục, màu thẻ, liên kết ---------- */
@@ -6636,7 +6638,7 @@ function cleanGrade(r, max) {
     canh_bao: s(r.canh_bao).slice(0, 400),
   };
 }
-async function gradeGoogle(p, b, signal) {
+async function gradeGoogle(p, b, signal, forceFirebaseGoogle = false) {
   const images = await postImagesB64(p);
   const reference = TuongAiAnswers.payload(p.teacher?.assist?.ctx || {}), ctx = reference.context;
   const board = { ...b, subject: ctx.subject || b.subject, grade: ctx.grade || b.grade,
@@ -6644,7 +6646,10 @@ async function gradeGoogle(p, b, signal) {
   const body = [p.text, ctx.transcript].filter(Boolean).join('\n');
   if (!body.trim() && !images.length) throw { code: 'no_grade_input', message: 'Chưa có bài làm học sinh để chấm. Hãy bổ sung ảnh hoặc nội dung bài làm.' };
   const prompt = gradePrompt(board, body, images.length) + '\n\nTỆP ĐÁP ÁN CỦA GIÁO VIÊN:\n' + (ctx.answerText || '(Không có tệp đáp án.)') + '\n' + TuongAiAnswers.imageRules(images.length, reference.answer_images.length);
-  return cleanGrade(await aiJson(prompt, [...images, ...reference.answer_images], signal), Number(b.assignment?.maxScore) || 10);
+  const raw = forceFirebaseGoogle
+    ? await gaiJson(prompt, [...images, ...reference.answer_images], signal)
+    : await aiJson(prompt, [...images, ...reference.answer_images], signal);
+  return cleanGrade(raw, Number(b.assignment?.maxScore) || 10);
 }
 
 /* ----- Trợ lý AI (giống hành động "assist" của hàm máy chủ) ----- */
@@ -6806,6 +6811,61 @@ async function gradeAll(b) {
   }
   S.batch = null; render();
   if (okCount) toast('AI đã chấm xong ' + okCount + ' bài.');
+}
+
+/* Chỉ chấm các bài kiểm thử K09 có nhãn rõ, không tác động tới bài học sinh thật. */
+function k09Pending(b) {
+  if (!b || b.name !== 'MC07-4') return [];
+  return postsOf(b.id).filter((p) =>
+    p.studentClass === 'K09_TEST'
+    && /^KT(?:0[1-9]|1[0-9]|2[0-3])$/.test(String(p.studentName || ''))
+    && /^KIỂM THỬ K09 - ĐỢT [123] - MÃ KT/.test(String(p.text || ''))
+    && !p.ai && !S.grading.has(p.id)
+  ).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+}
+async function gradeK09WithFirebase(b) {
+  if (!isGV() && !isAdmin()) { toast('Chỉ tài khoản giáo viên hoặc quản trị mới được chấm K09.'); return; }
+  const pend = k09Pending(b);
+  if (!pend.length) { toast('Không còn bài KT01–KT23 nào chờ chấm trong MC07-4.'); return; }
+  if (S.batch) { toast('Đang có đợt chấm khác. Hãy hoàn tất hoặc dừng trước khi tiếp tục.'); return; }
+  // Không bắt đầu bất kỳ bài nào trước khi xác minh Gemini AI Logic thực sự sẵn sàng.
+  try {
+    const test = await gaiJson('Kiểm tra kết nối Gemini. Chỉ trả về JSON {"ok":true}. Không có dữ liệu học sinh.', []);
+    if (!test || test.ok !== true) throw { code: 'g_error', message: 'Gemini trả kết quả thử kết nối không hợp lệ.' };
+  } catch (e) {
+    toast('Chưa thể chấm K09 qua Firebase: ' + aiMsg(e));
+    return;
+  }
+  const ctl = new AbortController();
+  S.batch = { boardId: b.id, done: 0, total: pend.length, ctl };
+  render();
+  let completed = 0;
+  for (const item of pend) {
+    if (ctl.signal.aborted) break;
+    S.grading.add(item.id);
+    try {
+      const latest = getPost(item.id);
+      if (!latest || latest.ai) continue;
+      const ai = await gradeGoogle(latest, b, ctl.signal, true);
+      ai.nguon = 'Gemini · Google · ' + (GAI.workingModel || GAI_MODEL);
+      const after = getPost(item.id);
+      if (!after || after.ai) continue;
+      const saved = await savePost({ ...after, ai, aiAt: now() });
+      if (!saved) throw { code: 'server', message: 'Không lưu được kết quả chấm KT, đã dừng để giữ dữ liệu.' };
+      completed++;
+    } catch (e) {
+      if (e?.code === 'cancelled') break;
+      toast('Chấm ' + item.studentName + ' không thành công: ' + aiMsg(e));
+      if (STOP_CODES.has(e?.code) || e?.code === 'server') break;
+    } finally {
+      S.grading.delete(item.id);
+      if (S.batch) S.batch.done++;
+      render();
+    }
+  }
+  S.batch = null;
+  render();
+  toast('Gemini · Google đã chấm và lưu ' + completed + '/' + pend.length + ' bài kiểm thử K09. Giáo viên cần xác minh trước khi duyệt.');
 }
 
 /* ---------- cài đặt hệ thống (chỉ Quản trị) ---------- */
