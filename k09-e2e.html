@@ -48,7 +48,24 @@ const b=await sb.from("boards").select("id,code,name,columns,auto_grade").eq("na
 const status=await api("ai_status",{},(await sb.auth.getSession()).data?.session?.access_token||"");siteKey=status.appcheck_key;appId=status.appcheck_app_id;if(!siteKey||!appId)throw Error("App Check hoặc Firebase Web App ID chưa cấu hình.");
 $("auth").textContent="Đã xác thực Admin và bảng MC07-4. Có cấu hình Firebase App Check.";$("start").disabled=false;await refresh();info("K09 sẵn sàng để chạy.");
 }catch(e){$("auth").textContent="CHƯA SẴN SÀNG: "+message(e);info(message(e));}}
-async function gemini(){if(ai)return ai;const app=f.getApps().find(x=>x.name==="k09-e2e")||f.initializeApp({apiKey:config.firebaseKey,projectId:"gen-lang-client-0870957273",appId,authDomain:"gen-lang-client-0870957273.firebaseapp.com"},"k09-e2e");const ac=f.initializeAppCheck(app,{provider:new f.ReCaptchaEnterpriseProvider(siteKey),isTokenAutoRefreshEnabled:true});const token=await f.getToken(ac,false);if(!token?.token)throw Error("Không cấp được token App Check.");ai=f.getAI(app,{backend:new f.GoogleAIBackend()});return ai;}
+let k09AppCheck=null,k09GeminiLoading=null;
+async function gemini(){
+  if(ai)return ai;
+  if(k09GeminiLoading)return k09GeminiLoading;
+  k09GeminiLoading=(async()=>{
+    const app=f.getApps().find(x=>x.name==="k09-e2e")||
+      f.initializeApp({apiKey:config.firebaseKey,projectId:"gen-lang-client-0870957273",appId,authDomain:"gen-lang-client-0870957273.firebaseapp.com"},"k09-e2e");
+    // Giữ duy nhất một instance App Check khi người dùng thử lại hoặc chạy đồng thời 23 bài.
+    if(!k09AppCheck) k09AppCheck=f.initializeAppCheck(app,{
+      provider:new f.ReCaptchaEnterpriseProvider(siteKey),isTokenAutoRefreshEnabled:true
+    });
+    const token=await f.getToken(k09AppCheck,false);
+    if(!token?.token)throw Error("Không cấp được token Firebase App Check; kiểm tra domain và reCAPTCHA Enterprise.");
+    ai=f.getAI(app,{backend:new f.GoogleAIBackend()});
+    return ai;
+  })();
+  try{return await k09GeminiLoading;}finally{k09GeminiLoading=null;}
+}
 async function grading(code,n,img){await gemini();const m=f.getGenerativeModel(ai,{model,generationConfig:{responseMimeType:"application/json",temperature:.2,maxOutputTokens:4096}});
 const text="Đây là bài Toán THCS GIẢ LẬP K09: "+code+". Giải 3x + "+n+" = "+(n+12)+". Lời giải: 3x=12; x=4. Hãy đọc bài, chấm điểm 0-10, nhận xét đúng/sai, nguyên nhân lỗi (nếu có), đề xuất bài tập tương tự, không tiết lộ dữ liệu. Chỉ trả về JSON gồm diem (số), diem_toi_da (10), nhan_xet (chuỗi), doc_bai (mảng), bang_diem (mảng), loi_sai (mảng), luyen_tap (mảng), bai_tap (mảng).";
 const parts=img?[{inlineData:{mimeType:"image/jpeg",data:img}},{text}]:[{text}];
