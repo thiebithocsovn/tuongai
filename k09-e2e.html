@@ -9,7 +9,7 @@
 <label>Thiết bị đang chạy thực tế<select id="dev"><option value="">-- Chọn thiết bị --</option><option value="HONOR X9c – MagicOS 10">HONOR X9c – MagicOS 10</option><option value="Máy tính">Máy tính Windows / macOS</option></select></label>
 <label>Đợt<select id="round"><option value="1">Đợt 1 – 23 yêu cầu</option><option value="2">Đợt 2 – 23 yêu cầu</option><option value="3">Đợt 3 – 23 yêu cầu</option></select></label>
 <label>Đầu vào<select id="format"><option value="text">Văn bản toán giả lập</option><option value="image">Ảnh toán giả lập (tự tạo, không có thông tin học sinh)</option></select></label>
-<button class="soft" id="copy">Sao chép mã phiên</button><button class="soft" id="ping">Thử Gemini</button>
+<button class="soft" id="copy">Sao chép mã phiên</button><button class="soft" id="fresh">Tạo mã phiên chạy lại</button><button class="soft" id="ping">Thử Gemini</button><p style="font-size:13px;color:#516078">Khi tạo mã phiên mới, nhật ký đợt cũ vẫn được giữ. Chọn đúng thiết bị thực tế và chạy ba đợt lần lượt.</p>
 </section>
 <section><h2>2. Thực hiện phép đo</h2><p>Đề nghị đợt 1 trên HONOR X9c, đợt 2 trên máy tính, đợt 3 trên HONOR X9c. Mỗi đợt chạy riêng trên đúng thiết bị đã chọn. Khi đổi thiết bị, mở trang này và nhập cùng mã phiên.</p>
 <button id="start" disabled>▶ Chạy 23 yêu cầu và đo E2E</button><button id="read" class="soft">Kiểm tra kết quả</button><p id="status">Chưa chạy.</p><div class="scroller"><table><thead><tr><th>Đợt</th><th>Số bản ghi</th><th>AI + lưu OK</th><th>P95 E2E</th><th>Kết luận</th></tr></thead><tbody id="stats"></tbody></table></div><p id="overall"></p></section>
@@ -20,7 +20,9 @@
 import * as f from "./firebase-ai.js";
 const $=id=>document.getElementById(id);const URL_DB="https://vnxffqpszykkjueawtfr.supabase.co";
 const storeName="tuongai.k09.e2e.rows",runStore="tuongai.k09.e2e.id";
-$("id").value=localStorage.getItem(runStore)||("K09-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+Math.random().toString(36).slice(2,7).toUpperCase());
+const runFromUrl=new URLSearchParams(location.search).get("run");const acceptedRun=runFromUrl&&/^K09-[A-Z0-9-]{6,45}$/i.test(runFromUrl)?runFromUrl.toUpperCase():"";
+$("id").value=acceptedRun||localStorage.getItem(runStore)||("K09-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+Math.random().toString(36).slice(2,7).toUpperCase());
+if(acceptedRun)localStorage.setItem(runStore,acceptedRun);
 const config=await (async()=>{const src=await(await fetch("./index.html",{cache:"no-store"})).text();
 const a=src.match(/const SB_KEY = '([^']+)'/),b=src.match(/const GAI_CONFIG = \{[\s\S]{0,200}apiKey: '([^']+)'/);
 if(!a||!b)throw Error("Chưa đọc được cấu hình công khai Tường AI.");return{anon:a[1],firebaseKey:b[1]};})();
@@ -98,6 +100,7 @@ info("Đợt "+round+": AI lưu thành công "+ok+"/23, P95="+v+" giây.");await
 $("read").onclick=()=>refresh().catch(e=>info(message(e)));
 $("ping").onclick=()=>grading("PREFLIGHT",1,null).then(()=>info("Gemini kết nối OK")).catch(e=>info("Gemini lỗi: "+message(e)));
 $("copy").onclick=()=>navigator.clipboard.writeText($("id").value).then(()=>info("Đã sao chép mã phiên")).catch(()=>info("Hãy tự sao chép mã phiên."));
+$("fresh").onclick=()=>{if(active){info("Đợt thử đang chạy, không thể thay mã phiên.");return;}const fresh="K09-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+Math.random().toString(36).slice(2,8).toUpperCase();$("id").value=fresh;$("round").value="1";localStorage.setItem(runStore,fresh);cloud=[];update();if(board)refresh().catch(e=>info(message(e)));info("Đã tạo mã phiên mới "+fresh+". Không xóa nhật ký cũ. Hãy sao chép mã này để dùng trên điện thoại và máy tính.");};
 $("csv").onclick=()=>{if(!rows().length)return info("Chưa có dữ liệu.");exportCSV(rows());};
 $("json").onclick=()=>{if(!rows().length)return info("Chưa có dữ liệu.");download(JSON.stringify({format:"K09-E2E",runId:runId(),rows:rows()},null,2),runId()+".json","application/json");};
 $("file").onchange=async e=>{try{const x=JSON.parse(await e.target.files[0].text());if(x.format!=="K09-E2E"||x.runId!==runId())throw Error("Tệp không đúng phiên K09.");const m=new Map(local.map(r=>r.runId+"/"+r.round+"/"+r.code).map((k,i)=>[k,local[i]]));for(const r of x.rows){if(r.runId!==runId()||!/^KT(?:0[1-9]|1[0-9]|2[0-3])$/.test(r.code)||![1,2,3].includes(Number(r.round)))continue;m.set(r.runId+"/"+r.round+"/"+r.code,r);}local=[...m.values()];save();info("Đã nhập nhật ký từ thiết bị khác.");}catch(e){info(message(e));}};
