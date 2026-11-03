@@ -29,13 +29,13 @@ const sb=window.supabase.createClient(URL_DB,config.anon,{auth:{storage:authStor
 let board,siteKey,appId,ai,model="gemini-3.5-flash-lite",active=false,cloud=[];
 let local=[];try{local=JSON.parse(localStorage.getItem(storeName)||"[]");if(!Array.isArray(local))local=[];}catch(e){}
 function info(s){$("log").textContent=new Date().toLocaleTimeString("vi-VN")+" "+s+"\n"+$("log").textContent;}
-function message(e){return String(e?.message||e||"Lỗi không rõ").slice(0,250);}
+function message(e){return String(e?.message||e||"Lỗi không rõ").slice(0,250);}function safe(x){return String(x??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function runId(){const x=$("id").value.trim().toUpperCase();if(!/^K09-[A-Z0-9-]{6,45}$/.test(x))throw Error("Mã phiên không hợp lệ.");return x;}
 function rows(){const id=$("id").value.trim().toUpperCase();const m=new Map();for(const r of [...cloud,...local])if(r.runId===id&&r.code&&r.round)m.set(id+"/"+r.round+"/"+r.code,r);return [...m.values()].sort((a,b)=>a.round-b.round||a.code.localeCompare(b.code));}
 function p95(a){if(a.length!==23||a.some(x=>!Number.isFinite(x)||x<0))return null;a.sort((x,y)=>x-y);return +(a[20]+(a[21]-a[20])*.9).toFixed(3);}
 function update(){const all=rows();let good=true,complete=true;for(let n=1;n<=3;n++){const a=all.filter(x=>Number(x.round)===n),success=a.filter(x=>x.success).length,v=p95(a.map(x=>Number(x.e2eMs)/1000)),ok=a.length===23&&success>=22&&v!==null&&v<=30;good&&=ok;complete&&=a.length===23&&v!==null;$("stats").innerHTML+="";} $("stats").innerHTML=[1,2,3].map(n=>{const a=all.filter(x=>Number(x.round)===n),s=a.filter(x=>x.success).length,v=p95(a.map(x=>Number(x.e2eMs)/1000));return "<tr><td>"+n+"</td><td>"+a.length+"/23</td><td>"+s+"/"+a.length+"</td><td>"+(v===null?"—":v+"s")+"</td><td>"+(a.length!==23||v===null?"C":s>=22&&v<=30?"Đ":"K")+"</td></tr>";}).join("");
 const devices=new Set(all.map(x=>x.type));$("overall").textContent="K09: "+(!complete?"C – Chưa đủ dữ liệu":good&&devices.has("phone")&&devices.has("computer")?"Đ – Đạt cả 3 đợt và 2 loại thiết bị":"K – Không đạt đầy đủ tiêu chí");
-$("detail").innerHTML=all.slice(0,110).map(x=>"<tr><td>"+x.round+"</td><td>"+x.code+"</td><td>"+x.device+"</td><td>"+(x.e2eMs/1000).toFixed(3)+"s</td><td>"+(x.success?"OK":"LỖI: "+x.error)+"</td></tr>").join("");
+$("detail").innerHTML=all.slice(0,110).map(x=>"<tr><td>"+x.round+"</td><td>"+x.code+"</td><td>"+safe(x.device)+"</td><td>"+(x.e2eMs/1000).toFixed(3)+"s</td><td>"+(x.success?"OK":"LỖI: "+safe(x.error))+"</td></tr>").join("");
 }
 function save(){localStorage.setItem(storeName,JSON.stringify(local));update();}
 function download(body,name,mime){const a=document.createElement("a"),url=URL.createObjectURL(new Blob([body],{type:mime}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
@@ -61,7 +61,7 @@ const post=await api("student_submit",{code:board.code,name:c,class:"K09_TEST",t
 if(!post.post?.id)throw Error("Không có ID bài nộp");
 v.postId=post.post.id;v.submitAt=new Date().toISOString();v.submitMs=+(performance.now()-t).toFixed(2);
 if(post.gradeError)throw Error(post.gradeError);
-const s=performance.now();const result=post.post.ai||await grading(c,n,imgs[0]?.data);v.aiAt=new Date().toISOString();v.aiMs=+(performance.now()-s).toFixed(2);
+const s=performance.now();const result=post.post.ai||await Promise.race([grading(c,n,imgs[0]?.data),new Promise((_,reject)=>setTimeout(()=>reject(Error("TIMEOUT GEMINI: 120 giây")),120000))]);v.aiAt=new Date().toISOString();v.aiMs=+(performance.now()-s).toFixed(2);
 const saved=await sb.from("posts").update({ai:result,ai_at:v.aiAt}).eq("id",v.postId).eq("board_id",board.id).select("id").single();
 if(saved.error)throw saved.error;
 v.savedAt=new Date().toISOString();v.e2eMs=+(performance.now()-t).toFixed(2);v.success=true;
@@ -82,7 +82,7 @@ $("ping").onclick=()=>grading("PREFLIGHT",1,null).then(()=>info("Gemini kết n�
 $("copy").onclick=()=>navigator.clipboard.writeText($("id").value).then(()=>info("Đã sao chép mã phiên")).catch(()=>info("Hãy tự sao chép mã phiên."));
 $("csv").onclick=()=>{if(!rows().length)return info("Chưa có dữ liệu.");exportCSV(rows());};
 $("json").onclick=()=>{if(!rows().length)return info("Chưa có dữ liệu.");download(JSON.stringify({format:"K09-E2E",runId:runId(),rows:rows()},null,2),runId()+".json","application/json");};
-$("file").onchange=async e=>{try{const x=JSON.parse(await e.target.files[0].text());if(x.format!=="K09-E2E"||x.runId!==runId())throw Error("Tệp không đúng phiên K09.");const m=new Map(local.map(r=>r.runId+"/"+r.round+"/"+r.code).map((k,i)=>[k,local[i]]));for(const r of x.rows)m.set(r.runId+"/"+r.round+"/"+r.code,r);local=[...m.values()];save();info("Đã nhập nhật ký từ thiết bị khác.");}catch(e){info(message(e));}};
+$("file").onchange=async e=>{try{const x=JSON.parse(await e.target.files[0].text());if(x.format!=="K09-E2E"||x.runId!==runId())throw Error("Tệp không đúng phiên K09.");const m=new Map(local.map(r=>r.runId+"/"+r.round+"/"+r.code).map((k,i)=>[k,local[i]]));for(const r of x.rows){if(r.runId!==runId()||!/^KT(?:0[1-9]|1[0-9]|2[0-3])$/.test(r.code)||![1,2,3].includes(Number(r.round)))continue;m.set(r.runId+"/"+r.round+"/"+r.code,r);}local=[...m.values()];save();info("Đã nhập nhật ký từ thiết bị khác.");}catch(e){info(message(e));}};
 $("id").onchange=()=>{localStorage.setItem(runStore,$("id").value);refresh().catch(e=>info(message(e)));};
 update();login();
 </script></body></html>
