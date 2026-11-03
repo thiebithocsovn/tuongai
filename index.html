@@ -6328,11 +6328,22 @@ async function gaiJson(prompt, images = [], signal) {
     const g = await gaiInit();
     if (!g.appCheck) throw { code: 'g_appcheck', message: 'Firebase App Check chưa khởi tạo. Hãy kiểm tra site key và tải lại trang.' };
     try {
-      const t = await g.lib.getToken(g.appCheck, false);
-      if (!t?.token) throw new Error('app check token empty');
+      const tokenResult = await g.lib.getToken(g.appCheck, false);
+      // Firebase SDK có thể trả về một kết quả lỗi mà không ném exception.
+      if (tokenResult?.error) throw tokenResult.error;
+      if (!tokenResult?.token) throw { code: 'app-check/empty-token' };
     } catch (e) {
-      console.warn('Firebase App Check không cấp được token hợp lệ:', e);
-      throw { code: 'g_appcheck', message: 'Firebase chưa cấp được token App Check. Kiểm tra khóa site key reCAPTCHA Enterprise, Web app gen-lang-client-0870957273 và các tên miền được cho phép trong Firebase Console.' };
+      // Chỉ hiển thị mã lỗi, không in ra App Check token hay nội dung bài học sinh.
+      const sourceCode = String(e?.code || e?.name || 'unknown').slice(0, 100).replace(/[^a-zA-Z0-9/_-]/g, '');
+      const rawStatus = Number(e?.customData?.httpStatus || e?.customData?.status || e?.status || 0);
+      const status = Number.isInteger(rawStatus) && rawStatus >= 400 && rawStatus <= 599 ? ' · HTTP ' + rawStatus : '';
+      const reason = /recaptcha/i.test(sourceCode)
+        ? 'Kiểm tra khóa reCAPTCHA Enterprise và tên miền đã đăng ký trong Google Cloud.'
+        : rawStatus === 403
+          ? 'Có thể Site Key được đăng ký cho một Firebase Web app khác với Web App ID mà mã nguồn sử dụng.'
+          : 'Kiểm tra Web App ID, Site Key và trạng thái Firebase App Check trong Firebase Console.';
+      console.warn('Firebase App Check: không cấp được token.', { code: sourceCode, status: status || 'n/a', appId: GAI_CONFIG.appId });
+      throw { code: 'g_appcheck', message: 'Firebase App Check không cấp token (' + sourceCode + status + '). ' + reason + ' Web App ID cần đối chiếu: ' + GAI_CONFIG.appId + '. Đây không phải lỗi thiếu khóa Gemini API.' };
     }
     const parts = [...images.map((i) => ({ inlineData: { mimeType: i.mime, data: i.data } })), { text: prompt }];
     const timeout = new Promise((_, reject) => {
@@ -6499,7 +6510,7 @@ function aiConnectForm() {
   const drawDetail = () => {
     const id = draft.provider;
     if (!KEY_PROVS.includes(id)) {
-      $('#ac-detail', el).innerHTML = `<p class="info-box">${id === 'google' ? 'Gemini sử dụng Firebase AI Logic. Nếu lỗi 404 “genai config not found”, cần hoàn tất bước Get started với Gemini Developer API trên đúng dự án. Đổi tên mô hình không sửa được lỗi cấu hình này.' : 'AI chạy trên máy chủ Tường AI bằng khóa Gemini chung do Quản trị hệ thống cài.'}</p>${id === 'google' ? '<p class="meta">Dự án: <b>gen-lang-client-0870957273</b> · <a class="link" href="https://console.firebase.google.com/project/gen-lang-client-0870957273/overview" target="_blank" rel="noopener noreferrer">Mở Firebase Console</a> → AI Services → AI Logic. Sau khi bật Gemini Developer API, hãy kiểm tra App Check và bấm kiểm tra lại.</p>' : ''}<div class="row-gap"><button type="button" class="btn btn-sm btn-ai" id="ac-test">${ic('spark', 'ic-sm')}Kiểm tra kết nối</button><span class="meta" id="ac-st" role="status"></span></div>`;
+      $('#ac-detail', el).innerHTML = `<p class="info-box">${id === 'google' ? 'Gemini dùng Firebase AI Logic và App Check, không cần khóa Gemini API cá nhân. Phải đăng ký Site Key đúng Firebase Web App ID và tên miền; trạng thái Registered của một Web app khác không bảo đảm ứng dụng này được xác thực.' : 'AI chạy trên máy chủ Tường AI bằng khóa Gemini chung do Quản trị hệ thống cài.'}</p>${id === 'google' ? '<p class="meta">Dự án: <b>gen-lang-client-0870957273</b> · Web App ID mà Tường AI đang dùng: <code>' + esc(GAI_CONFIG.appId) + '</code>. Đối chiếu tại <a class="link" href="https://console.firebase.google.com/project/gen-lang-client-0870957273/settings/general" target="_blank" rel="noopener noreferrer">Firebase → Project settings → Your apps</a> và App Check → Apps. Nếu lỗi 404, kiểm tra AI Services → AI Logic.</p>' : ''}<div class="row-gap"><button type="button" class="btn btn-sm btn-ai" id="ac-test">${ic('spark', 'ic-sm')}Kiểm tra kết nối</button><span class="meta" id="ac-st" role="status"></span></div>`;
     } else {
       const info = PROV_INFO[id];
       $('#ac-detail', el).innerHTML = `<div class="prov-box">
