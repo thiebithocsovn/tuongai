@@ -411,7 +411,7 @@ async function handle(req: Request) {
 
     case "ai_status": {
       needActive(me);
-      return { ready: !!(await config("gemini_key")), model: (await config("gemini_model")) || "gemini-flash-latest", appcheck_key: await config("appcheck_key") };
+      return { ready: !!(await config("gemini_key")), model: (await config("gemini_model")) || "gemini-flash-latest", appcheck_key: await config("appcheck_key"), appcheck_app_id: await config("appcheck_app_id") };
     }
 
     case "student_board": {
@@ -889,6 +889,14 @@ difficulty là foundation, application hoặc transfer. Mỗi lỗi 1–3 bài, 
         if (k && !/^6L[0-9A-Za-z_-]{30,}$/.test(k)) throw new Fail("bad_appcheck", "Khóa trang reCAPTCHA chưa đúng dạng (bắt đầu bằng 6L).");
         if (k) await setConfig("appcheck_key", k); else await db.from("app_config").delete().eq("key", "appcheck_key");
       }
+      // Firebase Web App ID của ứng dụng Tường AI đã đăng ký App Check.
+      // Cấu hình riêng để không ảnh hưởng ứng dụng Hệ sinh thái 4.0 cùng dự án.
+      if (typeof body.appcheck_app_id === "string") {
+        const appId = body.appcheck_app_id.trim();
+        if (appId && !/^1:154715124810:web:[0-9a-fA-F]+$/.test(appId)) throw new Fail("bad_appcheck_app_id", "Firebase Web App ID không thuộc dự án gen-lang-client-0870957273 hoặc sai định dạng.");
+        if (appId) await setConfig("appcheck_app_id", appId);
+        else await db.from("app_config").delete().eq("key", "appcheck_app_id");
+      }
       if (typeof body.gemini_key === "string") {
         const key = body.gemini_key.trim();
         const model = str(body.gemini_model, 80) || "gemini-flash-latest";
@@ -900,7 +908,7 @@ difficulty là foundation, application hoặc transfer. Mỗi lỗi 1–3 bài, 
           await db.from("app_config").delete().eq("key", "gemini_key");
         }
       }
-      return { ok: true, ai: !!(await config("gemini_key")), model: (await config("gemini_model")) || "gemini-flash-latest", auto_approve: (await config("auto_approve")) === "1", appcheck_key: await config("appcheck_key") };
+      return { ok: true, ai: !!(await config("gemini_key")), model: (await config("gemini_model")) || "gemini-flash-latest", auto_approve: (await config("auto_approve")) === "1", appcheck_key: await config("appcheck_key"), appcheck_app_id: await config("appcheck_app_id") };
     }
   }
   throw new Fail("bad_action", "Yêu cầu không hợp lệ.");
