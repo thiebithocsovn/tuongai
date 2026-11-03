@@ -3,7 +3,7 @@
 <style>body{font:15px Arial,sans-serif;background:#f3f6fb;color:#13253c;max-width:1000px;padding:18px;margin:auto}section{background:white;border:1px solid #dce4ef;border-radius:12px;padding:16px;margin:13px 0}h1{font-size:25px}h2{font-size:19px}label{display:block;margin:9px 0}input,select{display:block;padding:10px;width:100%;max-width:500px;border:1px solid #aab9c9;border-radius:7px;box-sizing:border-box}button{padding:10px 14px;background:#1758a5;border:0;border-radius:8px;color:white;font-weight:bold;margin:6px 6px 6px 0}button:disabled{opacity:.5}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #ddd;padding:7px;text-align:left}.scroller{overflow:auto}.warn{background:#fff5e2}#log{white-space:pre-wrap;max-height:250px;overflow:auto;font-size:12px}.soft{background:#536f91}</style></head><body>
 <h1>MC04–K09 • Đo thời gian đầu cuối</h1>
 <p>Chỉ kiểm thử với dữ liệu toán giả lập, không làm thay học sinh. Một đợt gửi gần đồng thời 23 bài KT01–KT23 vào cột TEST của MC07-4, gọi Gemini qua Firebase AI Logic và đo đến khi lưu AI thành công.</p>
-<section class="warn"><strong>Lưu ý:</strong> K09 cũ nộp ngày 03/11, chấm ngày 04/11 không phải E2E. Chỉ kết luận Đạt khi 3 đợt mới đủ 23 kết quả/đợt, mỗi đợt ≥22 thành công, P95 ≤30 giây và có tối thiểu hai loại thiết bị thực tế.</section>
+<section class="warn"><strong>Lưu ý:</strong> K09 cũ nộp ngày 03/11, chấm ngày 04/11 không phải E2E. Chỉ kết luận Đạt khi 3 đợt mới đủ 23 kết quả/đợt, mỗi đợt ≥22 thành công, P95 ≤30 giây và có tối thiểu hai loại thiết bị thực tế. <strong>Bảo vệ hạn mức:</strong> 23 bài vẫn được nộp gần đồng thời; riêng gọi Gemini xếp hàng tối đa 4 luồng, giãn tối thiểu 400 ms giữa lần khởi phát và thử lại tối đa 2 lần khi gặp 429. Tất cả thời gian chờ và thử lại được tính vào E2E. Nếu vượt hạn mức ngày hoặc quota thấp, kết quả vẫn có thể không đạt.</section>
 <section><h2>1. Xác thực và thiết bị</h2><p id="auth">Đang kiểm tra tài khoản Admin…</p>
 <label>Mã phiên (dùng chung trên điện thoại và máy tính)<input id="id" autocomplete="off"></label>
 <label>Thiết bị đang chạy thực tế<select id="dev"><option value="">-- Chọn thiết bị --</option><option value="HONOR X9c – MagicOS 10">HONOR X9c – MagicOS 10</option><option value="Máy tính">Máy tính Windows / macOS</option></select></label>
@@ -41,7 +41,7 @@ $("detail").innerHTML=all.slice(0,110).map(x=>"<tr><td>"+x.round+"</td><td>"+x.c
 }
 function save(){localStorage.setItem(storeName,JSON.stringify(local));update();}
 function download(body,name,mime){const a=document.createElement("a"),url=URL.createObjectURL(new Blob([body],{type:mime}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
-function exportCSV(a){const cols=["runId","round","code","device","type","format","startAt","submitAt","aiAt","savedAt","submitMs","aiMs","e2eMs","success","error","model","postId","userAgent","version"];const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';download("\uFEFF"+cols.join(",")+"\r\n"+a.map(r=>cols.map(k=>q(r[k])).join(",")).join("\r\n"),runId()+".csv","text/csv;charset=utf-8");}
+function exportCSV(a){const cols=["runId","round","code","device","type","format","startAt","submitAt","aiAt","savedAt","submitMs","aiMs","e2eMs","success","error","model","postId","aiAttempts","aiRetry429","aiQueueMs","aiConcurrentMax","aiStartGapMs","userAgent","version"];const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';download("\uFEFF"+cols.join(",")+"\r\n"+a.map(r=>cols.map(k=>q(r[k])).join(",")).join("\r\n"),runId()+".csv","text/csv;charset=utf-8");}
 async function api(action,payload={},token="",signal){const r=await fetch(URL_DB+"/functions/v1/tuongai",{method:"POST",signal,headers:{"Content-Type":"application/json",apikey:config.anon,...(token?{authorization:"Bearer "+token}:{})},body:JSON.stringify({action,...payload})});const json=await r.json();if(!r.ok||json.error)throw Error(json.error?.message||"HTTP "+r.status);return json;}
 async function refresh(){const r=await sb.from("posts").select("teacher").eq("board_id",board.id).eq("student_class","K09_TEST").limit(1000);if(r.error)throw r.error;cloud=(r.data||[]).map(x=>x.teacher?.k09E2E).filter(Boolean);update();}
 function k09TestColumn(b){
@@ -76,15 +76,78 @@ async function grading(code,n,img){await gemini();const m=f.getGenerativeModel(a
 const text="Đây là bài Toán THCS GIẢ LẬP K09: "+code+". Giải 3x + "+n+" = "+(n+12)+". Lời giải: 3x=12; x=4. Hãy đọc bài, chấm điểm 0-10, nhận xét đúng/sai, nguyên nhân lỗi (nếu có), đề xuất bài tập tương tự, không tiết lộ dữ liệu. Chỉ trả về JSON gồm diem (số), diem_toi_da (10), nhan_xet (chuỗi), doc_bai (mảng), bang_diem (mảng), loi_sai (mảng), luyen_tap (mảng), bai_tap (mảng).";
 const parts=img?[{inlineData:{mimeType:"image/jpeg",data:img}},{text}]:[{text}];
 const ans=await m.generateContent(parts);const j=JSON.parse(ans.response.text());if(!Number.isFinite(Number(j.diem))||!j.nhan_xet)throw Error("AI chưa trả điểm/nhận xét hợp lệ.");return {...j,nguon:"Gemini · Google · "+model};}
+const K09_AI_MAX_PARALLEL=4, K09_AI_MIN_GAP_MS=400, K09_AI_MAX_ATTEMPTS=3;
+let k09AiInFlight=0,k09AiLastStart=0,k09AiGate=Promise.resolve();
+const k09AiWaiters=[];
+const k09Sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function k09TakeAiSlot(){
+ const queued=performance.now();
+ if(k09AiInFlight>=K09_AI_MAX_PARALLEL){
+  await new Promise(resolve=>k09AiWaiters.push(resolve));
+ }
+ k09AiInFlight++;
+ return {waitMs:performance.now()-queued,release:()=>{
+   k09AiInFlight--;
+   const next=k09AiWaiters.shift();if(next)next();
+ }};
+}
+async function k09PaceAI(){
+ let release;
+ const previous=k09AiGate;
+ k09AiGate=new Promise(resolve=>release=resolve);
+ await previous;
+ try{
+  const delay=Math.max(0,k09AiLastStart+K09_AI_MIN_GAP_MS-performance.now());
+  if(delay>0)await k09Sleep(delay);
+  k09AiLastStart=performance.now();
+ }finally{release();}
+}
+function k09RetryableAI(e){
+ const txt=String(e?.message||e?.code||e||"").toLowerCase();
+ return /(?:\b429\b|resource.?exhausted|rate.?limit|too.many.requests|quota.exceeded)/i.test(txt);
+}
+async function k09GradeWithLimits(code,n,img,metrics){
+ for(let attempt=1;attempt<=K09_AI_MAX_ATTEMPTS;attempt++){
+  if(attempt>1){
+    const pause=attempt===2?1250:2600;
+    await k09Sleep(pause);
+  }
+  const slot=await k09TakeAiSlot();
+  metrics.aiQueueMs=+(metrics.aiQueueMs+slot.waitMs).toFixed(2);
+  metrics.aiAttempts=attempt;
+  try{
+    const paced=performance.now();
+    await k09PaceAI();
+    metrics.aiQueueMs=+(metrics.aiQueueMs+performance.now()-paced).toFixed(2);
+    return await grading(code,n,img);
+  }catch(e){
+    if(!k09RetryableAI(e)||attempt>=K09_AI_MAX_ATTEMPTS)throw e;
+    metrics.aiRetry429++;
+    info(code+": Gemini báo 429, thử lại lần "+(attempt+1)+"/"+K09_AI_MAX_ATTEMPTS+"; thời gian chờ vẫn tính E2E.");
+  }finally{slot.release();}
+ }
+ throw Error("Gemini không trả kết quả sau số lần thử đã giới hạn.");
+}
 function picture(code,n){const c=document.createElement("canvas");c.width=650;c.height=280;const x=c.getContext("2d");x.fillStyle="white";x.fillRect(0,0,650,280);x.fillStyle="#1b2e4a";x.font="27px Arial";x.fillText("BÀI TOÁN KIỂM THỬ "+code,20,50);x.fillText("3x + "+n+" = "+(n+12),20,110);x.fillText("3x = 12; x = 4.",20,165);x.font="18px Arial";x.fillText("GIẢ LẬP K09 - KHÔNG PHẢI BÀI HỌC SINH",20,235);return c.toDataURL("image/jpeg",.7).split(",")[1];}
-async function caseRun(c,n,rid,round,device,type,format,token,col,preparedImage){const t=performance.now();const v={runId:rid,round,code:c,device,type,format,startAt:new Date().toISOString(),submitAt:"",aiAt:"",savedAt:"",submitMs:null,aiMs:null,e2eMs:null,success:false,error:"",model,postId:"",userAgent:navigator.userAgent,version:"K09-E2E-20261104"};const ctrl=new AbortController(),deadline=setTimeout(()=>ctrl.abort(),120000);try{
+async function caseRun(c,n,rid,round,device,type,format,token,col,preparedImage){const t=performance.now();const v={runId:rid,round,code:c,device,type,format,startAt:new Date().toISOString(),submitAt:"",aiAt:"",savedAt:"",submitMs:null,aiMs:null,e2eMs:null,success:false,error:"",model,postId:"",aiAttempts:0,aiRetry429:0,aiQueueMs:0,aiConcurrentMax:K09_AI_MAX_PARALLEL,aiStartGapMs:K09_AI_MIN_GAP_MS,userAgent:navigator.userAgent,version:"K09-E2E-20261104-RETRY1"};const ctrl=new AbortController(),deadline=setTimeout(()=>ctrl.abort(),120000);try{
 const text="KIỂM THỬ K09 E2E - ĐỢT "+round+" - MÃ "+c+" - "+rid+". DỮ LIỆU GIẢ LẬP. Bài toán 3x + "+n+" = "+(n+12)+". Lời giải: 3x=12, x=4.";
 const imgs=preparedImage?[{data:preparedImage,mime:"image/jpeg"}]:[];
 const post=await api("student_submit",{code:board.code,name:c,class:"K09_TEST",token:crypto.randomUUID().replace(/-/g,"")+crypto.randomUUID().slice(0,8),column_id:col.id,text,images:imgs},token,ctrl.signal);
 if(!post.post?.id)throw Error("Không có ID bài nộp");
 v.postId=post.post.id;v.submitAt=new Date().toISOString();v.submitMs=+(performance.now()-t).toFixed(2);
 if(post.gradeError)throw Error(post.gradeError);
-const s=performance.now();const result=post.post.ai||await Promise.race([grading(c,n,imgs[0]?.data),new Promise((_,reject)=>setTimeout(()=>reject(Error("TIMEOUT GEMINI: 120 giây")),120000))]);v.aiAt=new Date().toISOString();v.aiMs=+(performance.now()-s).toFixed(2);
+const s=performance.now();
+let result=post.post.ai;
+if(!result){
+ let aiTimeoutTimer;
+ try{
+  result=await Promise.race([
+   k09GradeWithLimits(c,n,imgs[0]?.data,v),
+   new Promise((_,reject)=>{aiTimeoutTimer=setTimeout(()=>reject(Error("TIMEOUT GEMINI: 120 giây")),120000);})
+  ]);
+ }finally{clearTimeout(aiTimeoutTimer);}
+}
+v.aiAt=post.post.ai_at||new Date().toISOString();v.aiMs=+(performance.now()-s).toFixed(2);
 const saved=await sb.from("posts").update({ai:result,ai_at:v.aiAt}).eq("id",v.postId).eq("board_id",board.id).select("id").single();
 if(saved.error)throw saved.error;
 v.savedAt=new Date().toISOString();v.e2eMs=+(performance.now()-t).toFixed(2);v.success=true;
@@ -93,8 +156,8 @@ try{await sb.from("posts").update({teacher:{k09E2E:v}}).eq("id",v.postId).eq("bo
 if(v.postId)try{await sb.from("posts").update({teacher:{k09E2E:v}}).eq("id",v.postId).eq("board_id",board.id);}catch(_){}}
 finally{clearTimeout(deadline);local.push(v);save();$("status").textContent="Đợt "+round+": đã ghi "+local.filter(x=>x.runId===rid&&x.round===round).length+"/23 (bao gồm lỗi).";}return v;}
 $("start").onclick=async()=>{if(active)return;try{const rid=runId(),round=Number($("round").value),device=$("dev").value,type=/Android/i.test(navigator.userAgent)?"phone":"computer",format=$("format").value;if(!device)throw Error("Chọn thiết bị thực tế.");if(device.startsWith("HONOR")&&type!=="phone")throw Error("Không thể ghi HONOR khi đang dùng máy tính.");if(device==="Máy tính"&&type!=="computer")throw Error("Đang dùng Android, không được ghi máy tính.");
-await refresh();if(rows().some(x=>x.round===round))throw Error("Đợt này đã có dữ liệu cùng mã phiên. Không tạo trùng.");if(!confirm("Chạy thật 23 yêu cầu Gemini gần đồng thời, có thể tốn hạn mức/chi phí. Không ghi tên học sinh. Đồng ý?"))return;
-active=true;$("start").disabled=true;await gemini();await grading("PREFLIGHT",1,null);const token=(await sb.auth.getSession()).data?.session?.access_token||"";const col=k09TestColumn(board);if(!col)throw Error("Cột TEST đã bị đổi tên hoặc xóa. Tải lại trang để kiểm tra.");
+await refresh();if(rows().some(x=>x.round===round))throw Error("Đợt này đã có dữ liệu cùng mã phiên. Không tạo trùng.");if(!confirm("Gửi 23 bài thử gần đồng thời; Gemini sẽ được điều phối tối đa 4 luồng, 429 có thử lại, toàn bộ thời gian chờ tính vào E2E. Có thể tốn hạn mức/chi phí. Đồng ý chạy thật?"))return;
+active=true;$("start").disabled=true;await gemini();const token=(await sb.auth.getSession()).data?.session?.access_token||"";const col=k09TestColumn(board);if(!col)throw Error("Cột TEST đã bị đổi tên hoặc xóa. Tải lại trang để kiểm tra.");
 localStorage.setItem(runStore,rid);
 const prepared=Array.from({length:23},(_,i)=>{const code="KT"+String(i+1).padStart(2,"0");return{code,n:i+1,img:format==="image"?picture(code,i+1):null};});
 const cases=prepared.map(x=>caseRun(x.code,x.n,rid,round,device,type,format,token,col,x.img));
