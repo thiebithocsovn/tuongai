@@ -54,9 +54,9 @@ const text="Đây là bài Toán THCS GIẢ LẬP K09: "+code+". Giải 3x + "+n
 const parts=img?[{inlineData:{mimeType:"image/jpeg",data:img}},{text}]:[{text}];
 const ans=await m.generateContent(parts);const j=JSON.parse(ans.response.text());if(!Number.isFinite(Number(j.diem))||!j.nhan_xet)throw Error("AI chưa trả điểm/nhận xét hợp lệ.");return {...j,nguon:"Gemini · Google · "+model};}
 function picture(code,n){const c=document.createElement("canvas");c.width=650;c.height=280;const x=c.getContext("2d");x.fillStyle="white";x.fillRect(0,0,650,280);x.fillStyle="#1b2e4a";x.font="27px Arial";x.fillText("BÀI TOÁN KIỂM THỬ "+code,20,50);x.fillText("3x + "+n+" = "+(n+12),20,110);x.fillText("3x = 12; x = 4.",20,165);x.font="18px Arial";x.fillText("GIẢ LẬP K09 - KHÔNG PHẢI BÀI HỌC SINH",20,235);return c.toDataURL("image/jpeg",.7).split(",")[1];}
-async function caseRun(c,n,rid,round,device,type,format,token,col){const t=performance.now();const v={runId:rid,round,code:c,device,type,format,startAt:new Date().toISOString(),submitAt:"",aiAt:"",savedAt:"",submitMs:null,aiMs:null,e2eMs:null,success:false,error:"",model,postId:"",userAgent:navigator.userAgent,version:"K09-E2E-20261104"};const ctrl=new AbortController(),deadline=setTimeout(()=>ctrl.abort(),120000);try{
+async function caseRun(c,n,rid,round,device,type,format,token,col,preparedImage){const t=performance.now();const v={runId:rid,round,code:c,device,type,format,startAt:new Date().toISOString(),submitAt:"",aiAt:"",savedAt:"",submitMs:null,aiMs:null,e2eMs:null,success:false,error:"",model,postId:"",userAgent:navigator.userAgent,version:"K09-E2E-20261104"};const ctrl=new AbortController(),deadline=setTimeout(()=>ctrl.abort(),120000);try{
 const text="KIỂM THỬ K09 E2E - ĐỢT "+round+" - MÃ "+c+" - "+rid+". DỮ LIỆU GIẢ LẬP. Bài toán 3x + "+n+" = "+(n+12)+". Lời giải: 3x=12, x=4.";
-const imgs=format==="image"?[{data:picture(c,n),mime:"image/jpeg"}]:[];
+const imgs=preparedImage?[{data:preparedImage,mime:"image/jpeg"}]:[];
 const post=await api("student_submit",{code:board.code,name:c,class:"K09_TEST",token:crypto.randomUUID().replace(/-/g,"")+crypto.randomUUID().slice(0,8),column_id:col.id,text,images:imgs},token,ctrl.signal);
 if(!post.post?.id)throw Error("Không có ID bài nộp");
 v.postId=post.post.id;v.submitAt=new Date().toISOString();v.submitMs=+(performance.now()-t).toFixed(2);
@@ -73,7 +73,8 @@ $("start").onclick=async()=>{if(active)return;try{const rid=runId(),round=Number
 await refresh();if(rows().some(x=>x.round===round))throw Error("Đợt này đã có dữ liệu cùng mã phiên. Không tạo trùng.");if(!confirm("Chạy thật 23 yêu cầu Gemini gần đồng thời, có thể tốn hạn mức/chi phí. Không ghi tên học sinh. Đồng ý?"))return;
 active=true;$("start").disabled=true;await gemini();await grading("PREFLIGHT",1,null);const token=(await sb.auth.getSession()).data?.session?.access_token||"";const col=board.columns.find(x=>x.name==="BÀI TẬP TEST CỦA GIÁO VIÊN");
 localStorage.setItem(runStore,rid);
-const cases=Array.from({length:23},(_,i)=>caseRun("KT"+String(i+1).padStart(2,"0"),i+1,rid,round,device,type,format,token,col));
+const prepared=Array.from({length:23},(_,i)=>{const code="KT"+String(i+1).padStart(2,"0");return{code,n:i+1,img:format==="image"?picture(code,i+1):null};});
+const cases=prepared.map(x=>caseRun(x.code,x.n,rid,round,device,type,format,token,col,x.img));
 const result=await Promise.all(cases),ok=result.filter(x=>x.success).length,v=p95(result.map(x=>x.e2eMs/1000));
 info("Đợt "+round+": AI lưu thành công "+ok+"/23, P95="+v+" giây.");await refresh();exportCSV(result);
 }catch(e){info("Không chạy: "+message(e));$("status").textContent=message(e);}finally{active=false;$("start").disabled=!board;}};
