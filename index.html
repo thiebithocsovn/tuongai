@@ -3224,7 +3224,7 @@ function boardIcon(b) {
 const SB_URL = 'https://vnxffqpszykkjueawtfr.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZueGZmcXBzenlra2p1ZWF3dGZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxMjY5NjAsImV4cCI6MjEwNzcwMjk2MH0.3gZrloVLMDmo6x656SNZIFZ2nKHm9Oi-ueHys4ztdao';
 const K_REMEMBER = 'tuongai.remember';
-const CAP = { mode: 'cloud', sb: null, aiReady: false, aiModel: '', channel: null, me: null };
+const CAP = { mode: 'cloud', sb: null, aiReady: false, aiModel: '', appCheckKey: '', appCheckAppId: '', channel: null, me: null };
 const S = {
   auth: { accounts: [] },
   profile: null,
@@ -3662,7 +3662,7 @@ function subscribeCloud() {
     .subscribe();
 }
 async function aiStatus() {
-  try { const r = await api('ai_status'); CAP.aiReady = !!r.ready; CAP.aiModel = r.model || ''; CAP.appCheckKey = r.appcheck_key || ''; } catch (e) { CAP.aiReady = false; }
+  try { const r = await api('ai_status'); CAP.aiReady = !!r.ready; CAP.aiModel = r.model || ''; CAP.appCheckKey = r.appcheck_key || ''; CAP.appCheckAppId = r.appcheck_app_id || ''; } catch (e) { CAP.aiReady = false; }
   renderSoon();
 }
 
@@ -6235,7 +6235,7 @@ const GAI_CONFIG = {
 const GAI_MODEL = 'gemini-3.5-flash-lite';
 const GAI_BACKUP_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite'];
 const K_PROV = 'tuongai.ai';
-const GAI = { ready: null, lib: null, ai: null, appCheck: null, key: '', workingModel: '' };
+const GAI = { ready: null, lib: null, ai: null, appCheck: null, key: '', appId: '', workingModel: '' };
 const PROV_LABEL = { google: 'Gemini · Google', server: 'Gemini · khóa chung', gemini: 'Gemini · khóa của tôi', openai: 'ChatGPT · OpenAI', anthropic: 'Claude · Anthropic' };
 /* Nguồn AI: thầy cô mặc định dùng Gemini · Google (không cần khóa). Học sinh chỉ dùng khóa chung trên máy chủ. */
 const aiProv = () => {
@@ -6248,23 +6248,31 @@ const aiOn = () => (isGV() ? true : !!CAP.aiReady);
 /* Khóa site key reCAPTCHA Enterprise là công khai, KHÔNG PHẢI khóa Gemini API.
    Firebase AI Logic bắt buộc App Check hợp lệ từ 02/11/2026. */
 const gaiSiteKey = () => String(CAP.appCheckKey || '').trim();
+// Ưu tiên Firebase Web App ID của ứng dụng Tường AI đã đăng ký App Check.
+const gaiAppId = () => String(CAP.appCheckAppId || GAI_CONFIG.appId).trim();
 async function gaiInit() {
   // Khi giáo viên vừa đăng nhập, trạng thái App Check có thể đang được tải về.
   if (!gaiSiteKey() && isGV()) await aiStatus();
   const siteKey = gaiSiteKey();
+  const webAppId = gaiAppId();
+  if (!/^1:154715124810:web:[0-9a-fA-F]+$/.test(webAppId)) {
+    throw { code: 'g_appcheck', message: 'Firebase Web App ID không hợp lệ. Quản trị vào Cài đặt hệ thống, nhập App ID của đúng ứng dụng Web tuongai trong Firebase Project settings → Your apps.' };
+  }
   if (!/^6L[0-9A-Za-z_-]{30,}$/.test(siteKey)) {
     throw { code: 'g_appcheck', message: 'Gemini · Google không cần khóa API riêng nhưng Firebase App Check chưa được cấu hình. Quản trị mở Cài đặt hệ thống → Khóa trang reCAPTCHA Enterprise, lưu khóa site key công khai, sau đó tải lại trang. Kiểm tra Web app và tên miền trong Firebase Console → App Check.' };
   }
-  if (GAI.ready && GAI.key !== siteKey) {
-    throw { code: 'g_appcheck', message: 'Khóa App Check đã thay đổi. Hãy tải lại trang trước khi dùng Gemini · Google.' };
+  if (GAI.ready && (GAI.key !== siteKey || GAI.appId !== webAppId)) {
+    throw { code: 'g_appcheck', message: 'Cấu hình App Check đã thay đổi. Hãy tải lại trang trước khi dùng Gemini · Google.' };
   }
   if (!GAI.ready) {
     GAI.ready = (async () => {
       const lib = await import('./firebase-ai.js');
-      const app = lib.getApps().find((a) => a.name === 'tuongai-ai') || lib.initializeApp(GAI_CONFIG, 'tuongai-ai');
+      const app = lib.getApps().find((a) => a.name === 'tuongai-ai') || lib.initializeApp({ ...GAI_CONFIG, appId: webAppId }, 'tuongai-ai');
+      if (app.options.appId !== webAppId) throw { code: 'g_appcheck', message: 'Firebase Web App ID chưa được cập nhật. Tải lại trang rồi thử lại.' };
       // Chỉ khởi tạo Gemini sau khi App Check đã được tạo; không bỏ qua lỗi bảo mật.
       GAI.appCheck = lib.initializeAppCheck(app, { provider: new lib.ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true });
       GAI.key = siteKey;
+      GAI.appId = webAppId;
       GAI.lib = lib; GAI.ai = lib.getAI(app, { backend: new lib.GoogleAIBackend() });
       return GAI;
     })().catch((e) => { GAI.ready = null; throw e; });
@@ -6342,8 +6350,8 @@ async function gaiJson(prompt, images = [], signal) {
         : rawStatus === 403
           ? 'Có thể Site Key được đăng ký cho một Firebase Web app khác với Web App ID mà mã nguồn sử dụng.'
           : 'Kiểm tra Web App ID, Site Key và trạng thái Firebase App Check trong Firebase Console.';
-      console.warn('Firebase App Check: không cấp được token.', { code: sourceCode, status: status || 'n/a', appId: GAI_CONFIG.appId });
-      throw { code: 'g_appcheck', message: 'Firebase App Check không cấp token (' + sourceCode + status + '). ' + reason + ' Web App ID cần đối chiếu: ' + GAI_CONFIG.appId + '. Đây không phải lỗi thiếu khóa Gemini API.' };
+      console.warn('Firebase App Check: không cấp được token.', { code: sourceCode, status: status || 'n/a', appId: gaiAppId() });
+      throw { code: 'g_appcheck', message: 'Firebase App Check không cấp token (' + sourceCode + status + '). ' + reason + ' Web App ID đang dùng: ' + gaiAppId() + '. Đây không phải lỗi thiếu khóa Gemini API.' };
     }
     const parts = [...images.map((i) => ({ inlineData: { mimeType: i.mime, data: i.data } })), { text: prompt }];
     const timeout = new Promise((_, reject) => {
@@ -6510,7 +6518,7 @@ function aiConnectForm() {
   const drawDetail = () => {
     const id = draft.provider;
     if (!KEY_PROVS.includes(id)) {
-      $('#ac-detail', el).innerHTML = `<p class="info-box">${id === 'google' ? 'Gemini dùng Firebase AI Logic và App Check, không cần khóa Gemini API cá nhân. Phải đăng ký Site Key đúng Firebase Web App ID và tên miền; trạng thái Registered của một Web app khác không bảo đảm ứng dụng này được xác thực.' : 'AI chạy trên máy chủ Tường AI bằng khóa Gemini chung do Quản trị hệ thống cài.'}</p>${id === 'google' ? '<p class="meta">Dự án: <b>gen-lang-client-0870957273</b> · Web App ID mà Tường AI đang dùng: <code>' + esc(GAI_CONFIG.appId) + '</code>. Đối chiếu tại <a class="link" href="https://console.firebase.google.com/project/gen-lang-client-0870957273/settings/general" target="_blank" rel="noopener noreferrer">Firebase → Project settings → Your apps</a> và App Check → Apps. Nếu lỗi 404, kiểm tra AI Services → AI Logic.</p>' : ''}<div class="row-gap"><button type="button" class="btn btn-sm btn-ai" id="ac-test">${ic('spark', 'ic-sm')}Kiểm tra kết nối</button><span class="meta" id="ac-st" role="status"></span></div>`;
+      $('#ac-detail', el).innerHTML = `<p class="info-box">${id === 'google' ? 'Gemini dùng Firebase AI Logic và App Check, không cần khóa Gemini API cá nhân. Phải đăng ký Site Key đúng Firebase Web App ID và tên miền; trạng thái Registered của một Web app khác không bảo đảm ứng dụng này được xác thực.' : 'AI chạy trên máy chủ Tường AI bằng khóa Gemini chung do Quản trị hệ thống cài.'}</p>${id === 'google' ? '<p class="meta">Dự án: <b>gen-lang-client-0870957273</b> · Web App ID mà Tường AI đang dùng: <code>' + esc(gaiAppId()) + '</code>. Đối chiếu tại <a class="link" href="https://console.firebase.google.com/project/gen-lang-client-0870957273/settings/general" target="_blank" rel="noopener noreferrer">Firebase → Project settings → Your apps</a> và App Check → Apps. Nếu lỗi 404, kiểm tra AI Services → AI Logic.</p>' : ''}<div class="row-gap"><button type="button" class="btn btn-sm btn-ai" id="ac-test">${ic('spark', 'ic-sm')}Kiểm tra kết nối</button><span class="meta" id="ac-st" role="status"></span></div>`;
     } else {
       const info = PROV_INFO[id];
       $('#ac-detail', el).innerHTML = `<div class="prov-box">
@@ -6897,6 +6905,8 @@ async function aiSettingsForm() {
       <p class="section-t">Kết nối Gemini · Google (không cần khóa API)</p>
       <p class="info-box">Giáo viên dùng Gemini · Google trực tiếp qua Firebase AI Logic, <b>không cần khóa Gemini API cá nhân</b>. Firebase App Check (reCAPTCHA Enterprise) bắt buộc để xác minh website. Quản trị chỉ cần cấu hình khóa site key công khai một lần; không tắt xác minh App Check.</p>
       <label class="fld"><span>Khóa site key reCAPTCHA Enterprise cho App Check <em>(bắt buộc; công khai, bắt đầu bằng 6L; không phải khóa Gemini API. Cấu hình từ Firebase Console → App Check và cho phép thiebithocsovn.github.io, tuonghoctap.vercel.app)</em></span><input id="st-ack" spellcheck="false" autocapitalize="none" autocomplete="off" placeholder="6L…" value="${esc(CAP.appCheckKey || '')}"></label>
+      <label class="fld"><span>Firebase Web App ID của ứng dụng Tường AI <em>(sao chép trong Firebase → Project settings → Your apps → chọn ứng dụng https://thiebithocsovn.github.io/tuongai; không phải Project ID, API key hay Site Key)</em></span><input id="st-appid" spellcheck="false" autocapitalize="none" autocomplete="off" placeholder="1:154715124810:web:…" value="${esc(CAP.appCheckAppId || '')}"></label>
+      <p class="meta">Web App ID đang sử dụng: <code>${esc(gaiAppId())}</code>. Nếu Firebase App Check báo initial-throttle HTTP 403, hãy đối chiếu ID này với ứng dụng đã đăng ký Site Key trong Firebase.</p>
       <div class="row-gap" style="align-items:center"><button type="button" class="btn btn-sm" id="st-gping">${ic('spark', 'ic-sm')}Kiểm tra kết nối Gemini · Google</button><span class="meta" id="st-gres"></span></div>
       <p class="section-t">Khóa chung trên máy chủ (không bắt buộc)</p>
       <p class="info-box">${CAP.aiReady ? 'Khóa chung <b>đang bật</b> (mô hình ' + esc(CAP.aiModel) + '): AI chấm ngay khi học sinh nộp bài. Dán khóa mới nếu muốn thay.' : 'Chưa có khóa chung. Không có khóa, bài học sinh nộp được AI chấm khi thầy cô mở bài hoặc bấm Chờ duyệt → Chấm bằng AI. Có khóa Gemini thì máy chủ chấm ngay lúc em nộp.'}</p>
@@ -6914,7 +6924,7 @@ async function aiSettingsForm() {
   $('#st-gping', el).onclick = async (e) => {
     const btn = e.currentTarget; const out = $('#st-gres', el); btn.disabled = true; out.textContent = 'Đang kiểm tra…';
     try {
-      if ($('#st-ack', el).value.trim() !== gaiSiteKey()) throw { code: 'g_appcheck', message: 'Hãy bấm Kiểm tra và lưu khóa App Check, tải lại trang rồi mới kiểm tra kết nối.' };
+      if ($('#st-ack', el).value.trim() !== gaiSiteKey() || ($('#st-appid', el).value.trim() || GAI_CONFIG.appId) !== gaiAppId()) throw { code: 'g_appcheck', message: 'Hãy lưu Site Key và Web App ID, tải lại trang rồi mới kiểm tra kết nối.' };
       await gaiJson('Đây là kiểm tra kết nối, không có dữ liệu học sinh. Chỉ trả về đúng JSON sau: {"ok": true}', []);
       out.textContent = 'Đã kết nối Gemini · Google (' + (GAI.workingModel || GAI_MODEL) + ').';
     }
@@ -6933,14 +6943,18 @@ async function aiSettingsForm() {
     const ack = $('#st-ack', el).value.trim();
     if (ack && !/^6L[0-9A-Za-z_-]{30,}$/.test(ack)) { err.textContent = 'Khóa trang reCAPTCHA thường bắt đầu bằng 6L và dài khoảng 40 ký tự.'; return; }
     if (ack !== (CAP.appCheckKey || '')) payload.appcheck_key = ack;
+    const appIdInput = $('#st-appid', el).value.trim();
+    if (appIdInput && !/^1:154715124810:web:[0-9a-fA-F]+$/.test(appIdInput)) { err.textContent = 'Firebase Web App ID không đúng định dạng hoặc khác dự án. Chép App ID ở Firebase → Project settings → Your apps.'; return; }
+    if (appIdInput !== (CAP.appCheckAppId || '')) payload.appcheck_app_id = appIdInput;
     if (key) { payload.gemini_key = key; payload.gemini_model = $('#st-model', el).value.trim(); }
     const btn = $('#st-save', el); btn.disabled = true; btn.textContent = key ? 'Đang kiểm tra khóa…' : 'Đang lưu…';
     try {
       const r = await api('admin_settings', payload);
       CAP.aiReady = !!r.ai; CAP.aiModel = r.model || '';
-      const appCheckChanged = 'appcheck_key' in r && CAP.appCheckKey !== (r.appcheck_key || '');
+      const appCheckChanged = ('appcheck_key' in r && CAP.appCheckKey !== (r.appcheck_key || '')) || ('appcheck_app_id' in r && CAP.appCheckAppId !== (r.appcheck_app_id || ''));
       if ('appcheck_key' in r) CAP.appCheckKey = r.appcheck_key || '';
-      m.close(); toast(appCheckChanged ? 'Đã lưu site key App Check. Hãy tải lại trang rồi kiểm tra kết nối Gemini.' : (key ? 'Đã bật khóa chung: AI chấm ngay khi học sinh nộp bài.' : 'Đã lưu cài đặt.')); render();
+      if ('appcheck_app_id' in r) CAP.appCheckAppId = r.appcheck_app_id || '';
+      m.close(); toast(appCheckChanged ? 'Đã lưu cấu hình App Check. Hãy tải lại trang rồi kiểm tra kết nối Gemini.' : (key ? 'Đã bật khóa chung: AI chấm ngay khi học sinh nộp bài.' : 'Đã lưu cài đặt.')); render();
     } catch (e) { err.textContent = aiMsg(e); }
     finally { btn.disabled = false; btn.textContent = 'Kiểm tra và lưu'; }
   };
