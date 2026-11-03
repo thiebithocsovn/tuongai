@@ -6328,6 +6328,51 @@ function gaiError(e) {
     return m('network', 'Không kết nối được Gemini · Google. Kiểm tra mạng rồi thử lại.');
   return m('g_error', 'Gemini · Google chưa xử lý được yêu cầu. Kiểm tra Firebase AI Logic và thử lại.');
 }
+/* Chẩn đoán lỗi "appCheck/recaptcha-error": tự chạy khóa reCAPTCHA Enterprise với một huy hiệu nhìn thấy được
+   (Firebase để huy hiệu ẩn nên thầy cô không đọc được dòng báo lỗi của Google). Trả về '' nếu reCAPTCHA cấp mã bình thường. */
+function gaiRecaptchaProbe(siteKey) {
+  const host = location.hostname;
+  const consoleHint = ' Mở Google Cloud Console → Security → reCAPTCHA (đúng dự án gen-lang-client-0870957273) → khóa ' + siteKey.slice(0, 10) + '…: loại Website, chấm điểm (không bật checkbox), danh sách Domains phải có ' + host + '.';
+  const ge = window.grecaptcha?.enterprise;
+  if (!ge || typeof ge.render !== 'function') {
+    return Promise.resolve('Trình duyệt không tải được thư viện reCAPTCHA Enterprise từ www.google.com. Tắt trình chặn quảng cáo/tiện ích chặn theo dõi, thử mạng khác (tường lửa trường học có thể chặn google.com/recaptcha) rồi tải lại trang.');
+  }
+  return new Promise((resolve) => {
+    document.getElementById('gai-rc-probe')?.remove();
+    const box = document.createElement('div');
+    box.id = 'gai-rc-probe';
+    box.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:2147483000';
+    document.body.appendChild(box);
+    let done = false;
+    const fin = (msg) => {
+      if (done) return;
+      done = true;
+      // Giữ huy hiệu 2 phút để thầy cô đọc/chụp dòng chữ đỏ của Google nếu có lỗi.
+      if (msg) setTimeout(() => box.remove(), 120e3); else box.remove();
+      resolve(msg);
+    };
+    const t = setTimeout(() => fin('reCAPTCHA không trả mã sau 15 giây. Xem dòng chữ đỏ trên huy hiệu reCAPTCHA ở góc trái dưới màn hình (ví dụ "Invalid domain for site key" = thiếu tên miền ' + host + ', "Invalid key type" = khóa không phải loại Website/chấm điểm).' + consoleHint), 15e3);
+    const fail = (why) => { clearTimeout(t); fin(why + ' Đọc dòng chữ đỏ trên huy hiệu reCAPTCHA ở góc trái dưới màn hình.' + consoleHint); };
+    try {
+      ge.ready(() => {
+        try {
+          const id = ge.render(box, {
+            sitekey: siteKey, size: 'invisible', badge: 'inline',
+            callback: () => { clearTimeout(t); fin(''); },
+            'error-callback': () => fail('reCAPTCHA Enterprise báo lỗi với khóa site key trên tên miền ' + host + '.'),
+          });
+          Promise.resolve(ge.execute(id, { action: 'fire_app_check' }))
+            .then((tok) => { if (tok) { clearTimeout(t); fin(''); } })
+            .catch((err) => fail('reCAPTCHA từ chối: ' + String(err?.message || err || 'không rõ').slice(0, 160) + '.'));
+        } catch (err) {
+          fail('reCAPTCHA từ chối khóa site key: ' + String(err?.message || err || 'không rõ').slice(0, 160) + '.');
+        }
+      });
+    } catch (err) {
+      fail('reCAPTCHA không khởi động được: ' + String(err?.message || err || 'không rõ').slice(0, 160) + '.');
+    }
+  });
+}
 /* Gọi Gemini, trả về JSON. Toàn bộ các lần thử mô hình dùng chung giới hạn 90 giây. */
 async function gaiJson(prompt, images = [], signal) {
   if (signal?.aborted) throw { code: 'cancelled' };
@@ -6335,23 +6380,37 @@ async function gaiJson(prompt, images = [], signal) {
   try {
     const g = await gaiInit();
     if (!g.appCheck) throw { code: 'g_appcheck', message: 'Firebase App Check chưa khởi tạo. Hãy kiểm tra site key và tải lại trang.' };
-    try {
+    const fetchToken = async () => {
       const tokenResult = await g.lib.getToken(g.appCheck, false);
       // Firebase SDK có thể trả về một kết quả lỗi mà không ném exception.
       if (tokenResult?.error) throw tokenResult.error;
       if (!tokenResult?.token) throw { code: 'app-check/empty-token' };
-    } catch (e) {
+    };
+    try {
+      await fetchToken();
+    } catch (e0) {
+      let e = e0;
       // Chỉ hiển thị mã lỗi, không in ra App Check token hay nội dung bài học sinh.
       const sourceCode = String(e?.code || e?.name || 'unknown').slice(0, 100).replace(/[^a-zA-Z0-9/_-]/g, '');
       const rawStatus = Number(e?.customData?.httpStatus || e?.customData?.status || e?.status || 0);
       const status = Number.isInteger(rawStatus) && rawStatus >= 400 && rawStatus <= 599 ? ' · HTTP ' + rawStatus : '';
-      const reason = /recaptcha/i.test(sourceCode)
-        ? 'Kiểm tra khóa reCAPTCHA Enterprise và tên miền đã đăng ký trong Google Cloud.'
-        : rawStatus === 403
-          ? 'Có thể Site Key được đăng ký cho một Firebase Web app khác với Web App ID mà mã nguồn sử dụng.'
-          : 'Kiểm tra Web App ID, Site Key và trạng thái Firebase App Check trong Firebase Console.';
-      console.warn('Firebase App Check: không cấp được token.', { code: sourceCode, status: status || 'n/a', appId: gaiAppId() });
-      throw { code: 'g_appcheck', message: 'Firebase App Check không cấp token (' + sourceCode + status + '). ' + reason + ' Web App ID đang dùng: ' + gaiAppId() + '. Đây không phải lỗi thiếu khóa Gemini API.' };
+      const isRc = /recaptcha/i.test(sourceCode);
+      // Firebase chỉ báo "recaptcha-error" chung chung; hỏi thẳng reCAPTCHA để biết lý do thật.
+      const probe = isRc ? await gaiRecaptchaProbe(gaiSiteKey()) : '';
+      // reCAPTCHA cấp mã bình thường khi thử trực tiếp: lỗi chỉ thoáng qua, lấy lại token một lần.
+      let retried = false;
+      if (isRc && !probe) {
+        try { await fetchToken(); retried = true; } catch (e2) { e = e2; }
+      }
+      if (!retried) {
+        const reason = isRc
+          ? (probe || 'reCAPTCHA cấp mã khi thử trực tiếp nhưng Firebase vẫn báo lỗi (' + String(e?.code || 'không rõ').slice(0, 60) + '). Hãy tải lại trang (Ctrl+Shift+R) rồi kiểm tra kết nối lần nữa.')
+          : rawStatus === 403
+            ? 'Có thể Site Key được đăng ký cho một Firebase Web app khác với Web App ID mà mã nguồn sử dụng.'
+            : 'Kiểm tra Web App ID, Site Key và trạng thái Firebase App Check trong Firebase Console.';
+        console.warn('Firebase App Check: không cấp được token.', { code: sourceCode, status: status || 'n/a', appId: gaiAppId() });
+        throw { code: 'g_appcheck', message: 'Firebase App Check không cấp token (' + sourceCode + status + '). ' + reason + ' Web App ID đang dùng: ' + gaiAppId() + '. Đây không phải lỗi thiếu khóa Gemini API.' };
+      }
     }
     const parts = [...images.map((i) => ({ inlineData: { mimeType: i.mime, data: i.data } })), { text: prompt }];
     const timeout = new Promise((_, reject) => {
