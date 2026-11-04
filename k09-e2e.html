@@ -158,7 +158,7 @@ if(saved.error)throw saved.error;
 v.savedAt=new Date().toISOString();v.e2eMs=+(performance.now()-t).toFixed(2);v.success=true;
 try{await sb.from("posts").update({teacher:{k09E2E:v}}).eq("id",v.postId).eq("board_id",board.id);}catch(_){}
 }catch(e){v.error=ctrl.signal.aborted?"TIMEOUT 120 giây":message(e);v.savedAt=new Date().toISOString();v.e2eMs=+(performance.now()-t).toFixed(2);
-v.errorType=/\\b429\\b|quota|resource exhausted/i.test(v.error)?"GEMINI_QUOTA_429":"ERROR";
+v.errorType=/(?:\b429\b|quota|resource exhausted)/i.test(v.error)?"GEMINI_QUOTA_429":"ERROR";
 if(v.postId)try{await sb.from("posts").update({teacher:{k09E2E:v}}).eq("id",v.postId).eq("board_id",board.id);}catch(_){}}
 finally{clearTimeout(deadline);local.push(v);save();$("status").textContent="Đợt "+round+": đã ghi "+local.filter(x=>x.runId===rid&&x.round===round).length+"/23 (bao gồm lỗi).";}return v;}
 $("start").onclick=async()=>{if(active)return;try{const rid=runId(),round=Number($("round").value),device=$("dev").value,type=/Android/i.test(navigator.userAgent)?"phone":"computer",format=$("format").value;if(!device)throw Error("Chọn thiết bị thực tế.");if(device.startsWith("HONOR")&&type!=="phone")throw Error("Không thể ghi HONOR khi đang dùng máy tính.");if(device==="Máy tính"&&type!=="computer")throw Error("Đang dùng Android, không được ghi máy tính.");
