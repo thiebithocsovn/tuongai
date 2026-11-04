@@ -2821,6 +2821,7 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="./answer-materials.js"></script>
 <script src="./file-preview.js"></script>
+<script src="./m56.js?v=m56-20261105a"></script>
 <script>
 (() => {
 'use strict';
@@ -5486,6 +5487,7 @@ function postMenu(btn, p) {
     <p class="menu-t">Màu thẻ</p>
     <div class="swatches">${POST_COLORS.map(([c, n]) => `<button data-act="p-color" data-id="${p.id}" data-c="${c}" style="background:${c}" aria-label="Màu thẻ ${n}" aria-pressed="${postColor(p) === c}">${postColor(p) === c ? ic('check', 'ic-sm') : ''}</button>`).join('')}</div>
     <button role="menuitem" data-act="open-post" data-id="${p.id}">${ic('eye')}Mở bài</button>
+    <button role="menuitem" data-act="p-m56" data-id="${p.id}">${ic('spark')}M5–M6 · Kiểm chứng nguyên nhân</button>
     <button role="menuitem" data-act="p-del" data-id="${p.id}" style="color:var(--pen)">${ic('trash')}Xóa bài</button>`;
   document.body.appendChild(menu);
   const r = btn.getBoundingClientRect();
@@ -7424,6 +7426,7 @@ function drawSide() {
     ? `<section class="blk pd-cmt" id="pd-cmt" aria-label="Nhận xét riêng của giáo viên">
       <header class="pd-review-heading"><h4>Nhận xét của giáo viên</h4><p class="meta">Sau khi duyệt, cả lớp xem được bài và nhận xét. Điểm chỉ hiển thị cho chủ bài; Trợ lý AI luôn là ghi chú riêng.</p>${p.by === "hs" && p.teacher?.approvedAt && p.studentToken?.length >= 16 ? `<button type="button" class="btn btn-sm btn-soft" data-pd="copy-student-result">${ic("copy","ic-sm")} Sao chép liên kết điểm riêng gửi cho học sinh</button>` : ""}</header>
       <div id="pd-assist-slot"></div>
+      <div class="as-row"><button type="button" class="btn btn-sm btn-soft" data-pd="m56-open">${ic('spark','ic-sm')} M5–M6 · Kiểm chứng nguyên nhân</button></div>
       ${p.ai && !S.grading.has(p.id) ? `<details class="pd-review-history"><summary>${ic('sparkles','ic-sm')} Xem kết quả AI chấm và lỗi sai từng câu</summary>${aiPartsHtml(p, b)}</details>` : ''}
       <div class="pd-review-manual"><label class="fld"><span>Viết nhận xét</span><textarea id="cm-text" class="inp" rows="3" maxlength="2000" placeholder="Viết nhận xét và gợi ý cách sửa cho học sinh…"></textarea></label><button type="button" class="btn btn-block" data-pd="cadd">Gửi nhận xét</button></div>
       ${cms.length ? `<details class="pd-review-history pd-comment-history"><summary>Nhận xét đã gửi (${cms.length})</summary>${cmtList}</details>` : ''}
@@ -7526,6 +7529,7 @@ function aiComment(ai) {
 }
 async function detailAct(a, src) {
   const id = detail.id; const p = getPost(id); const b = getBoard(p.boardId);
+  if (a === 'm56-open') { if(isGV()&&canManage(b))window.TuongAiM56?.open(p); return; }
   if (a.startsWith('sim-teacher-')) return teacherSimilarAction(a,src);
   if (a === 'close') return detail.m.close();
   if (a === 'copy-student-result') {
@@ -8721,6 +8725,7 @@ document.addEventListener('click', async (e) => {
     case 'post-menu': { const p = getPost(id); if (p) postMenu(t, p); break; }
     case 'p-pin': { $('.pmenu')?.remove(); const p = getPost(id); if (p) { const on = !tmeta(p).pinned; await patchTeacher(p, { pinned: on }); toast(on ? 'Đã ghim bài lên đầu.' : 'Đã bỏ ghim bài.'); } break; }
     case 'p-color': { $('.pmenu')?.remove(); const p = getPost(id); if (p) await patchTeacher(p, { color: t.dataset.c === '#ffffff' ? '' : t.dataset.c }); break; }
+    case 'p-m56': { $('.pmenu')?.remove(); const p = getPost(id); if (p && isGV())window.TuongAiM56?.open(p); break; }
     case 'p-move': { $('.pmenu')?.remove(); const p = getPost(id); if (p) movePostForm(p); break; }
     case 'p-del': { $('.pmenu')?.remove(); const p = getPost(id); if (p && await confirmBox('Xóa bài này?', 'Bài của <b>' + esc(p.studentName) + '</b> và kết quả chấm sẽ bị xóa vĩnh viễn.', 'Xóa bài', true)) { await removePost(p); toast('Đã xóa bài.'); } break; }
     case 'p-like': { const p = getPost(id); if (p) { const likes = tmeta(p).likes || []; await patchTeacher(p, { likes: likes.includes(S.meId) ? likes.filter((x) => x !== S.meId) : [...likes, S.meId] }); } break; }
