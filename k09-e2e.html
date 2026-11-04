@@ -12,7 +12,7 @@
 <label>Mô hình Gemini (phải giữ nguyên cho cả 3 đợt của một phiên)
 <select id="model"><option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (mô hình gốc)</option><option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (thử hạn mức mô hình khác)</option></select>
 </label>
-<p style="font-size:13px;color:#516078">Khi đổi mô hình phải tạo mã phiên mới. Một mô hình khác có thể có hạn mức khác, nhưng vẫn có thể báo 429. Kết quả không được trộn giữa các mô hình.</p>
+<label style="display:flex;align-items:center;gap:8px"><input id="fallback" type="checkbox" checked style="width:auto;margin:0"><strong>Thử mô hình Gemini dự phòng nếu lỗi HTTP 429</strong></label><p style="font-size:13px;color:#516078">Kết quả mỗi bài lưu rõ mô hình AI thực tế và số lần đổi mô hình. Đây là phép thử tính năng dự phòng: tạo mã phiên mới, không gộp với phiên chỉ dùng một mô hình.</p>
 <button class="soft" id="copy">Sao chép mã phiên</button><button class="soft" id="latest" type="button">Tải bản mới nhất</button><button class="soft" id="fresh">Tạo mã phiên chạy lại</button><button class="soft" id="ping">Thử Gemini</button><p style="font-size:13px;color:#516078">Khi tạo mã phiên mới, nhật ký đợt cũ vẫn được giữ. Chọn đúng thiết bị thực tế và chạy ba đợt lần lượt.</p>
 </section>
 <section><h2>2. Thực hiện phép đo</h2><p>Đề nghị đợt 1 trên HONOR X9c, đợt 2 trên máy tính, đợt 3 trên HONOR X9c. Mỗi đợt chạy riêng trên đúng thiết bị đã chọn. Khi đổi thiết bị, mở trang này và nhập cùng mã phiên.</p>
@@ -46,7 +46,7 @@ $("detail").innerHTML=all.slice(0,110).map(x=>"<tr><td>"+x.round+"</td><td>"+x.c
 }
 function save(){localStorage.setItem(storeName,JSON.stringify(local));update();}
 function download(body,name,mime){const a=document.createElement("a"),url=URL.createObjectURL(new Blob([body],{type:mime}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
-function exportCSV(a){const cols=["runId","round","code","device","type","format","startAt","submitAt","aiAt","savedAt","submitMs","aiMs","e2eMs","success","error","errorType","model","postId","aiAttempts","aiRetry429","aiQueueMs","aiConcurrentMax","aiStartGapMs","userAgent","version"];const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';download("\uFEFF"+cols.join(",")+"\r\n"+a.map(r=>cols.map(k=>q(r[k])).join(",")).join("\r\n"),runId()+".csv","text/csv;charset=utf-8");}
+function exportCSV(a){const cols=["runId","round","code","device","type","format","startAt","submitAt","aiAt","savedAt","submitMs","aiMs","e2eMs","success","error","errorType","requestedModel","model","fallbackEnabled","fallbackUsed","modelAttempts","postId","aiAttempts","aiRetry429","aiQueueMs","aiConcurrentMax","aiStartGapMs","userAgent","version"];const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';download("\uFEFF"+cols.join(",")+"\r\n"+a.map(r=>cols.map(k=>q(r[k])).join(",")).join("\r\n"),runId()+".csv","text/csv;charset=utf-8");}
 async function api(action,payload={},token="",signal){const r=await fetch(URL_DB+"/functions/v1/tuongai",{method:"POST",signal,headers:{"Content-Type":"application/json",apikey:config.anon,...(token?{authorization:"Bearer "+token}:{})},body:JSON.stringify({action,...payload})});const json=await r.json();if(!r.ok||json.error)throw Error(json.error?.message||"HTTP "+r.status);return json;}
 async function refresh(){const r=await sb.from("posts").select("teacher").eq("board_id",board.id).eq("student_class","K09_TEST").limit(1000);if(r.error)throw r.error;cloud=(r.data||[]).map(x=>x.teacher?.k09E2E).filter(Boolean);update();}
 function k09TestColumn(b){
@@ -116,22 +116,28 @@ function k09RetryableAI(e){
  const txt=String(e?.message||e?.code||e||"").toLowerCase();
  return /(?:\b429\b|resource.?exhausted|rate.?limit|too.many.requests|quota.exceeded)/i.test(txt);
 }
-async function k09GradeWithLimits(code,n,img,metrics){
+async function k09GradeWithLimits(code,n,img,metrics,requestedModel,allowFallback,signal){
  for(let attempt=1;attempt<=K09_AI_MAX_ATTEMPTS;attempt++){
+  if(signal?.aborted)throw Error("TIMEOUT: yêu cầu hết hạn, không chấm AI tiếp.");
   if(attempt>1){
     const pause=(attempt===2?650:1550)+Math.floor(Math.random()*250);
     await k09Sleep(pause);
   }
+  const actualModel=allowFallback&&attempt>1?(requestedModel==="gemini-3.5-flash-lite"?"gemini-3.1-flash-lite":"gemini-3.5-flash-lite"):requestedModel;
   const slot=await k09TakeAiSlot();
   metrics.aiQueueMs=+(metrics.aiQueueMs+slot.waitMs).toFixed(2);
-  metrics.aiAttempts=attempt;
+  metrics.aiAttempts=attempt;metrics.modelAttempts.push(actualModel);
   try{
+    if(signal?.aborted)throw Error("TIMEOUT: yêu cầu AI đã hết hạn.");
     const paced=performance.now();
     await k09PaceAI();
     metrics.aiQueueMs=+(metrics.aiQueueMs+performance.now()-paced).toFixed(2);
-    return await grading(code,n,img);
+    if(signal?.aborted)throw Error("TIMEOUT: yêu cầu AI đã hết hạn.");
+    const result=await grading(code,n,img,actualModel);
+    metrics.model=actualModel;metrics.fallbackUsed=actualModel!==requestedModel;
+    return result;
   }catch(e){
-    if(!k09RetryableAI(e)||attempt>=K09_AI_MAX_ATTEMPTS)throw e;
+    if(signal?.aborted||!k09RetryableAI(e)||attempt>=K09_AI_MAX_ATTEMPTS)throw e;
     metrics.aiRetry429++;
     info(code+": Gemini báo 429, thử lại lần "+(attempt+1)+"/"+K09_AI_MAX_ATTEMPTS+"; thời gian chờ vẫn tính E2E.");
   }finally{slot.release();}
@@ -139,7 +145,7 @@ async function k09GradeWithLimits(code,n,img,metrics){
  throw Error("Gemini không trả kết quả sau số lần thử đã giới hạn.");
 }
 function picture(code,n){const c=document.createElement("canvas");c.width=650;c.height=280;const x=c.getContext("2d");x.fillStyle="white";x.fillRect(0,0,650,280);x.fillStyle="#1b2e4a";x.font="27px Arial";x.fillText("BÀI TOÁN KIỂM THỬ "+code,20,50);x.fillText("3x + "+n+" = "+(n+12),20,110);x.fillText("3x = 12; x = 4.",20,165);x.font="18px Arial";x.fillText("GIẢ LẬP K09 - KHÔNG PHẢI BÀI HỌC SINH",20,235);return c.toDataURL("image/jpeg",.7).split(",")[1];}
-async function caseRun(c,n,rid,round,device,type,format,token,col,preparedImage){const t=performance.now();const v={runId:rid,round,code:c,device,type,format,startAt:new Date().toISOString(),submitAt:"",aiAt:"",savedAt:"",submitMs:null,aiMs:null,e2eMs:null,success:false,error:"",model,postId:"",aiAttempts:0,aiRetry429:0,aiQueueMs:0,aiConcurrentMax:K09_AI_MAX_PARALLEL,aiStartGapMs:K09_AI_MIN_GAP_MS,userAgent:navigator.userAgent,version:"K09-E2E-20261104-FAST-R4"};const ctrl=new AbortController(),deadline=setTimeout(()=>ctrl.abort(),120000);try{
+async function caseRun(c,n,rid,round,device,type,format,token,col,preparedImage,requestedModel,allowFallback){const t=performance.now();const v={runId:rid,round,code:c,device,type,format,startAt:new Date().toISOString(),submitAt:"",aiAt:"",savedAt:"",submitMs:null,aiMs:null,e2eMs:null,success:false,error:"",model:requestedModel,requestedModel,fallbackEnabled:allowFallback,fallbackUsed:false,modelAttempts:[],postId:"",aiAttempts:0,aiRetry429:0,aiQueueMs:0,aiConcurrentMax:K09_AI_MAX_PARALLEL,aiStartGapMs:K09_AI_MIN_GAP_MS,userAgent:navigator.userAgent,version:"K09-E2E-20261104-FAST-R4B"};const ctrl=new AbortController(),deadline=setTimeout(()=>ctrl.abort(),120000);try{
 const text="KIỂM THỬ K09 E2E - ĐỢT "+round+" - MÃ "+c+" - "+rid+". DỮ LIỆU GIẢ LẬP. Bài toán 3x + "+n+" = "+(n+12)+". Lời giải: 3x=12, x=4.";
 const imgs=preparedImage?[{data:preparedImage,mime:"image/jpeg"}]:[];
 const post=await api("student_submit",{code:board.code,name:c,class:"K09_TEST",token:crypto.randomUUID().replace(/-/g,"")+crypto.randomUUID().slice(0,8),column_id:col.id,text,images:imgs},token,ctrl.signal);
@@ -152,7 +158,7 @@ if(!result){
  let aiTimeoutTimer;
  try{
   result=await Promise.race([
-   k09GradeWithLimits(c,n,imgs[0]?.data,v),
+   k09GradeWithLimits(c,n,imgs[0]?.data,v,requestedModel,allowFallback,ctrl.signal),
    new Promise((_,reject)=>{aiTimeoutTimer=setTimeout(()=>reject(Error("TIMEOUT GEMINI: 120 giây")),120000);})
   ]);
  }finally{clearTimeout(aiTimeoutTimer);}
@@ -168,18 +174,19 @@ if(v.postId)try{await sb.from("posts").update({teacher:{k09E2E:v}}).eq("id",v.po
 finally{clearTimeout(deadline);local.push(v);save();$("status").textContent="Đợt "+round+": đã ghi "+local.filter(x=>x.runId===rid&&x.round===round).length+"/23 (bao gồm lỗi).";}return v;}
 $("start").onclick=async()=>{if(active)return;try{const rid=runId(),round=Number($("round").value),device=$("dev").value,type=/Android/i.test(navigator.userAgent)?"phone":"computer",format=$("format").value;if(!device)throw Error("Chọn thiết bị thực tế.");if(device.startsWith("HONOR")&&type!=="phone")throw Error("Không thể ghi HONOR khi đang dùng máy tính.");if(device==="Máy tính"&&type!=="computer")throw Error("Đang dùng Android, không được ghi máy tính.");
 await refresh();if(rows().some(x=>x.round===round))throw Error("Đợt này đã có dữ liệu cùng mã phiên. Không tạo trùng.");const chosenModel=$("model").value;
-if(rows().some(x=>x.model&&x.model!==chosenModel))throw Error("Không thể trộn hai mô hình Gemini trong cùng mã phiên K09. Hãy tạo mã phiên mới trước khi đổi mô hình.");
-if(!confirm("Chạy 23 bài thử; mô hình "+chosenModel+"; Gemini tối đa 2 luồng, chờ được tính vào P95. Có thể tốn hạn mức và phí. Đồng ý?"))return;
+const allowFallback=$("fallback").checked;
+if(rows().some(x=>((x.requestedModel||x.model)&&((x.requestedModel||x.model)!==chosenModel||Boolean(x.fallbackEnabled)!==allowFallback))))throw Error("Mã phiên đã dùng cấu hình mô hình khác. Tạo mã phiên mới để đổi mô hình hoặc chế độ dự phòng.");
+if(!confirm("Chạy AI thực: mô hình "+chosenModel+(allowFallback?" + dự phòng 429":"")+", tối đa 3 luồng, mọi thời gian chờ tính P95; có thể tốn quota/chi phí. Đồng ý?"))return;
 model=chosenModel;
-active=true;$("start").disabled=true;$("model").disabled=true;await gemini();const token=(await sb.auth.getSession()).data?.session?.access_token||"";const col=k09TestColumn(board);if(!col)throw Error("Cột TEST đã bị đổi tên hoặc xóa. Tải lại trang để kiểm tra.");
+active=true;$("start").disabled=true;$("model").disabled=true;$("fallback").disabled=true;await gemini();const token=(await sb.auth.getSession()).data?.session?.access_token||"";const col=k09TestColumn(board);if(!col)throw Error("Cột TEST đã bị đổi tên hoặc xóa. Tải lại trang để kiểm tra.");
 localStorage.setItem(runStore,rid);
 const prepared=Array.from({length:23},(_,i)=>{const code="KT"+String(i+1).padStart(2,"0");return{code,n:i+1,img:format==="image"?picture(code,i+1):null};});
-const cases=prepared.map(x=>caseRun(x.code,x.n,rid,round,device,type,format,token,col,x.img));
+const cases=prepared.map(x=>caseRun(x.code,x.n,rid,round,device,type,format,token,col,x.img,chosenModel,allowFallback));
 const result=await Promise.all(cases),ok=result.filter(x=>x.success).length,v=p95(result.map(x=>x.e2eMs/1000));
 info("Đợt "+round+": AI lưu thành công "+ok+"/23, P95="+v+" giây.");await refresh();exportCSV(result);
-}catch(e){info("Không chạy: "+message(e));$("status").textContent=message(e);}finally{active=false;$("model").disabled=false;$("start").disabled=!board;}};
+}catch(e){info("Không chạy: "+message(e));$("status").textContent=message(e);}finally{active=false;$("model").disabled=false;$("fallback").disabled=false;$("start").disabled=!board;}};
 $("read").onclick=()=>refresh().catch(e=>info(message(e)));
-$("ping").onclick=()=>{model=$("model").value;grading("PREFLIGHT",1,null).then(()=>info("Gemini "+model+" kết nối OK (bài kiểm tra có dùng quota).")).catch(e=>info("Gemini "+model+" lỗi: "+message(e)+(k09RetryableAI(e)?" — Quota Google, kiểm tra Firebase / Google AI Studio.":"")));};
+$("ping").onclick=()=>{if(active)return info("Không thử mô hình khác trong lúc đo E2E.");model=$("model").value;grading("PREFLIGHT",1,null).then(()=>info("Gemini "+model+" kết nối OK (bài kiểm tra có dùng quota).")).catch(e=>info("Gemini "+model+" lỗi: "+message(e)+(k09RetryableAI(e)?" — Quota Google, kiểm tra Firebase / Google AI Studio.":"")));};
 $("copy").onclick=()=>navigator.clipboard.writeText($("id").value).then(()=>info("Đã sao chép mã phiên")).catch(()=>info("Hãy tự sao chép mã phiên."));
 $("latest").onclick=()=>{if(active)return info("Phép thử đang chạy: không tự tải lại trang.");const link=new URL(location.href);link.searchParams.set("v",Date.now().toString());link.searchParams.set("run",runId());location.assign(link.toString());};
 $("fresh").onclick=()=>{if(active){info("Đợt thử đang chạy, không thể thay mã phiên.");return;}const fresh="K09-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+Math.random().toString(36).slice(2,8).toUpperCase();$("id").value=fresh;$("round").value="1";localStorage.setItem(runStore,fresh);cloud=[];update();if(board)refresh().catch(e=>info(message(e)));info("Đã tạo mã phiên mới "+fresh+". Không xóa nhật ký cũ. Hãy sao chép mã này để dùng trên điện thoại và máy tính.");};
