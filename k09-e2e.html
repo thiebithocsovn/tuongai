@@ -1,9 +1,9 @@
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>K09 – Đo E2E Tường AI</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <style>body{font:15px Arial,sans-serif;background:#f3f6fb;color:#13253c;max-width:1000px;padding:18px;margin:auto}section{background:white;border:1px solid #dce4ef;border-radius:12px;padding:16px;margin:13px 0}h1{font-size:25px}h2{font-size:19px}label{display:block;margin:9px 0}input,select{display:block;padding:10px;width:100%;max-width:500px;border:1px solid #aab9c9;border-radius:7px;box-sizing:border-box}button{padding:10px 14px;background:#1758a5;border:0;border-radius:8px;color:white;font-weight:bold;margin:6px 6px 6px 0}button:disabled{opacity:.5}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #ddd;padding:7px;text-align:left}.scroller{overflow:auto}.warn{background:#fff5e2}#log{white-space:pre-wrap;max-height:250px;overflow:auto;font-size:12px}.soft{background:#536f91}</style></head><body>
-<h1>MC04–K09 • Đo thời gian đầu cuối</h1><p id="build" style="color:#1758a5;font-weight:bold">Phiên bản 04/11/2026 • FIX-429-R3 • Quota-aware: 2 luồng AI, giãn 750 ms, tự thử lại; ghi đủ thời gian E2E.</p>
+<h1>MC04–K09 • Đo thời gian đầu cuối</h1><p id="build" style="color:#1758a5;font-weight:bold">Phiên bản 04/11/2026 • FAST-R4 • Tối ưu: 3 luồng AI, phản hồi ngắn, giảm thời gian hàng đợi và đo E2E thực.</p>
 <p>Chỉ kiểm thử với dữ liệu toán giả lập, không làm thay học sinh. Một đợt gửi gần đồng thời 23 bài KT01–KT23 vào cột TEST của MC07-4, gọi Gemini qua Firebase AI Logic và đo đến khi lưu AI thành công.</p>
-<section class="warn"><strong>Lưu ý:</strong> K09 cũ nộp ngày 03/11, chấm ngày 04/11 không phải E2E. Chỉ kết luận Đạt khi 3 đợt mới đủ 23 kết quả/đợt, mỗi đợt ≥22 thành công, P95 ≤30 giây và có tối thiểu hai loại thiết bị thực tế. <strong>Bảo vệ hạn mức:</strong> 23 bài vẫn được nộp gần đồng thời; Gemini được xếp hàng tối đa 2 luồng, giãn tối thiểu 750 ms và thử lại tối đa 2 lần khi gặp 429. Tất cả thời gian chờ và thử lại được tính vào E2E. Nếu quota thực tế thấp hơn nhu cầu, chỉ nâng hạn mức Google mới giải quyết tận gốc.</section>
+<section class="warn"><strong>Lưu ý:</strong> K09 cũ nộp ngày 03/11, chấm ngày 04/11 không phải E2E. Chỉ kết luận Đạt khi 3 đợt mới đủ 23 kết quả/đợt, mỗi đợt ≥22 thành công, P95 ≤30 giây và có tối thiểu hai loại thiết bị thực tế. <strong>Bảo vệ hạn mức:</strong> 23 bài vẫn được nộp gần đồng thời; Gemini được xếp hàng tối đa 3 luồng, giãn tối thiểu 500 ms và thử lại tối đa 2 lần khi gặp 429. Tất cả thời gian chờ và thử lại được tính vào E2E. Nếu quota thực tế thấp hơn nhu cầu, chỉ nâng hạn mức Google mới giải quyết tận gốc.</section>
 <section><h2>1. Xác thực và thiết bị</h2><p id="auth">Đang kiểm tra tài khoản Admin…</p>
 <label>Mã phiên (dùng chung trên điện thoại và máy tính)<input id="id" autocomplete="off"></label>
 <label>Thiết bị đang chạy thực tế<select id="dev"><option value="">-- Chọn thiết bị --</option><option value="HONOR X9c – MagicOS 10">HONOR X9c – MagicOS 10</option><option value="Máy tính">Máy tính Windows / macOS</option></select></label>
@@ -77,11 +77,16 @@ async function gemini(){
   })();
   try{return await k09GeminiLoading;}finally{k09GeminiLoading=null;}
 }
-async function grading(code,n,img){await gemini();const m=f.getGenerativeModel(ai,{model,generationConfig:{responseMimeType:"application/json",temperature:.2,maxOutputTokens:4096}});
-const text="Đây là bài Toán THCS GIẢ LẬP K09: "+code+". Giải 3x + "+n+" = "+(n+12)+". Lời giải: 3x=12; x=4. Hãy đọc bài, chấm điểm 0-10, nhận xét đúng/sai, nguyên nhân lỗi (nếu có), đề xuất bài tập tương tự, không tiết lộ dữ liệu. Chỉ trả về JSON gồm diem (số), diem_toi_da (10), nhan_xet (chuỗi), doc_bai (mảng), bang_diem (mảng), loi_sai (mảng), luyen_tap (mảng), bai_tap (mảng).";
-const parts=img?[{inlineData:{mimeType:"image/jpeg",data:img}},{text}]:[{text}];
-const ans=await m.generateContent(parts);const j=JSON.parse(ans.response.text());if(!Number.isFinite(Number(j.diem))||!j.nhan_xet)throw Error("AI chưa trả điểm/nhận xét hợp lệ.");return {...j,nguon:"Gemini · Google · "+model};}
-const K09_AI_MAX_PARALLEL=2, K09_AI_MIN_GAP_MS=750, K09_AI_MAX_ATTEMPTS=3;
+async function grading(code,n,img,requestedModel=model){
+ await gemini();
+ const gm=f.getGenerativeModel(ai,{model:requestedModel,generationConfig:{responseMimeType:"application/json",temperature:0.1,maxOutputTokens:768,thinkingConfig:{thinkingLevel:f.ThinkingLevel?.MINIMAL||"MINIMAL"}}});
+ const prompt="Chấm bài toán THCS GIẢ LẬP "+code+". Đề: 3x+"+n+"="+(n+12)+". Lời giải học sinh: 3x=12, x=4. Đánh giá thực chất, chỉ ra lỗi/nguyên nhân nếu có. Trả JSON ngắn với diem (số 0-10), diem_toi_da (10), nhan_xet (1-2 câu), doc_bai ([]), bang_diem ([]), loi_sai ([]), luyen_tap (mảng 1 bài tương tự), bai_tap ([]). Không thêm markdown.";
+ const parts=img?[{inlineData:{mimeType:"image/jpeg",data:img}},{text:prompt}]:[{text:prompt}];
+ const ans=await gm.generateContent(parts),j=JSON.parse(ans.response.text());
+ if(!Number.isFinite(Number(j.diem))||typeof j.nhan_xet!=="string"||!j.nhan_xet.trim())throw Error("AI chưa trả điểm/nhận xét hợp lệ.");
+ return {...j,nguon:"Gemini · Google · "+requestedModel};
+}
+const K09_AI_MAX_PARALLEL=3, K09_AI_MIN_GAP_MS=500, K09_AI_MAX_ATTEMPTS=3;
 let k09AiInFlight=0,k09AiLastStart=0,k09AiGate=Promise.resolve();
 const k09AiWaiters=[];
 const k09Sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -114,7 +119,7 @@ function k09RetryableAI(e){
 async function k09GradeWithLimits(code,n,img,metrics){
  for(let attempt=1;attempt<=K09_AI_MAX_ATTEMPTS;attempt++){
   if(attempt>1){
-    const pause=(attempt===2?2200:5200)+Math.floor(Math.random()*400);
+    const pause=(attempt===2?650:1550)+Math.floor(Math.random()*250);
     await k09Sleep(pause);
   }
   const slot=await k09TakeAiSlot();
@@ -134,7 +139,7 @@ async function k09GradeWithLimits(code,n,img,metrics){
  throw Error("Gemini không trả kết quả sau số lần thử đã giới hạn.");
 }
 function picture(code,n){const c=document.createElement("canvas");c.width=650;c.height=280;const x=c.getContext("2d");x.fillStyle="white";x.fillRect(0,0,650,280);x.fillStyle="#1b2e4a";x.font="27px Arial";x.fillText("BÀI TOÁN KIỂM THỬ "+code,20,50);x.fillText("3x + "+n+" = "+(n+12),20,110);x.fillText("3x = 12; x = 4.",20,165);x.font="18px Arial";x.fillText("GIẢ LẬP K09 - KHÔNG PHẢI BÀI HỌC SINH",20,235);return c.toDataURL("image/jpeg",.7).split(",")[1];}
-async function caseRun(c,n,rid,round,device,type,format,token,col,preparedImage){const t=performance.now();const v={runId:rid,round,code:c,device,type,format,startAt:new Date().toISOString(),submitAt:"",aiAt:"",savedAt:"",submitMs:null,aiMs:null,e2eMs:null,success:false,error:"",model,postId:"",aiAttempts:0,aiRetry429:0,aiQueueMs:0,aiConcurrentMax:K09_AI_MAX_PARALLEL,aiStartGapMs:K09_AI_MIN_GAP_MS,userAgent:navigator.userAgent,version:"K09-E2E-20261104-QUOTA-R3"};const ctrl=new AbortController(),deadline=setTimeout(()=>ctrl.abort(),120000);try{
+async function caseRun(c,n,rid,round,device,type,format,token,col,preparedImage){const t=performance.now();const v={runId:rid,round,code:c,device,type,format,startAt:new Date().toISOString(),submitAt:"",aiAt:"",savedAt:"",submitMs:null,aiMs:null,e2eMs:null,success:false,error:"",model,postId:"",aiAttempts:0,aiRetry429:0,aiQueueMs:0,aiConcurrentMax:K09_AI_MAX_PARALLEL,aiStartGapMs:K09_AI_MIN_GAP_MS,userAgent:navigator.userAgent,version:"K09-E2E-20261104-FAST-R4"};const ctrl=new AbortController(),deadline=setTimeout(()=>ctrl.abort(),120000);try{
 const text="KIỂM THỬ K09 E2E - ĐỢT "+round+" - MÃ "+c+" - "+rid+". DỮ LIỆU GIẢ LẬP. Bài toán 3x + "+n+" = "+(n+12)+". Lời giải: 3x=12, x=4.";
 const imgs=preparedImage?[{data:preparedImage,mime:"image/jpeg"}]:[];
 const post=await api("student_submit",{code:board.code,name:c,class:"K09_TEST",token:crypto.randomUUID().replace(/-/g,"")+crypto.randomUUID().slice(0,8),column_id:col.id,text,images:imgs},token,ctrl.signal);
@@ -182,5 +187,5 @@ $("csv").onclick=()=>{if(!rows().length)return info("Chưa có dữ liệu.");ex
 $("json").onclick=()=>{if(!rows().length)return info("Chưa có dữ liệu.");download(JSON.stringify({format:"K09-E2E",runId:runId(),rows:rows()},null,2),runId()+".json","application/json");};
 $("file").onchange=async e=>{try{const x=JSON.parse(await e.target.files[0].text());if(x.format!=="K09-E2E"||x.runId!==runId())throw Error("Tệp không đúng phiên K09.");const m=new Map(local.map(r=>r.runId+"/"+r.round+"/"+r.code).map((k,i)=>[k,local[i]]));for(const r of x.rows){if(r.runId!==runId()||!/^KT(?:0[1-9]|1[0-9]|2[0-3])$/.test(r.code)||![1,2,3].includes(Number(r.round)))continue;m.set(r.runId+"/"+r.round+"/"+r.code,r);}local=[...m.values()];save();info("Đã nhập nhật ký từ thiết bị khác.");}catch(e){info(message(e));}};
 $("id").onchange=()=>{localStorage.setItem(runStore,$("id").value);refresh().catch(e=>info(message(e)));};
-update();info("Phiên bản FIX-429-R3 đã tải: 23 bài nộp gần đồng thời; Gemini xếp hàng 2 luồng, giãn 750ms, thử lại 429. Mọi thời gian chờ tính vào E2E.");login();
+update();info("Phiên bản FAST-R4 đã tải: Gemini 3 luồng, giãn 500ms, nội dung AI ngắn. Chờ/thử lại tính vào P95.");login();
 </script></body></html>
