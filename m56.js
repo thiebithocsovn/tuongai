@@ -53,8 +53,11 @@
   const asNumber=s=>String(s??'').trim()===''?NaN:Number(String(s).replace(',','.'));
   const fmt=n=>Number(n).toFixed(3);
   const percent=n=>(100*n).toFixed(1)+'%';
-  function open(p,selectedError=0){
-    if(typeof isGV!=='function'||!isGV()||S.guest) return toast('Chỉ giáo viên được sử dụng M5–M6.');
+  function open(p,selectedError=0,host){
+    const required=['isGV','isGuest','getBoard','canManage','isTeacherAnnouncement','openModal','toast'];
+    if(!host || required.some(name=>typeof host[name]!=='function')) throw new Error('M5–M6 chưa được kết nối với giao diện.');
+    const {isGV,isGuest,getBoard,canManage,isTeacherAnnouncement,openModal,toast}=host;
+    if(!isGV()||isGuest()) return toast('Chỉ giáo viên được sử dụng M5–M6.');
     const b=getBoard(p.boardId);
     if(!b || !canManage(b) || isTeacherAnnouncement(p))return toast('Bạn không có quyền phân tích bài này.');
     const errors=Array.isArray(p.ai?.loi_sai)?p.ai.loi_sai.filter(x=>x&&typeof x==='object'):[];
@@ -84,7 +87,7 @@
       <p class="meta">Chưa đồng bộ với cơ sở dữ liệu hoặc công bố cho học sinh. Khi sửa bảng và bấm Tính lại, các câu trả lời thử trên phiên làm việc này được đặt lại.</p></div>`;
     const m=openModal({title:'M5–M6 · Truy gốc lỗi – '+(p.studentName||'Bài nộp'),wide:true,body});
     const root=m.el;
-    root.querySelector('[data-m56-error]').onchange=e=>{const k=Number(e.target.value);m.close();open(p,k);};
+    root.querySelector('[data-m56-error]').onchange=e=>{const k=Number(e.target.value);m.close();open(p,k,host);};
     function readConfig(){
       const causes=[0,1,2].map(i=>({label:val(root,`[data-m56-cause="${i}"]`),prior:asNumber(val(root,`[data-m56-prior="${i}"]`))}));
       const questions=[0,1,2].map(i=>({text:val(root,`[data-m56-question="${i}"]`),likelihoods:[0,1,2].map(j=>asNumber(val(root,`[data-m56-rate="${i}-${j}"]`)))}));

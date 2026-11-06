@@ -2821,7 +2821,7 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="./answer-materials.js"></script>
 <script src="./file-preview.js"></script>
-<script src="./m56.js?v=m56-20261105a"></script>
+<script src="./m56.js?v=m56-20261106b"></script>
 <script>
 (() => {
 'use strict';
@@ -7541,9 +7541,13 @@ function aiComment(ai) {
   if (ai.bai_tap_goi_y?.length) out.push('Bài tập thêm: ' + ai.bai_tap_goi_y.join(' '));
   return out.join('\n');
 }
+function openM56(p) {
+  if (!window.TuongAiM56) return toast('Chưa tải được chức năng kiểm chứng nguyên nhân. Hãy tải lại trang.');
+  return window.TuongAiM56.open(p, 0, { isGV, isGuest: () => Boolean(S.guest), getBoard, canManage, isTeacherAnnouncement, openModal, toast });
+}
 async function detailAct(a, src) {
   const id = detail.id; const p = getPost(id); const b = getBoard(p.boardId);
-  if (a === 'm56-open') { if(isGV()&&canManage(b))window.TuongAiM56?.open(p); return; }
+  if (a === 'm56-open') { if(isGV()&&canManage(b))openM56(p); return; }
   if (a.startsWith('sim-teacher-')) return teacherSimilarAction(a,src);
   if (a === 'close') return detail.m.close();
   if (a === 'copy-student-result') {
@@ -8739,7 +8743,7 @@ document.addEventListener('click', async (e) => {
     case 'post-menu': { const p = getPost(id); if (p) postMenu(t, p); break; }
     case 'p-pin': { $('.pmenu')?.remove(); const p = getPost(id); if (p) { const on = !tmeta(p).pinned; await patchTeacher(p, { pinned: on }); toast(on ? 'Đã ghim bài lên đầu.' : 'Đã bỏ ghim bài.'); } break; }
     case 'p-color': { $('.pmenu')?.remove(); const p = getPost(id); if (p) await patchTeacher(p, { color: t.dataset.c === '#ffffff' ? '' : t.dataset.c }); break; }
-    case 'p-m56': { $('.pmenu')?.remove(); const p = getPost(id); if (p && isGV())window.TuongAiM56?.open(p); break; }
+    case 'p-m56': { $('.pmenu')?.remove(); const p = getPost(id); if (p && isGV())openM56(p); break; }
     case 'p-move': { $('.pmenu')?.remove(); const p = getPost(id); if (p) movePostForm(p); break; }
     case 'p-del': { $('.pmenu')?.remove(); const p = getPost(id); if (p && await confirmBox('Xóa bài này?', 'Bài của <b>' + esc(p.studentName) + '</b> và kết quả chấm sẽ bị xóa vĩnh viễn.', 'Xóa bài', true)) { await removePost(p); toast('Đã xóa bài.'); } break; }
     case 'p-like': { const p = getPost(id); if (p) { const likes = tmeta(p).likes || []; await patchTeacher(p, { likes: likes.includes(S.meId) ? likes.filter((x) => x !== S.meId) : [...likes, S.meId] }); } break; }
