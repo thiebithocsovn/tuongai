@@ -3637,13 +3637,27 @@ const rememberUrls = (urls) => Object.entries(urls || {}).forEach(([p, u]) => {
 });
 
 /* ================= tải dữ liệu và cập nhật trực tiếp ================= */
+// PostgREST caps each response even when a larger limit is requested.
+async function fetchAllRows(makeQuery) {
+  const pageSize = 500, rows = [];
+  for (let from = 0; ; from += pageSize) {
+    const result = await makeQuery().range(from, from + pageSize - 1);
+    if (result.error) return { ...result, data: null };
+    const page = result.data || [];
+    rows.push(...page);
+    if (page.length < pageSize) return { ...result, data: rows };
+  }
+}
 async function loadData() {
   const sb = CAP.sb;
   const [b, p, m] = await Promise.all([
-    sb.from('boards').select('*').order('updated_at', { ascending: false }).limit(3000),
-    sb.from('posts').select('*').order('created_at', { ascending: false }).limit(5000),
-    sb.from('profiles').select('id,email,full_name,school,subject,role,status,created_at'),
+    fetchAllRows(() => sb.from('boards').select('*').order('updated_at', { ascending: false }).order('id', { ascending: false })),
+    fetchAllRows(() => sb.from('posts').select('*').order('created_at', { ascending: false }).order('id', { ascending: false })),
+    fetchAllRows(() => sb.from('profiles').select('id,email,full_name,school,subject,role,status,created_at').order('id', { ascending: false })),
   ]);
+  // Keep the current view intact if any page could not be read.
+  const failed = [b, p, m].find((result) => result.error);
+  if (failed) throw failed.error;
   S.boards = new Map((b.data || []).map((r) => [r.id, rowToBoard(r)]));
   S.posts = new Map((p.data || []).map((r) => [r.id, rowToPost(r)]));
   S.members = new Map((m.data || []).map((r) => [r.id, r]));
