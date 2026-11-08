@@ -1,22 +1,31 @@
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>K09 – Đo E2E Tường AI</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <style>body{font:15px Arial,sans-serif;background:#f3f6fb;color:#13253c;max-width:1000px;padding:18px;margin:auto}section{background:white;border:1px solid #dce4ef;border-radius:12px;padding:16px;margin:13px 0}h1{font-size:25px}h2{font-size:19px}label{display:block;margin:9px 0}input,select{display:block;padding:10px;width:100%;max-width:500px;border:1px solid #aab9c9;border-radius:7px;box-sizing:border-box}button{padding:10px 14px;background:#1758a5;border:0;border-radius:8px;color:white;font-weight:bold;margin:6px 6px 6px 0}button:disabled{opacity:.5}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #ddd;padding:7px;text-align:left}.scroller{overflow:auto}.warn{background:#fff5e2}#log{white-space:pre-wrap;max-height:250px;overflow:auto;font-size:12px}.soft{background:#536f91}</style></head><body>
-<h1>MC04–K09 • Đo thời gian đầu cuối</h1><p id="build" style="color:#1758a5;font-weight:bold">Phiên bản 04/11/2026 • FAST-R4B • Tối ưu: 3 luồng AI, phản hồi ngắn, giảm thời gian hàng đợi và đo E2E thực.</p>
+<h1>MC04–K09 • Đo thời gian đầu cuối</h1><p id="build" style="color:#1758a5;font-weight:bold">FAST-R4BB-MOBILE1 • Tự nhận thiết bị Android • Đo E2E với 3 luồng AI</p>
 <p>Chỉ kiểm thử với dữ liệu toán giả lập, không làm thay học sinh. Một đợt gửi gần đồng thời 23 bài KT01–KT23 vào cột TEST của MC07-4, gọi Gemini qua Firebase AI Logic và đo đến khi lưu AI thành công.</p>
 <section class="warn"><strong>Lưu ý:</strong> K09 cũ nộp ngày 03/11, chấm ngày 04/11 không phải E2E. Chỉ kết luận Đạt khi 3 đợt mới đủ 23 kết quả/đợt, mỗi đợt ≥22 thành công, P95 ≤30 giây và có tối thiểu hai loại thiết bị thực tế. <strong>Bảo vệ hạn mức:</strong> 23 bài vẫn được nộp gần đồng thời; Gemini được xếp hàng tối đa 3 luồng, giãn tối thiểu 500 ms và thử lại tối đa 2 lần khi gặp 429. Tất cả thời gian chờ và thử lại được tính vào E2E. Nếu quota thực tế thấp hơn nhu cầu, chỉ nâng hạn mức Google mới giải quyết tận gốc.</section>
-<section><h2>1. Xác thực và thiết bị</h2><p id="auth">Đang kiểm tra tài khoản Admin…</p>
+<section><h2>1. Xác thực và thiết bị</h2><p id="auth" role="status">Đang kiểm tra tài khoản Admin…</p>
+<p id="signin" hidden><a href="./">Mở Tường AI để đăng nhập Admin</a>. Sau khi đăng nhập, quay lại trang đo trong cùng tab.</p>
+<button id="retryAuth" class="soft" type="button" disabled>Kiểm tra lại quyền chạy</button>
 <label>Mã phiên (dùng chung trên điện thoại và máy tính)<input id="id" autocomplete="off"></label>
-<label>Thiết bị đang chạy thực tế<select id="dev"><option value="">-- Chọn thiết bị --</option><option value="HONOR X9c – MagicOS 10">HONOR X9c – MagicOS 10</option><option value="Máy tính">Máy tính Windows / macOS</option></select></label>
+<label>Thiết bị đang chạy thực tế
+<select id="dev" aria-describedby="deviceInfo">
+  <option value="">-- Chọn thiết bị --</option>
+  <option value="HONOR X9c">HONOR X9c</option>
+  <option value="Điện thoại Android">Điện thoại Android</option>
+  <option value="Máy tính">Máy tính</option>
+</select></label>
+<p id="deviceInfo" role="status">Đang nhận diện thiết bị…</p>
 <label>Đợt<select id="round"><option value="1">Đợt 1 – 23 yêu cầu</option><option value="2">Đợt 2 – 23 yêu cầu</option><option value="3">Đợt 3 – 23 yêu cầu</option></select></label>
 <label>Đầu vào<select id="format"><option value="text">Văn bản toán giả lập</option><option value="image">Ảnh toán giả lập (tự tạo, không có thông tin học sinh)</option></select></label>
 <label>Mô hình Gemini (phải giữ nguyên cho cả 3 đợt của một phiên)
 <select id="model"><option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (mô hình gốc)</option><option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (thử hạn mức mô hình khác)</option></select>
 </label>
 <label style="display:flex;align-items:center;gap:8px"><input id="fallback" type="checkbox" checked style="width:auto;margin:0"><strong>Thử mô hình Gemini dự phòng nếu lỗi HTTP 429</strong></label><p style="font-size:13px;color:#516078">Kết quả mỗi bài lưu rõ mô hình AI thực tế và số lần đổi mô hình. Đây là phép thử tính năng dự phòng: tạo mã phiên mới, không gộp với phiên chỉ dùng một mô hình.</p>
-<button class="soft" id="copy">Sao chép mã phiên</button><button class="soft" id="latest" type="button">Tải bản mới nhất</button><button class="soft" id="fresh">Tạo mã phiên chạy lại</button><button class="soft" id="ping">Thử Gemini</button><p style="font-size:13px;color:#516078">Khi tạo mã phiên mới, nhật ký đợt cũ vẫn được giữ. Chọn đúng thiết bị thực tế và chạy ba đợt lần lượt.</p>
+<button class="soft" id="copy">Sao chép mã phiên</button><button class="soft" id="latest" type="button">Tải bản mới nhất</button><button class="soft" id="fresh">Tạo mã phiên chạy lại</button><button class="soft" id="ping" disabled>Thử Gemini</button><p style="font-size:13px;color:#516078">Khi tạo mã phiên mới, nhật ký đợt cũ vẫn được giữ. Chọn đúng thiết bị thực tế và chạy ba đợt lần lượt.</p>
 </section>
 <section><h2>2. Thực hiện phép đo</h2><p>Đề nghị đợt 1 trên HONOR X9c, đợt 2 trên máy tính, đợt 3 trên HONOR X9c. Mỗi đợt chạy riêng trên đúng thiết bị đã chọn. Khi đổi thiết bị, mở trang này và nhập cùng mã phiên.</p>
-<button id="start" disabled>▶ Chạy 23 yêu cầu và đo E2E</button><button id="read" class="soft">Kiểm tra kết quả</button><p id="status">Chưa chạy.</p><div class="scroller"><table><thead><tr><th>Đợt</th><th>Số bản ghi</th><th>AI + lưu OK</th><th>P95 E2E</th><th>Kết luận</th></tr></thead><tbody id="stats"></tbody></table></div><p id="overall"></p></section>
+<button id="start" disabled>▶ Chạy 23 yêu cầu và đo E2E</button><button id="read" class="soft" disabled>Kiểm tra kết quả</button><p id="status" role="status">Đang kiểm tra điều kiện chạy.</p><div class="scroller"><table><thead><tr><th>Đợt</th><th>Số bản ghi</th><th>AI + lưu OK</th><th>P95 E2E</th><th>Kết luận</th></tr></thead><tbody id="stats"></tbody></table></div><p id="overall"></p></section>
 <section><h2>3. Xuất nhật ký</h2><button id="csv" class="soft">Xuất CSV Excel</button><button id="json" class="soft">Xuất JSON</button>
 <label>Nhập kết quả JSON từ thiết bị khác<input id="file" type="file" accept=".json"></label><div class="scroller"><table><thead><tr><th>Đợt</th><th>KT</th><th>Thiết bị</th><th>E2E</th><th>Trạng thái</th></tr></thead><tbody id="detail"></tbody></table></div></section>
 <section class="warn"><strong>Hướng dẫn khi gặp lỗi 429:</strong> Google đã vượt hạn mức yêu cầu/token hoặc mô hình đang quá tải. Trình duyệt không thể tự nâng quota. Kiểm tra <a href="https://firebase.google.com/docs/ai-logic/quotas" target="_blank" rel="noopener">hạn mức Firebase AI Logic</a> và <a href="https://ai.google.dev/gemini-api/docs/rate-limits" target="_blank" rel="noopener">hạn mức Gemini Developer API</a>. Dự án: <code>gen-lang-client-0870957273</code>. Nếu thay mô hình, dùng <em>mã phiên mới</em> và ghi rõ tên mô hình trong hồ sơ.</section>
@@ -25,15 +34,88 @@
 import * as f from "./firebase-ai.js";
 const $=id=>document.getElementById(id);const URL_DB="https://vnxffqpszykkjueawtfr.supabase.co";
 const storeName="tuongai.k09.e2e.rows",runStore="tuongai.k09.e2e.id";
-const runFromUrl=new URLSearchParams(location.search).get("run");const acceptedRun=runFromUrl&&/^K09-[A-Z0-9-]{6,45}$/i.test(runFromUrl)?runFromUrl.toUpperCase():"";
+const params=new URLSearchParams(location.search);
+const runFromUrl=params.get("run");const acceptedRun=runFromUrl&&/^K09-[A-Z0-9-]{6,45}$/i.test(runFromUrl)?runFromUrl.toUpperCase():"";
 $("id").value=acceptedRun||localStorage.getItem(runStore)||("K09-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+Math.random().toString(36).slice(2,7).toUpperCase());
 if(acceptedRun)localStorage.setItem(runStore,acceptedRun);
-const config=await (async()=>{const src=await(await fetch("./index.html",{cache:"no-store"})).text();
-const a=src.match(/const SB_KEY = '([^']+)'/),b=src.match(/const GAI_CONFIG = \{[\s\S]{0,200}apiKey: '([^']+)'/);
-if(!a||!b)throw Error("Chưa đọc được cấu hình công khai Tường AI.");return{anon:a[1],firebaseKey:b[1]};})();
+
+const K09_VERSION="K09-E2E-20261104-FAST-R4BB-MOBILE1";
+const userAgent=navigator.userAgent;
+const hints=navigator.userAgentData;
+const browserPlatform=hints?.platform||navigator.platform||"";
+const honorX9c=/\b(?:BRP-NX1|HONOR X9c)\b/i;
+let browserModel=userAgent.match(honorX9c)?.[0]||"";
+const isAndroid=/Android/i.test(browserPlatform)||/Android/i.test(userAgent)||Boolean(browserModel);
+const androidLink=params.get("device")==="android";
+let deviceEdited=false,ready=false,checking=false,active=false;
+
+function selectedDevice(){
+  const device = $("dev").value;
+  const phone = device === "HONOR X9c" || device === "Điện thoại Android";
+  const matchesBrowser = isAndroid ? phone : !androidLink && device === "Máy tính";
+  if (!matchesBrowser) return null;
+  const automaticSource = device === "HONOR X9c" ? "browser-model" : "browser-platform";
+  return {
+    device,
+    type: isAndroid ? "phone" : "computer",
+    browserPlatform,
+    browserModel,
+    deviceSource: deviceEdited ? "user-selection" : automaticSource
+  };
+}
+
+function updateControls(){
+  $("start").disabled=active||!ready||!selectedDevice();
+  $("ping").disabled=active||!ready;
+  $("read").disabled=active||!ready;
+  $("retryAuth").disabled=active||checking;
+}
+
+function updateDeviceInfo(){
+  if(!isAndroid&&androidLink){
+    $("deviceInfo").textContent="Trình duyệt đang báo cấu hình máy tính. Mở link bằng Chrome trên điện thoại, tắt “Trang web cho máy tính” rồi tải lại.";
+  }else if(!selectedDevice()){
+    $("deviceInfo").textContent=isAndroid?"Đã nhận diện Android. Hãy chọn thiết bị điện thoại.":"Trình duyệt báo máy tính. Hãy chọn Máy tính.";
+  }else if(isAndroid){
+    $("deviceInfo").textContent=honorX9c.test(browserModel)?"Đã nhận diện HONOR X9c.":
+      browserModel?"Đã nhận diện Android, mã mẫu máy "+browserModel+".":
+      "Đã nhận diện điện thoại Android. Nếu đúng mẫu máy, thầy có thể chọn HONOR X9c.";
+  }else{
+    $("deviceInfo").textContent="Đã nhận diện trình duyệt máy tính.";
+  }
+  updateControls();
+}
+
+$("dev").value=isAndroid?(honorX9c.test(browserModel)?"HONOR X9c":"Điện thoại Android"):androidLink?"":"Máy tính";
+$("dev").onchange=()=>{deviceEdited=true;updateDeviceInfo();};
+updateDeviceInfo();
+$("retryAuth").disabled=true;
+if(isAndroid&&typeof hints?.getHighEntropyValues==="function"){
+  Promise.resolve().then(()=>hints.getHighEntropyValues(["model"])).then(({model})=>{
+    if(typeof model!=="string"||!model.trim())return;
+    browserModel=model.trim();
+    if(!active&&!deviceEdited&&honorX9c.test(browserModel))$("dev").value="HONOR X9c";
+    updateDeviceInfo();
+  }).catch(()=>{});
+}
+
+const config=await (async()=>{
+  const response=await fetch("./index.html",{cache:"no-store"});
+  if(!response.ok)throw Error("Trang Tường AI trả về HTTP "+response.status+".");
+  const src=await response.text();
+  const a=src.match(/const SB_KEY = '([^']+)'/),b=src.match(/const GAI_CONFIG = \{[\s\S]{0,200}apiKey: '([^']+)'/);
+  if(!a||!b)throw Error("Chưa đọc được cấu hình công khai Tường AI.");
+  if(!window.supabase)throw Error("Chưa tải được thư viện đăng nhập.");
+  return {anon:a[1],firebaseKey:b[1]};
+})().catch(e=>{
+  $("auth").textContent="Chưa kết nối được Tường AI. "+String(e?.message||e);
+  $("status").textContent="Kiểm tra kết nối mạng rồi tải lại trang đo.";
+  $("retryAuth").disabled=true;
+  throw e;
+});
 const authStore={getItem:k=>(localStorage.getItem("tuongai.remember")==="0"?sessionStorage:localStorage).getItem(k),setItem:(k,v)=>(localStorage.getItem("tuongai.remember")==="0"?sessionStorage:localStorage).setItem(k,v),removeItem:k=>{sessionStorage.removeItem(k);localStorage.removeItem(k);}};
 const sb=window.supabase.createClient(URL_DB,config.anon,{auth:{storage:authStore,autoRefreshToken:true,persistSession:true,detectSessionInUrl:false}});
-let board,siteKey,appId,ai,model="gemini-3.5-flash-lite",active=false,cloud=[];
+let board,siteKey,appId,ai,model="gemini-3.5-flash-lite",cloud=[];
 let local=[];try{local=JSON.parse(localStorage.getItem(storeName)||"[]");if(!Array.isArray(local))local=[];}catch(e){}
 function info(s){$("log").textContent=new Date().toLocaleTimeString("vi-VN")+" "+s+"\n"+$("log").textContent;}
 function message(e){return String(e?.message||e||"Lỗi không rõ").slice(0,250);}function safe(x){return String(x??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
@@ -46,19 +128,63 @@ $("detail").innerHTML=all.slice(0,110).map(x=>"<tr><td>"+x.round+"</td><td>"+x.c
 }
 function save(){localStorage.setItem(storeName,JSON.stringify(local));update();}
 function download(body,name,mime){const a=document.createElement("a"),url=URL.createObjectURL(new Blob([body],{type:mime}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
-function exportCSV(a){const cols=["runId","round","code","device","type","format","startAt","submitAt","aiAt","savedAt","submitMs","aiMs","e2eMs","success","error","errorType","requestedModel","model","fallbackEnabled","fallbackUsed","modelAttempts","postId","aiAttempts","aiRetry429","aiQueueMs","aiConcurrentMax","aiStartGapMs","userAgent","version"];const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';download("\uFEFF"+cols.join(",")+"\r\n"+a.map(r=>cols.map(k=>q(r[k])).join(",")).join("\r\n"),runId()+".csv","text/csv;charset=utf-8");}
+function exportCSV(a){const cols=["runId","round","code","device","type","format","startAt","submitAt","aiAt","savedAt","submitMs","aiMs","e2eMs","success","error","errorType","requestedModel","model","fallbackEnabled","fallbackUsed","modelAttempts","postId","aiAttempts","aiRetry429","aiQueueMs","aiConcurrentMax","aiStartGapMs","userAgent","version","browserPlatform","browserModel","deviceSource"];const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';download("\uFEFF"+cols.join(",")+"\r\n"+a.map(r=>cols.map(k=>q(r[k])).join(",")).join("\r\n"),runId()+".csv","text/csv;charset=utf-8");}
 async function api(action,payload={},token="",signal){const r=await fetch(URL_DB+"/functions/v1/tuongai",{method:"POST",signal,headers:{"Content-Type":"application/json",apikey:config.anon,...(token?{authorization:"Bearer "+token}:{})},body:JSON.stringify({action,...payload})});const json=await r.json();if(!r.ok||json.error)throw Error(json.error?.message||"HTTP "+r.status);return json;}
 async function refresh(){const r=await sb.from("posts").select("teacher").eq("board_id",board.id).eq("student_class","K09_TEST").limit(1000);if(r.error)throw r.error;cloud=(r.data||[]).map(x=>x.teacher?.k09E2E).filter(Boolean);update();}
 function k09TestColumn(b){
   // Chấp nhận dấu chấm/khoảng trắng cuối tên cột; không chọn nhầm cột P1/P2 của học sinh.
   return (b?.columns||[]).find(x=>String(x?.name||"").normalize("NFC").trim().replace(/[.!?。．\s]+$/g,"").toLocaleUpperCase("vi-VN")==="BÀI TẬP TEST CỦA GIÁO VIÊN");
 }
-async function login(){try{const u=await sb.auth.getUser();if(!u.data?.user)throw Error("Chưa đăng nhập: mở trang Tường AI đăng nhập Admin rồi quay lại.");
-const p=await sb.from("profiles").select("role").eq("id",u.data.user.id).single();if(p.data?.role!=="admin")throw Error("Chức năng thử tải chỉ dành cho quản trị hệ thống.");
-const b=await sb.from("boards").select("id,code,name,columns,auto_grade").eq("name","MC07-4").eq("trashed",false).limit(1);board=b.data?.[0];if(!board)throw Error("Không tìm thấy bảng MC07-4.");if(!k09TestColumn(board))throw Error("MC07-4 chưa có cột TEST. Hãy tạo cột \"BÀI TẬP TEST CỦA GIÁO VIÊN\" và tải lại trang; không dùng cột P1/P2 của học sinh.");
-const status=await api("ai_status",{},(await sb.auth.getSession()).data?.session?.access_token||"");siteKey=status.appcheck_key;appId=status.appcheck_app_id;if(!siteKey||!appId)throw Error("App Check hoặc Firebase Web App ID chưa cấu hình.");
-$("auth").textContent="Đã xác thực Admin và bảng MC07-4. Cột kiểm thử: "+k09TestColumn(board).name+" (mã "+k09TestColumn(board).id+"). Firebase App Check đã cấu hình.";$("start").disabled=false;await refresh();info("K09 sẵn sàng để chạy.");
-}catch(e){$("auth").textContent="CHƯA SẴN SÀNG: "+message(e);info(message(e));}}
+async function login(){
+  if(active||checking)return;
+  checking=true;ready=false;board=null;
+  updateControls();
+  $("signin").hidden=true;
+  $("auth").textContent="Đang kiểm tra đăng nhập Admin…";
+  try{
+    const u=await sb.auth.getUser();
+    if(!u.data?.user){
+      $("signin").hidden=false;
+      if(u.error&&u.error.name!=="AuthSessionMissingError")throw Error("Không xác minh được phiên đăng nhập. "+message(u.error));
+      throw Error("Chưa đăng nhập Admin trên trình duyệt này.");
+    }
+    const p=await sb.from("profiles").select("role").eq("id",u.data.user.id).single();
+    if(p.error)throw Error("Không kiểm tra được quyền tài khoản. "+message(p.error));
+    if(p.data?.role!=="admin"){
+      $("signin").hidden=false;
+      throw Error("Tài khoản hiện tại chưa có quyền Admin để chạy K09.");
+    }
+    $("auth").textContent="Đã xác thực Admin. Đang kiểm tra bảng MC07-4 và cột TEST…";
+    const b=await sb.from("boards").select("id,code,name,columns,auto_grade").eq("name","MC07-4").eq("trashed",false).limit(1);
+    if(b.error)throw Error("Không đọc được bảng MC07-4. "+message(b.error));
+    board=b.data?.[0];
+    if(!board)throw Error("Không tìm thấy bảng MC07-4.");
+    const col=k09TestColumn(board);
+    if(!col)throw Error("Bảng MC07-4 thiếu cột “BÀI TẬP TEST CỦA GIÁO VIÊN”.");
+    $("auth").textContent="Đã tìm thấy cột TEST. Đang kiểm tra cấu hình Firebase App Check…";
+    const token=(await sb.auth.getSession()).data?.session?.access_token;
+    if(!token){
+      $("signin").hidden=false;
+      throw Error("Phiên Admin đã hết hạn. Hãy đăng nhập lại.");
+    }
+    const status=await api("ai_status",{},token).catch(e=>{throw Error("Không kiểm tra được cấu hình AI. "+message(e));});
+    siteKey=status.appcheck_key;appId=status.appcheck_app_id;
+    if(!siteKey||!appId)throw Error("App Check hoặc Firebase Web App ID chưa cấu hình.");
+    await refresh();
+    ready=true;
+    $("auth").textContent="Đã xác thực Admin và cột TEST của MC07-4. K09 sẵn sàng.";
+    $("status").textContent="Chọn đợt cần đo rồi bấm Chạy 23 yêu cầu.";
+    info("K09 sẵn sàng để chạy.");
+  }catch(e){
+    const reason=message(e);
+    $("auth").textContent=reason;
+    $("status").textContent="Nút chạy đang khóa. "+reason;
+    info(reason);
+  }finally{
+    checking=false;
+    updateControls();
+  }
+}
 let k09AppCheck=null,k09GeminiLoading=null;
 async function gemini(){
   if(ai)return ai;
@@ -145,7 +271,7 @@ async function k09GradeWithLimits(code,n,img,metrics,requestedModel,allowFallbac
  throw Error("Gemini không trả kết quả sau số lần thử đã giới hạn.");
 }
 function picture(code,n){const c=document.createElement("canvas");c.width=650;c.height=280;const x=c.getContext("2d");x.fillStyle="white";x.fillRect(0,0,650,280);x.fillStyle="#1b2e4a";x.font="27px Arial";x.fillText("BÀI TOÁN KIỂM THỬ "+code,20,50);x.fillText("3x + "+n+" = "+(n+12),20,110);x.fillText("3x = 12; x = 4.",20,165);x.font="18px Arial";x.fillText("GIẢ LẬP K09 - KHÔNG PHẢI BÀI HỌC SINH",20,235);return c.toDataURL("image/jpeg",.7).split(",")[1];}
-async function caseRun(c,n,rid,round,device,type,format,token,col,preparedImage,requestedModel,allowFallback){const t=performance.now();const v={runId:rid,round,code:c,device,type,format,startAt:new Date().toISOString(),submitAt:"",aiAt:"",savedAt:"",submitMs:null,aiMs:null,e2eMs:null,success:false,error:"",model:requestedModel,requestedModel,fallbackEnabled:allowFallback,fallbackUsed:false,modelAttempts:[],postId:"",aiAttempts:0,aiRetry429:0,aiQueueMs:0,aiConcurrentMax:K09_AI_MAX_PARALLEL,aiStartGapMs:K09_AI_MIN_GAP_MS,userAgent:navigator.userAgent,version:"K09-E2E-20261104-FAST-R4BB"};const ctrl=new AbortController(),deadline=setTimeout(()=>ctrl.abort(),120000);try{
+async function caseRun(c,n,rid,round,device,format,token,col,preparedImage,requestedModel,allowFallback){const t=performance.now();const v={runId:rid,round,code:c,...device,format,startAt:new Date().toISOString(),submitAt:"",aiAt:"",savedAt:"",submitMs:null,aiMs:null,e2eMs:null,success:false,error:"",model:requestedModel,requestedModel,fallbackEnabled:allowFallback,fallbackUsed:false,modelAttempts:[],postId:"",aiAttempts:0,aiRetry429:0,aiQueueMs:0,aiConcurrentMax:K09_AI_MAX_PARALLEL,aiStartGapMs:K09_AI_MIN_GAP_MS,userAgent,version:K09_VERSION};const ctrl=new AbortController(),deadline=setTimeout(()=>ctrl.abort(),120000);try{
 const text="KIỂM THỬ K09 E2E - ĐỢT "+round+" - MÃ "+c+" - "+rid+". DỮ LIỆU GIẢ LẬP. Bài toán 3x + "+n+" = "+(n+12)+". Lời giải: 3x=12, x=4.";
 const imgs=preparedImage?[{data:preparedImage,mime:"image/jpeg"}]:[];
 const post=await api("student_submit",{code:board.code,name:c,class:"K09_TEST",token:crypto.randomUUID().replace(/-/g,"")+crypto.randomUUID().slice(0,8),column_id:col.id,text,images:imgs},token,ctrl.signal);
@@ -172,19 +298,34 @@ try{await sb.from("posts").update({teacher:{k09E2E:v}}).eq("id",v.postId).eq("bo
 v.errorType=/(?:\b429\b|quota|resource exhausted)/i.test(v.error)?"GEMINI_QUOTA_429":"ERROR";
 if(v.postId)try{await sb.from("posts").update({teacher:{k09E2E:v}}).eq("id",v.postId).eq("board_id",board.id);}catch(_){}}
 finally{clearTimeout(deadline);local.push(v);save();$("status").textContent="Đợt "+round+": đã ghi "+local.filter(x=>x.runId===rid&&x.round===round).length+"/23 (bao gồm lỗi).";}return v;}
-$("start").onclick=async()=>{if(active)return;try{const rid=runId(),round=Number($("round").value),device=$("dev").value,type=/Android/i.test(navigator.userAgent)?"phone":"computer",format=$("format").value;if(!device)throw Error("Chọn thiết bị thực tế.");if(device.startsWith("HONOR")&&type!=="phone")throw Error("Không thể ghi HONOR khi đang dùng máy tính.");if(device==="Máy tính"&&type!=="computer")throw Error("Đang dùng Android, không được ghi máy tính.");
+$("start").onclick=async()=>{
+if(active||!ready)return;
+const device=selectedDevice();
+if(!device)return updateDeviceInfo();
+active=true;updateControls();
+try{const rid=runId(),round=Number($("round").value),format=$("format").value;
 await refresh();if(rows().some(x=>x.round===round))throw Error("Đợt này đã có dữ liệu cùng mã phiên. Không tạo trùng.");const chosenModel=$("model").value;
 const allowFallback=$("fallback").checked;
 if(rows().some(x=>((x.requestedModel||x.model)&&((x.requestedModel||x.model)!==chosenModel||Boolean(x.fallbackEnabled)!==allowFallback))))throw Error("Mã phiên đã dùng cấu hình mô hình khác. Tạo mã phiên mới để đổi mô hình hoặc chế độ dự phòng.");
+const token=(await sb.auth.getSession()).data?.session?.access_token;
+if(!token){
+  ready=false;
+  $("signin").hidden=false;
+  throw Error("Phiên Admin đã hết hạn. Hãy đăng nhập lại.");
+}
 if(!confirm("Chạy AI thực: mô hình "+chosenModel+(allowFallback?" + dự phòng 429":"")+", tối đa 3 luồng, mọi thời gian chờ tính P95; có thể tốn quota/chi phí. Đồng ý?"))return;
 model=chosenModel;
-active=true;$("start").disabled=true;$("model").disabled=true;$("fallback").disabled=true;await gemini();const token=(await sb.auth.getSession()).data?.session?.access_token||"";const col=k09TestColumn(board);if(!col)throw Error("Cột TEST đã bị đổi tên hoặc xóa. Tải lại trang để kiểm tra.");
+$("model").disabled=true;$("fallback").disabled=true;
+const col=k09TestColumn(board);if(!col)throw Error("Cột TEST đã bị đổi tên hoặc xóa. Tải lại trang để kiểm tra.");
+await gemini();
 localStorage.setItem(runStore,rid);
 const prepared=Array.from({length:23},(_,i)=>{const code="KT"+String(i+1).padStart(2,"0");return{code,n:i+1,img:format==="image"?picture(code,i+1):null};});
-const cases=prepared.map(x=>caseRun(x.code,x.n,rid,round,device,type,format,token,col,x.img,chosenModel,allowFallback));
+const cases=prepared.map(x=>caseRun(x.code,x.n,rid,round,device,format,token,col,x.img,chosenModel,allowFallback));
 const result=await Promise.all(cases),ok=result.filter(x=>x.success).length,v=p95(result.map(x=>x.e2eMs/1000));
-info("Đợt "+round+": AI lưu thành công "+ok+"/23, P95="+v+" giây.");await refresh();exportCSV(result);
-}catch(e){info("Không chạy: "+message(e));$("status").textContent=message(e);}finally{active=false;$("model").disabled=false;$("fallback").disabled=false;$("start").disabled=!board;}};
+info("Đợt "+round+": AI lưu thành công "+ok+"/23, P95="+v+" giây.");
+exportCSV(result);
+await refresh().catch(e=>info("Chưa đồng bộ bảng kết quả. "+message(e)));
+}catch(e){info("Không chạy: "+message(e));$("status").textContent=message(e);}finally{active=false;$("model").disabled=false;$("fallback").disabled=false;updateControls();}};
 $("read").onclick=()=>refresh().catch(e=>info(message(e)));
 $("ping").onclick=()=>{if(active)return info("Không thử mô hình khác trong lúc đo E2E.");model=$("model").value;grading("PREFLIGHT",1,null).then(()=>info("Gemini "+model+" kết nối OK (bài kiểm tra có dùng quota).")).catch(e=>info("Gemini "+model+" lỗi: "+message(e)+(k09RetryableAI(e)?" — Quota Google, kiểm tra Firebase / Google AI Studio.":"")));};
 $("copy").onclick=()=>navigator.clipboard.writeText($("id").value).then(()=>info("Đã sao chép mã phiên")).catch(()=>info("Hãy tự sao chép mã phiên."));
@@ -193,6 +334,8 @@ $("fresh").onclick=()=>{if(active){info("Đợt thử đang chạy, không thể
 $("csv").onclick=()=>{if(!rows().length)return info("Chưa có dữ liệu.");exportCSV(rows());};
 $("json").onclick=()=>{if(!rows().length)return info("Chưa có dữ liệu.");download(JSON.stringify({format:"K09-E2E",runId:runId(),rows:rows()},null,2),runId()+".json","application/json");};
 $("file").onchange=async e=>{try{const x=JSON.parse(await e.target.files[0].text());if(x.format!=="K09-E2E"||x.runId!==runId())throw Error("Tệp không đúng phiên K09.");const m=new Map(local.map(r=>r.runId+"/"+r.round+"/"+r.code).map((k,i)=>[k,local[i]]));for(const r of x.rows){if(r.runId!==runId()||!/^KT(?:0[1-9]|1[0-9]|2[0-3])$/.test(r.code)||![1,2,3].includes(Number(r.round)))continue;m.set(r.runId+"/"+r.round+"/"+r.code,r);}local=[...m.values()];save();info("Đã nhập nhật ký từ thiết bị khác.");}catch(e){info(message(e));}};
-$("id").onchange=()=>{localStorage.setItem(runStore,$("id").value);refresh().catch(e=>info(message(e)));};
-update();info("Phiên bản FAST-R4B đã tải: Gemini 3 luồng, giãn 500ms, nội dung AI ngắn. Chờ/thử lại tính vào P95.");login();
+$("id").onchange=()=>{localStorage.setItem(runStore,$("id").value);if(ready)refresh().catch(e=>info(message(e)));};
+$("retryAuth").onclick=login;
+window.addEventListener("pageshow",event=>{if(event.persisted)login();});
+update();info("Đã tải phiên bản "+K09_VERSION+". Gemini 3 luồng, giãn 500 ms. Thời gian chờ và thử lại được tính vào P95.");login();
 </script></body></html>
