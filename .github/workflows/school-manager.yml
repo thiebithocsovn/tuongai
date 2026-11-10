@@ -1,0 +1,38 @@
+name: SchoolManager tenant isolation tests
+on:
+  push:
+    branches: [main, 'feat/schoolmanager-*']
+    paths:
+      - 'supabase/functions/tuongai/index.ts'
+      - 'supabase/functions/tuongai/school-manager.ts'
+      - 'supabase/migrations/*school_manager*.sql'
+      - 'school-manager-ui.js'
+      - 'index.html'
+      - 'tests/school-manager.test.mjs'
+      - '.github/workflows/school-manager.yml'
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  school-manager:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Parse browser and server school module
+        run: |
+          node --check school-manager-ui.js
+          node --input-type=module -e "
+            import fs from 'node:fs'; import vm from 'node:vm';
+            const h=fs.readFileSync('index.html','utf8');
+            for(const m of h.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi))new vm.Script(m[1]);
+            const s=fs.readFileSync('supabase/functions/tuongai/school-manager.ts','utf8');
+            new vm.Script(s.replace(/^export /gm,''));
+          "
+      - name: Test school authorization, tenant boundaries and agent regressions
+        run: |
+          node --test tests/school-manager.test.mjs
+          node --test tests/agent-review.test.mjs tests/progress-tracker.test.mjs tests/class-report.test.mjs
