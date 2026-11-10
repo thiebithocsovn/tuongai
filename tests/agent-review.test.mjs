@@ -189,6 +189,49 @@ test('V2 teacher dashboard only reveals operational metadata', () => {
   assert.equal(item.audit.length, 1);
   assert.equal(JSON.stringify(item).includes('PRIVATE-'), false);
 });
+
+test('V2 dashboard renders an empty queue and opens each listed submission', async () => {
+  const refresh = {}, start = {}, message = {};
+  let buttons = [];
+  const out = {
+    set innerHTML(markup) {
+      buttons = [...markup.matchAll(/data-open-agent-post="([^"]+)"/g)].map(([, id]) => ({
+        dataset: { openAgentPost: id },
+      }));
+    },
+    querySelector: () => buttons[0] ?? null,
+    querySelectorAll: () => buttons,
+  };
+  const elements = { '#arv2-refresh': refresh, '#arv2-start': start, '#arv2-message': message, '#arv2-data': out };
+  const opened = [];
+  let items = [];
+  const selectors = html.match(/^const \$\$? = .*$/gm).join('\n');
+  const dashboard = html.slice(html.indexOf('function openAgentReviewDashboard()'), html.indexOf('async function schoolManagerFeatureAllowed'));
+  const open = vm.runInNewContext(selectors + '\n' + dashboard + '\nopenAgentReviewDashboard', {
+    isGV: () => true, S: {}, esc: String, aiMsg: (error) => error.message,
+    openModal: () => ({ el: { querySelector: (selector) => elements[selector] }, close() {} }),
+    api: async (action, { operation }) => {
+      assert.equal(action, 'agent_review_queue');
+      assert.equal(operation, 'overview');
+      return { items, counts: { pending: items.length }, aiReady: true };
+    },
+    getPost: (id) => items.find((item) => item.id === id),
+    openDetail: (id, edit) => opened.push([id, edit]),
+  });
+
+  open();
+  await new Promise(setImmediate);
+  assert.match(message.textContent, /^Chưa có bài AgentReview V2/);
+  assert.equal(start.disabled, true);
+
+  items = [{ id: 'p1', status: 'pending' }, { id: 'p2', status: 'pending' }];
+  await refresh.onclick();
+  assert.match(message.textContent, /2 bài V2 chờ phân tích/);
+  assert.equal(start.disabled, false);
+  for (const button of buttons) button.onclick();
+  assert.deepEqual(opened, [['p1', false], ['p2', false]]);
+});
+
 test('V2 opt-in boundary and teacher-scoped queue are present in backend', () => {
   assert.match(server, /board\.assignment\?\.agentReviewV2 === true/);
   assert.match(server, /\.eq\("owner", owner\)\.eq\("by", "hs"\)/);

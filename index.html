@@ -8950,7 +8950,7 @@ function openAgentReviewDashboard() {
         (rows ? '<div style="overflow-x:auto"><table><thead><tr><th>Học sinh / Bảng</th><th>Trạng thái</th><th>Duyệt / Luyện tập</th><th>Nhật ký</th><th></th></tr></thead><tbody>' +
           rows + '</tbody></table></div>' :
           '<p class="as-empty">Chưa có bài thuộc bảng đã bật AgentReview V2. Hãy bật trong Cài đặt bảng và nộp một bài thử.</p>');
-      $('[data-open-agent-post]', out).forEach((btn) => btn.onclick = () => {
+      $$('[data-open-agent-post]', out).forEach((btn) => btn.onclick = () => {
         const id = btn.dataset.openAgentPost;
         if (!getPost(id)) { toast('Bài chưa có trong bộ nhớ. Hãy tải lại trang rồi thử lại.'); return; }
         m.close(); openDetail(id, false);
