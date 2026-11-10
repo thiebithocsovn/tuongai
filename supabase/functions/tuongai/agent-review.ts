@@ -30,7 +30,7 @@ export function claimableReviewJob(post: any, board: any, retry: boolean, at = D
   if (job.status !== "pending" && !(retry && job.status === "failed") &&
       !(job.status === "running" && job.until <= at)) return null;
   if (job.kind === "analysis" && board.auto_grade && !a &&
-      (String(post.body || "").trim() || post.images?.length)) return "analysis";
+      (String(post.body || "").trim() || post.images?.length || post.attachments?.length)) return "analysis";
   if (job.kind === "practice" && post.teacher?.approvedAt && !a?.practice &&
       confirmedPracticeInputs(a).length) return "practice";
   return null;
