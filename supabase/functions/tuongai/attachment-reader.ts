@@ -45,7 +45,8 @@ function pickZipFiles(bytes: Uint8Array, extension: "docx" | "xlsx"): Record<str
           /^xl\/worksheets\/sheet[0-9]+\.xml$/.test(n);
       if (!wanted) return false;
       entries++;
-      if (file.originalSize > MAX_XML_FILE || ++budget > 64) {
+      budget += Number(file.originalSize || 0);
+      if (file.originalSize > MAX_XML_FILE || budget > MAX_TOTAL_XML || entries > 24) {
         throw new AttachmentReadError("attachment_complex", "Tệp Office có quá nhiều dữ liệu để AI đọc an toàn.");
       }
       return true;
