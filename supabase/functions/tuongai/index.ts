@@ -632,6 +632,30 @@ async function runServerReviewQueue(owner: string) {
     if (++completed >= 2) break; // Bound Edge Function CPU, cost, and concurrency.
   }
 }
+
+/** Periodic server-side recovery independent of browser sessions. */
+async function runGlobalReviewTick() {
+  if (!await config("gemini_key")) return { processed: 0, reason: "no_ai" };
+  const { data: due, error } = await db.rpc("agent_review_v2_due_posts", { p_limit: 12 });
+  if (error) throw new Fail("server", "Chưa đọc được hàng chờ V2.", 500);
+  let processed = 0;
+  for (const item of due || []) {
+    if (processed >= 2) break;
+    const { data: post } = await db.from("posts").select("*").eq("id", item.post_id).maybeSingle();
+    if (!post || post.by !== "hs") continue;
+    const { data: board } = await db.from("boards").select("*").eq("id", post.board_id).maybeSingle();
+    if (!v2EligibleBoard(board) || !await schoolFeatureEnabled(db, board.id, "agentReview")) continue;
+    const job = post.teacher?.assist?.agentReview;
+    if (!job) continue;
+    const retry = job.status === "failed";
+    if (!claimableReviewJob(post, board, retry)) continue;
+    if (job.kind === "analysis") await generateServerReviewAnalysis(post, board, retry);
+    else if (job.kind === "practice") await generateServerReviewPractice(post, board, retry);
+    processed++;
+  }
+  return { processed };
+}
+
 async function handleAgentReviewQueue(body: any, u: Profile) {
   if (u.role !== "teacher" && u.role !== "admin")
     throw new Fail("forbidden", "Chỉ giáo viên được sử dụng AgentReview.", 403);
@@ -766,6 +790,12 @@ function safeSimilarAttempt(row:any) {
 async function handle(req: Request) {
   const body = await req.json().catch(() => ({}));
   const action = String(body.action || "");
+  if (action === "agent_review_tick") {
+    const token = await config("agent_review_cron_token");
+    if (!token || token.length < 40 || req.headers.get("x-agent-review-tick") !== token)
+      throw new Fail("forbidden", "Không có quyền chạy lịch AgentReview.", 403);
+    return await runGlobalReviewTick();
+  }
   const me = await caller(req);
 
   switch (action) {
