@@ -126,6 +126,25 @@ test('AgentReview runs from student submission to private analysis, teacher appr
   assert.deepEqual(peer.practice, []);
 });
 
+test('V2 queues attachment-only submissions without approving a grade', () => {
+  const p = {
+    by: 'hs', body: '', images: [], attachments: [{ name: 'bai-lam.docx', path: 'private/file.docx' }],
+    teacher: { assist: { agentReview: agent.pendingReviewJob('analysis') } },
+  };
+  assert.equal(agent.claimableReviewJob(p, board, false), 'analysis');
+  assert.equal(p.teacher.approvedAt, undefined);
+});
+test('V2 schedules only an authenticated server worker and reads source documents', () => {
+  assert.match(server, /agent_review_cron_token/);
+  assert.match(server, /x-agent-review-tick/);
+  assert.match(server, /agent_review_v2_due_posts/);
+  assert.match(server, /processed >= 2/);
+  assert.match(server, /readOfficeText/);
+  assert.match(server, /application\/pdf/);
+  assert.match(server, /!v2EligibleBoard\(b\)/);
+});
+
+
 test('failed jobs require a retry and an older lease cannot publish a draft', async () => {
   const { submit, review } = setup();
   const id = (await submit()).body.post.id;
