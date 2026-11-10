@@ -110,6 +110,15 @@ async function schoolOverview(db,user,Fail) {
   const availableBoards=admin?await one(db.from('boards')
     .select('id,name,owner,subject,grade')
     .order('created_at',{ascending:false}).limit(500),Fail)||[]:[];
+  const metrics=managerIds.length?await one(db.rpc('school_manager_board_metrics',{
+    p_school_ids:managerIds,
+  }),Fail)||[]:[];
+  const metricById=new Map(metrics.map(m=>[m.board_id,m]));
+  for(const board of boards) {
+    const metric=metricById.get(board.boardId);
+    board.submissions=Number(metric?.submissions||0);
+    board.reviewed=Number(metric?.reviewed||0);
+  }
   const logs=managerIds.length?await one(db.from('school_manager_audit')
     .select('school_id,operation,recorded_at,actor_id')
     .in('school_id',managerIds).order('recorded_at',{ascending:false}).limit(40),Fail)||[]:[];
