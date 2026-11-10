@@ -2684,6 +2684,30 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 @media(max-width:410px){.student-own-grade-card{padding:12px}.student-own-grade-body{gap:10px}.student-own-grade-circle{width:59px;height:59px;font-size:23px}}
 
 </style>
+
+<style>
+/* SchoolManager: main admin entry stays reachable on Android without scrolling to the account menu. */
+.admin-main-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;max-width:100%}
+.admin-main-actions .btn{min-height:42px}
+.admin-school-entry{font-weight:700}
+.nav .admin-school-nav{font-weight:700;color:var(--blue);background:var(--active)}
+.nav .admin-school-nav:hover,.nav .admin-school-nav:focus-visible{background:var(--soft-h);outline-offset:2px}
+/* The shared .view>* width rule must not enlarge visually-hidden status messages on tablets. */
+.view > p.sr{width:1px;height:1px;margin:0}
+@media(max-width:1100px){
+  .hero.admin-hero{flex-wrap:wrap;align-items:stretch}
+  .hero.admin-hero .admin-main-actions{width:100%;justify-content:flex-start}
+}
+@media(max-width:760px){
+  .hero.admin-hero{flex-wrap:wrap;align-items:stretch}
+  .hero.admin-hero .admin-main-actions{width:100%;justify-content:flex-start}
+  .admin-main-actions .btn{max-width:100%;white-space:normal}
+  .nav .admin-school-nav{position:sticky;right:0;z-index:1;flex:none;border:1px solid var(--accent-line);box-shadow:-4px 0 10px var(--side)}
+}
+@media(max-width:420px){
+  .hero.admin-hero .admin-main-actions .btn{font-size:14px}
+}
+</style>
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
@@ -4526,7 +4550,7 @@ function renderSide() {
     <div class="side-head"><button class="brand" data-act="tab" data-tab="${gv ? 'mine' : 'classes'}" aria-label="Về trang chính">${OWL}<span><b class="brand-wordmark" aria-label="Tường học tập AI - Truy gốc lỗi"><span class="brand-primaryline"><span class="brand-core">Tường học tập</span><span class="brand-ai">AI</span></span><span class="brand-featureline"><span class="brand-spark" aria-hidden="true">✦</span>Truy gốc lỗi</span></b><small class="brand-en" lang="en">Learning Wall AI – Error Root Tracer</small></span></button></div>
     <button class="icon-btn m-only acct-m" data-act="me-menu-top" aria-label="Tài khoản" title="Tài khoản">${av}</button>
     ${gv ? `<button class="btn create" data-act="new-board">${ic('plus')}Tạo bảng mới</button>` : ''}
-    <nav class="nav" aria-label="Danh mục bảng">${navs.map(([k, i, t]) => `<button data-act="tab" data-tab="${k}">${ic(i)}<span>${t}</span><span class="n" data-count="${k}"></span></button>`).join('')}</nav>
+    <nav class="nav" aria-label="Danh mục bảng">${navs.map(([k, i, t]) => `<button data-act="tab" data-tab="${k}">${ic(i)}<span>${t}</span><span class="n" data-count="${k}"></span></button>`).join('')}${me.isAdmin ? `<button type="button" class="admin-school-nav" data-act="school-manager" aria-label="Quản lý trường SchoolManager">${ic('users')}<span>Quản lý trường</span></button>` : ''}</nav>
     <section class="traffic-panel" aria-label="Thống kê truy cập Tường học tập AI">
       <div class="traffic-head"><span class="traffic-title">HOẠT ĐỘNG HỆ THỐNG</span><span class="traffic-live off" data-traffic-live>● ĐANG KẾT NỐI</span></div>
       <div class="traffic-grid">
@@ -4768,9 +4792,9 @@ function renderHome() {
     v.innerHTML = `
       <div class="crumbs"><nav><span>Không gian làm việc</span><span>/</span><span class="cur">${gv ? (me.isAdmin ? 'Toàn hệ thống' : 'Của tôi') : 'Lớp học'}</span></nav><div class="crumbs-r"><span class="pill">${ic('lock', 'ic-sm')}Riêng tư</span>${acctChip()}</div></div>
       ${me.mustChange ? `<div class="warnline row-between"><span>Tài khoản đang dùng mật khẩu mặc định. Hãy đổi để bảo vệ quyền quản trị.</span><button class="btn btn-sm btn-navy" data-act="change-pw">${ic('key', 'ic-sm')}Đổi mật khẩu</button></div>` : ''}
-      <section class="hero">
+      <section class="hero${me.isAdmin ? ' admin-hero' : ''}">
         <div><p class="eyebrow">Mỗi ý tưởng đều có một chỗ</p><div class="hline"><h1>${esc(title)}</h1>${headingArt()}</div><p class="lede">${lede}</p></div>
-        ${gv ? `<button class="btn btn-navy" data-act="new-board">${ic('plus')}Tạo bảng</button>` : ''}
+        ${gv ? `<div class="admin-main-actions">${me.isAdmin ? `<button type="button" class="btn btn-soft admin-school-entry" data-act="school-manager">${ic('users')}Quản lý trường</button>` : ''}<button class="btn btn-navy" data-act="new-board">${ic('plus')}Tạo bảng</button></div>` : ''}
       </section>
       <div class="summary" id="summary"></div>
       ${S.view.owner ? `<div class="info-line row-between"><span>Đang xem bảng của một giáo viên. Bạn sửa và chấm được như chủ bảng.</span><button class="btn btn-sm btn-ghost" data-act="clear-owner">${ic('x', 'ic-sm')}Bỏ lọc</button></div>` : ''}
@@ -8562,9 +8586,9 @@ function renderMembers() {
   if (!$('#mb-list')) {
     v.innerHTML = `
       <div class="crumbs"><nav><span>Không gian làm việc</span><span>/</span><span class="cur">Thành viên</span></nav><div class="crumbs-r"><span class="pill">${ic('shield', 'ic-sm')}Chỉ Quản trị</span>${acctChip()}</div></div>
-      <section class="hero">
+      <section class="hero admin-hero">
         <div><p class="eyebrow">Quản trị hệ thống</p><h1>Thành viên</h1><p class="lede">Thêm, sửa, khóa hoặc xóa tài khoản giáo viên; duyệt người mới đăng ký và đặt lại mật khẩu. Mỗi giáo viên chỉ thấy dữ liệu của mình; Quản trị thấy tất cả.</p></div>
-        <div class="row-gap"><button class="btn btn-ghost" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button><button class="btn btn-brand" data-act="mb-create">${ic('plus')}Thêm thành viên</button></div>
+        <div class="row-gap admin-main-actions"><button type="button" class="btn btn-soft admin-school-entry" data-act="school-manager">${ic('users')}Quản lý trường</button><button class="btn btn-ghost" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button><button class="btn btn-brand" data-act="mb-create">${ic('plus')}Thêm thành viên</button></div>
       </section>
       <div class="summary" id="mb-sum"></div>
       <div class="toolbar">
@@ -8958,7 +8982,7 @@ document.addEventListener('click', async (e) => {
     case 'mb-sort': { const k = t.dataset.k; S.memberSort = !k ? { k: '', dir: 1 } : S.memberSort.k === k ? { k, dir: -S.memberSort.dir } : { k, dir: 1 }; drawMembers(); break; }
     case 'mb-bulk': memberBulk(t.dataset.v); break;
     case 'agent-queue': $('.pop')?.remove(); openAgentReviewDashboard(); break;
-    case 'school-manager': $('.pop')?.remove(); openSchoolManager(); break;
+    case 'school-manager': $('.pop')?.remove(); closeDrawer(); openSchoolManager(); break;
     case 'new-board': closeDrawer(); boardForm(null); break;
     case 'join': closeDrawer(); joinForm(); break;
     case 'open-board': if (b && !b.trashed) { S.view = { name: 'board', boardId: b.id, tab: S.view.tab, q: '' }; render(); window.scrollTo(0, 0); } break;
