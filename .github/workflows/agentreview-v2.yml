@@ -1,0 +1,33 @@
+name: AgentReview V2 tests
+on:
+  push:
+    branches: [main, 'feat/agentreview-v2-*']
+    paths:
+      - 'index.html'
+      - 'supabase/functions/tuongai/**'
+      - 'tests/agent-review.test.mjs'
+      - '.github/workflows/agentreview-v2.yml'
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify browser script syntax
+        run: |
+          node --input-type=module -e "
+            import fs from 'node:fs'; import vm from 'node:vm';
+            const html = fs.readFileSync('index.html','utf8');
+            const scripts = [...html.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi)]
+              .map(m=>m[1]).filter(x=>x.trim());
+            for (const s of scripts) new vm.Script(s);
+            console.log('Inline scripts checked:', scripts.length);
+          "
+      - name: Run AgentReview integration and V2 tests
+        run: node --test tests/agent-review.test.mjs

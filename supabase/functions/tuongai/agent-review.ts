@@ -90,3 +90,30 @@ export function cleanReviewPractice(raw: any, errors: { id: string }[]) {
     throw new AgentReviewError("incomplete_practice", "AI chưa tạo đủ bài có đề, gợi ý và đáp án cho các lỗi đã xác nhận.", 502);
   return { instructions: reviewText(raw?.instructions, 2000), exercises };
 }
+
+/** Bounded private operational events; never include student work or API keys. */
+export function reviewAudit(assist: any, event: string, kind: string, actor: string, code = "", at = Date.now()) {
+  const history = Array.isArray(assist?.agentAudit) ? assist.agentAudit : [];
+  return {
+    ...assist,
+    agentAudit: [...history.slice(-39), {
+      at, event: String(event).slice(0, 32), kind: String(kind).slice(0, 20),
+      actor: String(actor).slice(0, 72), code: String(code).slice(0, 64),
+    }],
+  };
+}
+export function reviewDashboardItem(post: any, boardName: string) {
+  const assist = post.teacher?.assist || {};
+  const job = assist.agentReview || {};
+  const audit = Array.isArray(assist.agentAudit) ? assist.agentAudit : [];
+  const errors = assist.a?.analysis?.errors || [];
+  return {
+    id: post.id, boardId: post.board_id, boardName, name: post.student_name,
+    createdAt: post.created_at, kind: job.kind || "", status: job.status || "",
+    attempts: Number(job.attempts || 0), lastCode: job.lastCode || "",
+    reviewStatus: assist.a?.review?.status || "",
+    practiceStatus: assist.a?.practice?.status || "",
+    confirmedErrors: errors.filter((e: any) => e.decision === "confirmed").length,
+    audit: audit.slice(-12),
+  };
+}

@@ -164,3 +164,34 @@ test('the teacher browser worker uses the claimed snapshot and the Firebase prov
   assert.equal(local.get(id).teacher.assist.a.review.status, 'draft');
   assert.equal(local.get(id).teacher.approvedAt, undefined);
 });
+
+test('V2 private audit remains bounded and never includes student work', () => {
+  let a = { agentReview: agent.pendingReviewJob('analysis') };
+  for (let i = 0; i < 55; i++) a = agent.reviewAudit(a, 'claimed', 'analysis', 'server', 'rate_limited', 1000 + i);
+  assert.equal(a.agentAudit.length, 40);
+  assert.equal(a.agentAudit[0].at, 1015);
+  assert.equal(a.agentAudit.at(-1).code, 'rate_limited');
+  assert.equal(JSON.stringify(a).includes('(a+b)'), false);
+});
+test('V2 teacher dashboard only reveals operational metadata', () => {
+  const post = { id: 'p', board_id: 'b', student_name: 'Học sinh thử', created_at: '2026-11-10',
+    body: 'PRIVATE-STUDENT-ANSWER', student_token: 'PRIVATE-TOKEN',
+    teacher: { assist: {
+      agentReview: { kind: 'analysis', status: 'ready', attempts: 1 },
+      agentAudit: [{ at: 1, event: 'completed', kind: 'analysis', actor: 'server', code: '' }],
+      a: { review: { status: 'draft' }, analysis: { errors: [{ decision: 'pending' }] } },
+    } } };
+  const item = agent.reviewDashboardItem(post, 'Bảng thử');
+  assert.equal(item.status, 'ready');
+  assert.equal(item.reviewStatus, 'draft');
+  assert.equal(item.audit.length, 1);
+  assert.equal(JSON.stringify(item).includes('PRIVATE-'), false);
+});
+test('V2 opt-in boundary and teacher-scoped queue are present in backend', () => {
+  assert.match(server, /board\.assignment\?\.agentReviewV2 === true/);
+  assert.match(server, /\.eq\("owner", owner\)\.eq\("by", "hs"\)/);
+  assert.match(server, /case "agent_review_queue": return await handleAgentReviewQueue\(body, needActive\(me\)\)/);
+  assert.match(server, /case "assign":/);
+  assert.match(html, /id="bf-agent-v2"/);
+  assert.match(html, /Trung tâm AgentReview V2/);
+});
