@@ -2692,6 +2692,8 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 .admin-school-entry{font-weight:700}
 .nav .admin-school-nav{font-weight:700;color:var(--blue);background:var(--active)}
 .nav .admin-school-nav:hover,.nav .admin-school-nav:focus-visible{background:var(--soft-h);outline-offset:2px}
+/* The shared .view>* width rule must not enlarge visually-hidden status messages on tablets. */
+.view > p.sr{width:1px;height:1px;margin:0}
 @media(max-width:1100px){
   .hero.admin-hero{flex-wrap:wrap;align-items:stretch}
   .hero.admin-hero .admin-main-actions{width:100%;justify-content:flex-start}
