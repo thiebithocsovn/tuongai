@@ -103,13 +103,20 @@ async function schoolOverview(db,user,Fail) {
     grade:boardsById.get(link.board_id)?.grade||'',
     ownerId:boardsById.get(link.board_id)?.owner||'',
   }));
+  const availableTeachers=admin?await one(db.from('profiles')
+    .select('id,email,full_name,school,status,role')
+    .eq('role','teacher').eq('status','active')
+    .order('full_name',{ascending:true}).limit(300),Fail)||[]:[];
+  const availableBoards=admin?await one(db.from('boards')
+    .select('id,name,owner,subject,grade')
+    .order('created_at',{ascending:false}).limit(500),Fail)||[]:[];
   const logs=managerIds.length?await one(db.from('school_manager_audit')
     .select('school_id,operation,recorded_at,actor_id')
     .in('school_id',managerIds).order('recorded_at',{ascending:false}).limit(40),Fail)||[]:[];
   return {platformAdmin:admin,
     schools:schools.map(s=>({id:s.id,code:s.code,name:s.name,status:s.status,
       policy:schoolPolicy(s.agent_policy),createdAt:s.created_at})),
-    members,boards,audit:logs};
+    members,boards,audit:logs,availableTeachers,availableBoards};
 }
 export async function handleSchoolManager(db,user,body,Fail) {
   if(!user||user.status!=='active'||!['admin','teacher'].includes(user.role))
@@ -163,18 +170,21 @@ export async function handleSchoolManager(db,user,body,Fail) {
     if(role==='manager' && user.role!=='admin')
       bad(Fail,'forbidden','Chỉ quản trị hệ thống bổ nhiệm quản trị trường.',403);
     const userId=getUuid(body.user_id);
-    if(!userId)bad(Fail,'invalid','Mã tài khoản giáo viên không hợp lệ.');
-    const profile=await one(db.from('profiles')
-      .select('id,role,status').eq('id',userId).maybeSingle(),Fail);
+    const email=asText(body.email,200).toLowerCase();
+    if(!userId && (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)))
+      bad(Fail,'invalid','Nhập email giáo viên đã có tài khoản hoặc chọn giáo viên.');
+    const profile=await one(userId?
+      db.from('profiles').select('id,role,status').eq('id',userId).maybeSingle():
+      db.from('profiles').select('id,role,status').eq('email',email).maybeSingle(),Fail);
     if(!profile||profile.role!=='teacher'||profile.status!=='active')
       bad(Fail,'invalid','Chỉ thêm tài khoản giáo viên đang hoạt động.',403);
     if(school.status!=='active')bad(Fail,'inactive','Trường đang tạm khóa.',409);
     const {error}=await db.from('school_manager_members').insert({
-      school_id:schoolId,user_id:userId,role,assigned_by:user.id,
+      school_id:schoolId,user_id:profile.id,role,assigned_by:user.id,
     });
     if(error)bad(Fail,error.code==='23505'?'exists':'server',
       error.code==='23505'?'Giáo viên đã thuộc trường.':'Không thêm được giáo viên.',error.code==='23505'?409:500);
-    await audit(db,schoolId,user,'add_member',userId);
+    await audit(db,schoolId,user,'add_member',profile.id);
     return {ok:true};
   }
   if(op==='remove_member') {
