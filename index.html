@@ -5305,7 +5305,25 @@ function reviewForm(b) {
   };
   const m = openModal({ title: 'Chờ duyệt · ' + b.name, wide: true, body: draw(), foot: '<button class="btn btn-ghost" data-close>Đóng</button>' });
   const el = m.el;
-  $('[data-rv-all]', el)?.addEventListener('click', () => { m.close(); gradeAll(b); });
+  $('[data-rv-all]', el)?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    if (S.batch) return toast('Đang có đợt chấm AI khác.');
+    const statusLine = document.createElement('p');
+    statusLine.className = 'ai-auto-grade-alert';
+    statusLine.setAttribute('role', 'status');
+    statusLine.textContent = 'Đang gửi bài cho AI, thầy cô giữ cửa sổ này mở để xem kết quả…';
+    btn.parentElement.appendChild(statusLine);
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang chấm…';
+    try {
+      const summary = await gradeAll(b);
+      statusLine.textContent = summary.message;
+      btn.textContent = 'Đã xử lý · Xem thông báo bên dưới';
+    } catch (e) {
+      statusLine.textContent = 'Không chấm được: ' + aiMsg(e);
+      btn.textContent = 'Thử chấm lại';
+    } finally { btn.disabled = false; }
+  });
   $('[data-rv-k09]', el)?.addEventListener('click', () => { m.close(); gradeK09WithFirebase(b); });
   $$('[data-rv-open]', el).forEach((x) => (x.onclick = () => { m.close(); openDetail(x.dataset.rvOpen, false); }));
 }
@@ -6935,24 +6953,35 @@ async function gradePost(id, signal) {
 }
 async function gradeAll(b) {
   const pend = postsOf(b.id).filter((p) => !isTeacherAnnouncement(p) && !p.ai && !S.grading.has(p.id) && ((p.images||[]).length || String(p.text||'').trim()));
-  if (!pend.length) { toast('Không có ảnh hoặc bài gõ để AI chấm. Tệp Word, PDF, video cần thầy cô xem và chấm thủ công.'); return; }
+  if (!pend.length) {
+    const message = 'Không có ảnh hoặc bài gõ để AI chấm. Tệp Word, PDF, video cần thầy cô xem và chấm thủ công.';
+    toast(message);
+    return { success: 0, failed: 0, total: 0, message };
+  }
   const ctl = new AbortController();
   S.batch = { boardId: b.id, done: 0, total: pend.length, ctl };
   render();
-  let okCount = 0;
+  toast('Đã bắt đầu chấm ' + pend.length + ' bài bằng AI. Theo dõi trạng thái trong cửa sổ Chờ duyệt.');
+  let okCount = 0, failCount = 0, lastFailure = '';
   for (const p of pend) {
     if (ctl.signal.aborted) break;
     try { await gradePost(p.id, ctl.signal); okCount++; }
     catch (e) {
       if (e?.code === 'cancelled') break;
-      toast(p.studentName + ': ' + aiMsg(e));
+      failCount++;
+      lastFailure = aiMsg(e);
+      toast(p.studentName + ': ' + lastFailure);
       if (STOP_CODES.has(e?.code)) break;
     }
     if (S.batch) S.batch.done++;
     render();
   }
   S.batch = null; render();
-  if (okCount) toast('AI đã chấm xong ' + okCount + ' bài.');
+  const message = 'Kết quả chấm AI: ' + okCount + '/' + pend.length + ' bài thành công.' +
+    (failCount ? ' ' + failCount + ' bài lỗi. ' + lastFailure : '') +
+    (okCount < pend.length ? ' Đóng cửa sổ và mở lại Chờ duyệt để kiểm tra các bài chưa có điểm.' : '');
+  toast(message);
+  return { success: okCount, total: pend.length, failed: failCount, message };
 }
 
 /* Chỉ chấm các bài kiểm thử K09 có nhãn rõ, không tác động tới bài học sinh thật. */
@@ -8910,10 +8939,13 @@ function openAgentReviewDashboard() {
         if (!getPost(id)) { toast('Bài chưa có trong bộ nhớ. Hãy tải lại trang rồi thử lại.'); return; }
         m.close(); openDetail(id, false);
       });
-      start.disabled = !data.aiReady;
-      message.textContent = data.aiReady ?
-        'Máy chủ đã có Gemini chung. Nhấn Chạy hàng chờ để xử lý tối đa 2 bài mỗi lượt.' :
-        'Chưa có Gemini chung: hãy sử dụng Gemini · Google trong phiên giáo viên để chạy bài thủ công.';
+      const waiting = number('pending');
+      start.disabled = !data.aiReady || !waiting;
+      message.textContent = !data.aiReady ?
+        'Chưa có Gemini chung: hãy sử dụng Gemini · Google trong phiên giáo viên để chạy bài thủ công.' :
+        !items.length ? 'Chưa có bài AgentReview V2 trong các bảng được bật của tài khoản này. Chức năng không chạy cho bảng chưa bật V2.' :
+        !waiting ? 'Hiện không có bài V2 đang chờ. Những bài đã tạo nháp không cần chạy lại.' :
+        'Máy chủ có Gemini chung và ' + waiting + ' bài V2 chờ phân tích. Nhấn Chạy hàng chờ để xử lý tối đa 2 bài mỗi lượt.';
     } catch (e) {
       message.textContent = 'Không tải được AgentReview: ' + aiMsg(e);
     } finally { pending = false; refresh.disabled = false; }
@@ -8921,12 +8953,13 @@ function openAgentReviewDashboard() {
   refresh.onclick = load;
   start.onclick = async () => {
     start.disabled = true;
+    message.textContent = 'Đang gửi yêu cầu xử lý hàng chờ lên máy chủ…';
     try {
       await api('agent_review_queue', { operation: 'start' });
-      message.textContent = 'Đã yêu cầu máy chủ xử lý hàng chờ. Bấm Làm mới để xem trạng thái.';
+      message.textContent = 'Đã gửi yêu cầu. AI cần thời gian xử lý; nhấn Làm mới trạng thái để xem kết quả.';
     } catch (e) {
-      message.textContent = aiMsg(e);
-    } finally { start.disabled = false; }
+      message.textContent = 'Không khởi động được AgentReview V2: ' + aiMsg(e);
+    } finally { refresh.disabled = false; }
   };
   void load();
 }
