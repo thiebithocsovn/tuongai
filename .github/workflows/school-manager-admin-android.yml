@@ -1,0 +1,37 @@
+name: SchoolManager admin Android navigation
+on:
+  push:
+    branches: ['fix/schoolmanager-admin-entry-*']
+    paths:
+      - 'index.html'
+      - 'tests/school-manager-admin-android.mjs'
+      - '.github/workflows/school-manager-admin-android.yml'
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  admin-android:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install browser on supported Ubuntu
+        working-directory: tests
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Run local website
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory .. >/tmp/tuongai-admin-test.log 2>&1 &
+          sleep 2
+      - name: Verify admin home / members / nav on Android and desktop
+        working-directory: tests
+        run: node school-manager-admin-android.mjs
+      - name: Agent regressions (read-only)
+        run: |
+          node --test tests/school-manager.test.mjs
+          node --test tests/agent-review.test.mjs tests/progress-tracker.test.mjs tests/class-report.test.mjs
