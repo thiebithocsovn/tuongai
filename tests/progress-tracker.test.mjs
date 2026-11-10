@@ -79,12 +79,63 @@ test('different maximum scores normalize to ten-point scale',()=>{
   const out=build([x],'b',5);
   assert.equal(out.students[0].approvedScores[0].value,8);
 });
-test('interface links, privacy guard, and syntax work',()=>{
+test('board toolbar opens the standalone dashboard with authorized app data',async()=>{
   assert.match(html,/progress-tracker\.js\?v=pt-20261110a/);
-  assert.match(html,/progress-tracker-ui\.js\?v=pt-20261110a/);
+  assert.match(html,/progress-tracker-ui\.js\?v=pt-20261110b/);
   assert.match(html,/data-act="progress-tracker"/);
-  assert.match(html,/case 'progress-tracker': if \(b && await schoolManagerFeatureAllowed\(b,'progressTracker'\)\) openProgressTracker\(b\)/);
   assert.match(html,/function asProgress\(p\)[\s\S]*TuongAiProgressTracker/);
-  assert.match(ui,/!isGV\(\) \|\| S\.guest \|\| !canManage\(board\)/);
-  new vm.Script(ui);
+
+  const window={};
+  vm.runInNewContext(script, {window});
+  vm.runInNewContext(ui, {window});
+  const board={id:'b',name:'Toán 8A'};
+  const posts=[post('1',undefined,0),post('2',undefined,10,2000),
+    {...post('3'),boardId:'other',studentName:'Học sinh bảng khác'}];
+  const filter={},search={},refresh={};
+  const detail={dataset:{ptDetail:'0'}},evidence={dataset:{ptOpen:'2'}};
+  const panel={isConnected:true,innerHTML:'',
+    querySelector:selector=>({'#pt-filter':filter,'#pt-search':search,'#pt-refresh':refresh}[selector]),
+    querySelectorAll:selector=>selector==='[data-pt-detail]'?[detail]:[evidence]};
+  const S={guest:null}, opened=[], modals=[];
+  let enabled=false;
+  const start=html.indexOf('function openProgressTracker(board) {');
+  const end=html.indexOf('/* ---------- ClassReport:',start);
+  const entry=html.match(/case 'progress-tracker':[^\n]*/)[0];
+  const click=vm.runInNewContext(`(() => {
+    ${html.slice(start,end)}
+    return async b => { switch ('progress-tracker') { ${entry} } };
+  })()`, {
+    window,S,getBoard:id=>id===board.id?board:null,canManage:b=>b===board,
+    schoolManagerFeatureAllowed:async (b,feature)=>enabled && b===board && feature==='progressTracker',
+    postsOf:id=>posts.filter(p=>p.boardId===id),getPost:id=>posts.find(p=>p.id===id),
+    esc:String,toast:()=>{},openDetail:(...args)=>opened.push(args),
+    openModal:({title})=>{
+      modals.push(title);
+      panel.isConnected=true;
+      return {el:{querySelector:()=>panel},close:()=>{panel.isConnected=false;}};
+    },
+  });
+
+  await click(board);
+  assert.deepEqual(modals,[]);
+  enabled=true;
+  await click(board);
+  assert.deepEqual(modals,['ProgressTracker · Toán 8A']);
+  assert.match(panel.innerHTML,/Học sinh thử/);
+  assert.doesNotMatch(panel.innerHTML,/Học sinh bảng khác/);
+  search.onchange({target:{value:'Không có tên này'}});
+  assert.match(panel.innerHTML,/Chưa có dữ liệu/);
+  search.onchange({target:{value:''}});
+  detail.onclick();
+  assert.match(panel.innerHTML,/points="4\.0,44\.0 176\.0,4\.0"/);
+  evidence.dataset.ptOpen='3';
+  evidence.onclick();
+  assert.deepEqual(opened,[]);
+  evidence.dataset.ptOpen='2';
+  evidence.onclick();
+  assert.deepEqual(opened,[['2',false]]);
+
+  S.guest={};
+  await click(board);
+  assert.equal(modals.length,1);
 });

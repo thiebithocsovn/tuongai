@@ -1,16 +1,18 @@
 /* Teacher-only ProgressTracker dashboard, rendered from already-authorized posts. */
-function openProgressTracker(board) {
-  if (!isGV() || S.guest || !canManage(board)) {
+(function (host) {
+'use strict';
+function open(board, { canUse, openModal, toast, esc, posts, getPost, openDetail }) {
+  if (!canUse()) {
     toast('Chỉ giáo viên quản lý lớp được xem ProgressTracker.'); return;
   }
-  const model=window.TuongAiProgressTracker;
+  const model=host.TuongAiProgressTracker;
   if (!model) { toast('Chưa tải được ProgressTracker. Hãy tải lại trang.'); return; }
   const modal=openModal({
     title:'ProgressTracker · '+board.name, wide:true, cls:'progress-modal',
     body:'<div class="modal-b" id="pt-panel"></div>',
     foot:'<button class="btn btn-ghost" data-close>Đóng</button>',
   });
-  const root=$('#pt-panel',modal.el);
+  const root=modal.el.querySelector('#pt-panel');
   let filter='all',query='',selected=null;
   const labels={
     resolved:'Đã khắc phục (GV xác nhận)', improving:'Đang cải thiện',
@@ -23,13 +25,14 @@ function openProgressTracker(board) {
     const series=scores.slice(-12),w=180,h=48;
     const pts=series.map((s,i)=>
       (4+i*(w-8)/(series.length-1)).toFixed(1)+','+
-      (h-4-Math.max(0,Math.min(100,s.value))*(h-8)/100).toFixed(1)).join(' ');
+      (h-4-Math.max(0,Math.min(10,s.value))*(h-8)/10).toFixed(1)).join(' ');
     return '<svg viewBox="0 0 180 48" width="180" height="48" role="img" aria-label="Biểu đồ điểm đã được giáo viên duyệt theo thời gian"><polyline points="'+pts+
       '" stroke="var(--blue)" stroke-width="2.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg>';
   }
   function draw() {
     if (!root.isConnected) return;
-    const data=model.buildBoard(postsOf(board.id),board.id,board.assignment?.maxScore||10);
+    if (!canUse()) { modal.close(); return; }
+    const data=model.buildBoard(posts(),board.id,board.assignment?.maxScore||10);
     const summary=data.summary;
     const visible=data.students.filter(s=>
       (filter==='all' || s.status===filter ||
@@ -95,18 +98,21 @@ function openProgressTracker(board) {
        '<div class="empty"><h3>Chưa có dữ liệu</h3><p>Hãy duyệt bài và đánh giá luyện tập để theo dõi tiến bộ.</p></div>')+
       detail+
       '<p class="meta" style="margin-top:12px">Bảng phân tích chỉ đọc, không sửa điểm, nhận xét hay hồ sơ TN1–TN4.</p>';
-    $('#pt-filter',root).onchange=e=>{filter=e.target.value;selected=null;draw();};
-    $('#pt-search',root).onchange=e=>{query=e.target.value.trim();selected=null;draw();};
-    $('#pt-refresh',root).onclick=draw;
-    $$('[data-pt-detail]',root).forEach(btn=>btn.onclick=()=>{
+    root.querySelector('#pt-filter').onchange=e=>{filter=e.target.value;selected=null;draw();};
+    root.querySelector('#pt-search').onchange=e=>{query=e.target.value.trim();selected=null;draw();};
+    root.querySelector('#pt-refresh').onclick=draw;
+    root.querySelectorAll('[data-pt-detail]').forEach(btn=>btn.onclick=()=>{
       const person=visible[Number(btn.dataset.ptDetail)];
       if(person){selected=person.latestPostId;draw();}
     });
-    $$('[data-pt-open]',root).forEach(btn=>btn.onclick=()=>{
+    root.querySelectorAll('[data-pt-open]').forEach(btn=>btn.onclick=()=>{
+      if (!canUse()) return;
       const p=getPost(btn.dataset.ptOpen);
-      if(!p || p.boardId!==board.id || !canManage(board))return;
+      if(!p || p.boardId!==board.id)return;
       modal.close();openDetail(p.id,false);
     });
   }
   draw();
 }
+host.TuongAiProgressTrackerUI = Object.freeze({ open });
+})(window);
