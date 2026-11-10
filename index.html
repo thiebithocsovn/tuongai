@@ -2708,6 +2708,12 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
   .hero.admin-hero .admin-main-actions .btn{font-size:14px}
 }
 </style>
+
+<style>
+/* Teacher-only Gemini retry diagnostics in the review queue. */
+.ai-auto-grade-alert{display:block;max-width:480px;color:#925a12;font-size:12px;line-height:1.45;overflow-wrap:anywhere;margin-top:5px}
+@media(max-width:760px){.ai-auto-grade-alert{max-width:240px;font-size:11.5px}}
+</style>
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
@@ -5272,6 +5278,18 @@ function renderBoard(b) {
 }
 /* Bài chờ thầy cô duyệt: chưa chấm, đang chấm hoặc AI đã chấm nhưng thầy cô chưa duyệt điểm. */
 const reviewPosts = (b) => sortPosts(boardPostList(b).filter((p) => !isTeacherAnnouncement(p) && status(p) !== 'duyet'), 'old');
+/* Teacher-only, server-authored diagnostic. Do not display AI retry internals to students. */
+function teacherAutoGradeNotice(p) {
+  const grade = !p.ai && p.teacher?.assist?.autoGrade;
+  if (!grade || !['failed', 'retrying'].includes(grade.status) || !isGV()) return '';
+  const attempts = Number.isSafeInteger(grade.attempts) ? grade.attempts : 1;
+  const notice = grade.status === 'retrying'
+    ? 'AI gặp sự cố tạm thời và đang thử chấm lại tự động.'
+    : 'AI chưa chấm được: ' + String(grade.message || 'Lỗi không xác định').slice(0, 180) +
+      ' Thầy cô có thể mở bài để chấm lại.';
+  return '<small class="ai-auto-grade-alert" role="status">' +
+    esc(notice) + ' (lần ' + attempts + '/3)</small>';
+}
 function reviewForm(b) {
   const draw = () => {
     const list = reviewPosts(b);
@@ -5281,7 +5299,7 @@ function reviewForm(b) {
       <p class="meta">Bài học sinh mới nộp và bài AI đã chấm nhưng thầy cô chưa duyệt điểm. Mở từng bài để xem lỗi, sửa điểm và ghi lời phê.</p>
       ${ungraded ? `<div class="rv-batch"><span>${ungraded} bài chưa chấm</span><button class="btn btn-ai" data-rv-all ${S.batch || !aiOn() ? 'disabled' : ''}>✨ Chấm ${ungraded} bài bằng AI</button></div>${aiOn() ? '' : '<p class="meta">AI chấm bài chưa bật. Thầy cô vẫn chấm tay được trong từng bài.</p>'}` : ''}
       ${b.name === 'MC07-4' && (isGV() || isAdmin()) && k09Pending(b).length ? `<div class="rv-batch"><span>${k09Pending(b).length} bài KT01–KT23 chưa chấm (dữ liệu thử K09)</span><button class="btn btn-ai" data-rv-k09 ${S.batch ? 'disabled' : ''}>✨ Chấm riêng KT bằng Gemini · Google</button></div><p class="meta">Chỉ chấm bài có mã KT01–KT23, lớp K09_TEST; không chấm bài học sinh thật, không tự duyệt điểm. Kiểm tra kết nối Firebase AI Logic trước khi chấm.</p>` : ''}
-      ${list.length ? `<ul class="rv-list">${list.map((p) => { const fs = finalScore(p); return `<li><span class="pav" aria-hidden="true">${esc(String(p.studentName || '?').trim().slice(0, 1) || '?')}</span><div><strong>${esc(p.studentName || 'Chưa có tên')}</strong><small>${vnTime(p.createdAt)} · ${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}</small></div>${chip(p)}${fs != null ? `<span class="rv-score">${fmt(fs)}<small>/${max}</small></span>` : ''}<button class="btn btn-sm btn-soft" data-rv-open="${p.id}">${ic('eye', 'ic-sm')}Mở bài</button></li>`; }).join('')}</ul>`
+      ${list.length ? `<ul class="rv-list">${list.map((p) => { const fs = finalScore(p); return `<li><span class="pav" aria-hidden="true">${esc(String(p.studentName || '?').trim().slice(0, 1) || '?')}</span><div><strong>${esc(p.studentName || 'Chưa có tên')}</strong><small>${vnTime(p.createdAt)} · ${p.by === 'hs' ? 'Học sinh tự nộp' : 'Giáo viên chụp'}</small>${teacherAutoGradeNotice(p)}</div>${chip(p)}${fs != null ? `<span class="rv-score">${fmt(fs)}<small>/${max}</small></span>` : ''}<button class="btn btn-sm btn-soft" data-rv-open="${p.id}">${ic('eye', 'ic-sm')}Mở bài</button></li>`; }).join('')}</ul>`
         : `<div class="empty">${ic('check')}<h3>Không còn bài chờ duyệt</h3><p>Mọi bài trong bảng đã có điểm thầy cô duyệt.</p></div>`}
     </div>`;
   };
