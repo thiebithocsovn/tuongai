@@ -209,7 +209,7 @@ async function saveAutoGradeState(postId: string, failure: ReturnType<typeof gra
 
 // Keep the original server-side grade-to-draft behavior, also for retry success.
 async function saveAutoGradedReviewDraft(post: any, board: any) {
-  if (!post.ai || post.teacher?.approvedAt || post.teacher?.assist?.a) return;
+  if (!post.ai || post.teacher?.approvedAt || post.teacher?.assist?.a) return false;
   const ai = post.ai;
   try {
     const analysis = cleanAnalysis({
@@ -233,9 +233,11 @@ async function saveAutoGradedReviewDraft(post: any, board: any) {
       },
       agentReview: { kind: "analysis", status: "ready", attempts: 1 },
     }, "completed", "analysis", "server") });
+    return true;
   } catch (e) {
     // AI grade is already safely persisted. The draft can be prepared by the teacher later.
     console.warn("auto_grade_review_draft_skipped", post.id, gradeFailure(e).code);
+    return false;
   }
 }
 
@@ -566,6 +568,13 @@ async function runServerReviewQueue(owner: string) {
   for (const post of posts.slice().reverse()) {
     const board = boards.get(post.board_id);
     if (!board || !claimableReviewJob(post, board, false)) continue;
+    // A teacher may have manually scored a student post after an earlier AI
+    // timeout. Reuse its saved grade for the V2 draft; no second Gemini request.
+    if (post.teacher.assist.agentReview.kind === "analysis" && post.ai &&
+        !post.teacher?.assist?.a && await saveAutoGradedReviewDraft(post, board)) {
+      if (++completed >= 2) break;
+      continue;
+    }
     if (post.teacher.assist.agentReview.kind === "analysis")
       await generateServerReviewAnalysis(post, board);
     else await generateServerReviewPractice(post, board);
@@ -1051,9 +1060,12 @@ async function handle(req: Request) {
       if (!b.auto_grade) throw new Fail("forbidden", "Thầy cô sẽ chấm bài này.", 403);
       if (post.ai || post.ai_at || post.teacher?.approvedAt || typeof post.teacher?.score === "number")
         throw new Fail("graded_locked", "Bài đã chấm. Thầy cô sẽ duyệt hoặc chấm lại.", 409);
-      await gradePost(post, b);
-      // Grading is allowed for this student's own work, but drafts stay teacher-only.
-      return { post: publicPost({ ...post, ai_at: new Date().toISOString() }) };
+      Object.assign(post, await gradePost(post, b));
+      // V2 analysis remains a teacher-only draft. Reuse saved AI grade
+      // without a second paid model request if this board opted in.
+      if (v2EligibleBoard(b) && await schoolFeatureEnabled(db, b.id, "agentReview"))
+        await saveAutoGradedReviewDraft(post, b);
+      return { post: publicPost(post) };
     }
 
     case "grade": {
@@ -1071,7 +1083,12 @@ async function handle(req: Request) {
         }
       }
       try {
-        return await gradePost(post, b);
+        const result = await gradePost(post, b);
+        Object.assign(post, result);
+        if (post.by === "hs" && v2EligibleBoard(b) &&
+            await schoolFeatureEnabled(db, b.id, "agentReview"))
+          await saveAutoGradedReviewDraft(post, b);
+        return result;
       } catch (e) {
         // Preserve original error response to the teacher, and persist a safe
         // diagnostic for the review queue if the submission is still ungraded.
