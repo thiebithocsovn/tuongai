@@ -159,6 +159,7 @@ test('Only the managing teacher sees the direct move button on a student card', 
       isTeacherAnnouncement:() => announcement, isGV:() => teacher, canManage:() => manage,
       tmeta:p => p.teacher, aiOn:() => false, splitLinks:() => ({text:'Bài làm', links:[]}),
       postColor:() => '#ffffff', peerPost:() => false, studentCanEdit:() => false,
+      studyFormDisplayMark:() => null,
       studentFeedbackInlineHtml:() => '', linkChips:() => '', imgSrc:() => '', esc, ic:() => '', fmt:String,
     };
     const card = vm.runInNewContext(section('function postCard(', '/* ---------- menu của một bài:') + '\npostCard', context);

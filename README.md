@@ -34,6 +34,12 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 - Trợ lý AI cho bài làm, trong mục nhận xét khi mở một bài (chỉ giáo viên thấy): 1. Chat và đánh giá (hỏi AI về bài, đưa nhận xét đề xuất vào ô Viết nhận xét, đề bài và tiêu chí dùng cho AI), 2. Giáo viên duyệt (kiểm chứng từng lỗi và nguyên nhân, duyệt nhận xét và điểm), 3. Luyện tập (AI soạn bài theo lỗi đã xác nhận, tải phiếu cho học sinh), 4. Tiến bộ (ghi lần luyện tập, theo dõi kỹ năng đã khắc phục). Dữ liệu lưu ở `teacher.assist`; máy chủ không gửi phần này cho học sinh.
 - Bảng mẫu Toán 9 để thử (đường link `?lop=MAU009`). Thầy cô xóa được bảng mẫu (nút Xóa trên thẻ) và hiện lại từ menu tài khoản.
 
+## AgentReview
+
+- Bài học sinh mới nộp vào bảng bật tự chấm sẽ vào hàng chờ. Với khóa Gemini chung, máy chủ dùng kết quả chấm tự động để tạo bản nháp. Nếu chưa có khóa chung, phiên web của giáo viên chủ lớp tự chạy hàng chờ qua Gemini · Google và Firebase App Check. Bài chỉ có tệp đính kèm cần giáo viên bổ sung phần chữ ở bước 1.
+- Mở bài nộp, vào **AgentReview → Giáo viên duyệt**. Với mỗi lỗi, xác nhận và ghi căn cứ, chọn chưa đủ căn cứ hoặc loại nhận định. Sau khi duyệt nhận xét và điểm, AgentReview tự soạn luyện tập cho các nguyên nhân đã xác nhận. Giáo viên kiểm tra đề và đáp án rồi chọn **Duyệt và giao luyện tập** để học sinh nhận đề và gợi ý.
+- Khi triển khai, áp dụng migration `20261109235755_agent_review.sql` trước, sau đó triển khai Edge Function `tuongai` với cấu hình JWT hiện có và cập nhật trang web.
+
 ## Thống kê trực tuyến và lượt truy cập
 
 - Ở dưới menu bên trái, thay thông báo quyền riêng tư bằng **Hoạt động hệ thống** gồm **Đang trực tuyến** và **Truy cập hôm nay**.
