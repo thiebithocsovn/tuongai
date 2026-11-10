@@ -11,6 +11,7 @@ import {
   AgentReviewError, approveReviewDraft, claimableReviewJob, cleanReviewPractice,
   confirmedPracticeInputs, makeReviewDraft, pendingReviewJob, reviewAudit, reviewDashboardItem,
 } from "./agent-review.ts";
+import { handleSchoolManager, schoolFeatureEnabled } from "./school-manager.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -454,7 +455,10 @@ async function v2QueueRows(owner: string) {
   const { data: boards, error: boardError } = await db.from("boards")
     .select("id,name,owner,auto_grade,assignment,archived,trashed").eq("owner", owner);
   if (boardError) throw new Fail("server", "Không tải được danh sách bảng.", 500);
-  const opted = (boards || []).filter(v2EligibleBoard);
+  const opted: any[] = [];
+  for (const candidate of (boards || []).filter(v2EligibleBoard)) {
+    if (await schoolFeatureEnabled(db, candidate.id, "agentReview")) opted.push(candidate);
+  }
   if (!opted.length) return { posts: [], boards: new Map<string, any>() };
   const boardMap = new Map<string, any>(opted.map((b: any) => [b.id, b]));
   const { data: posts, error } = await db.from("posts").select("*")
@@ -511,6 +515,8 @@ async function handleAgentReview(body: any, u: Profile) {
     throw new Fail("forbidden", "Bạn không có quyền xử lý bài này.", 403);
   const { data: board } = await db.from("boards").select("*").eq("id", post.board_id).maybeSingle();
   if (!board || board.owner !== post.owner) throw reviewConflict();
+  if (!await schoolFeatureEnabled(db, board.id, "agentReview"))
+    throw new Fail("school_agent_disabled", "Trường đã tắt AgentReview cho bảng này.", 403);
   const assist = post.teacher?.assist;
   switch (body.operation) {
     case "claim": {
@@ -640,6 +646,7 @@ async function handle(req: Request) {
       needActive(me);
       return { ready: !!(await config("gemini_key")), model: (await config("gemini_model")) || "gemini-flash-latest", appcheck_key: await config("appcheck_key"), appcheck_app_id: await config("appcheck_app_id") };
     }
+    case "school_manager": return await handleSchoolManager(db, needActive(me), body, Fail);
     case "agent_review": return await handleAgentReview(body, needActive(me));
     case "agent_review_queue": return await handleAgentReviewQueue(body, needActive(me));
 
@@ -872,7 +879,8 @@ async function handle(req: Request) {
           } catch { /* The queued job is still available to the teacher's browser. */ }
         }
       }
-      if (v2EligibleBoard(b) && !post.teacher?.assist?.a && !gradeError && await config("gemini_key")) {
+      if (v2EligibleBoard(b) && !post.teacher?.assist?.a && !gradeError &&
+          await schoolFeatureEnabled(db, b.id, "agentReview") && await config("gemini_key")) {
         const runtime = (globalThis as typeof globalThis & {
           EdgeRuntime?: { waitUntil(task: Promise<unknown>): void }
         }).EdgeRuntime;

@@ -97,7 +97,7 @@ test('interface integrates teacher permission guard, spreadsheet and PDF export'
   assert.match(html,/class-report\.js\?v=cr-20261110a/);
   assert.match(html,/class-report-ui\.js\?v=cr-20261110a/);
   assert.match(html,/data-act="class-report"/);
-  assert.match(html,/case 'class-report': if \(b\) openClassReport\(b\)/);
+  assert.match(html,/case 'class-report': if \(b && await schoolManagerFeatureAllowed\(b,'classReport'\)\) openClassReport\(b\)/);
   assert.match(html,/const canUse = \(\) =>/);
   assert.match(html,/!S\.guest && !latest\.demo && !latest\.trashed && canManage\(latest\)/);
   assert.match(ui,/root\.XLSX\.utils\.book_append_sheet/);

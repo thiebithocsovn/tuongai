@@ -2826,6 +2826,7 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 <script src="./progress-tracker-ui.js?v=pt-20261110a"></script>
 <script src="./class-report.js?v=cr-20261110a"></script>
 <script src="./class-report-ui.js?v=cr-20261110a"></script>
+<script src="./school-manager-ui.js?v=sm-20261110a"></script>
 <script>
 (() => {
 'use strict';
@@ -8888,11 +8889,34 @@ function openAgentReviewDashboard() {
   void load();
 }
 
+async function schoolManagerFeatureAllowed(board,feature) {
+  if(!board || !isGV() || !canManage(board) || S.guest) return false;
+  try {
+    const result=await api('school_manager',{
+      operation:'feature',board_id:board.id,feature,
+    });
+    if(!result.enabled){
+      toast('Trường đã tắt chức năng '+feature+' cho bảng này. Liên hệ quản trị trường.');
+      return false;
+    }
+    return true;
+  }catch(e){
+    toast('Chưa xác minh được quyền SchoolManager: '+(e.message||'Lỗi kết nối'));
+    return false;
+  }
+}
+function openSchoolManager() {
+  if(!isGV() || S.guest)return toast('Chỉ giáo viên đã đăng nhập được mở SchoolManager.');
+  const ui=window.TuongAiSchoolManagerUI;
+  if(!ui)return toast('Chưa tải được SchoolManager. Hãy nhấn Ctrl + F5.');
+  ui.open({api,openModal,toast,esc,myId:()=>S.meId});
+}
+
 function meMenu(anchor) {
   const old = $('.pop'); if (old) { old.remove(); return; }
   const me = ME(); if (!me) return;
   const pop = document.createElement('div'); pop.className = 'pop'; pop.setAttribute('role', 'menu');
-  pop.innerHTML = `${!me.guest ? `<button role="menuitem" data-act="change-avatar">${ic('camera')}Đổi ảnh đại diện</button><button role="menuitem" data-act="change-pw">${ic('key')}Đổi mật khẩu</button>` : ''}${isGV() ? `<button role="menuitem" data-act="agent-queue">${ic('inbox')}Trung tâm AgentReview V2</button><button role="menuitem" data-act="ai-connect">${ic('spark')}Kết nối AI chấm bài</button>` : ''}${isAdmin() ? `<button role="menuitem" data-act="tab" data-tab="members">${ic('users')}Thành viên</button><button role="menuitem" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button>` : ''}${isGV() && demoHidden() ? `<button role="menuitem" data-act="show-demo">${ic('book')}Hiện lại bảng mẫu</button>` : ''}<button role="menuitem" data-act="help">${ic('msg')}Hướng dẫn nhanh</button><button role="menuitem" data-act="logout">${ic('logout')}${me.guest ? 'Thoát lớp' : 'Đăng xuất'}</button>`;
+  pop.innerHTML = `${!me.guest ? `<button role="menuitem" data-act="change-avatar">${ic('camera')}Đổi ảnh đại diện</button><button role="menuitem" data-act="change-pw">${ic('key')}Đổi mật khẩu</button>` : ''}${isGV() ? `<button role="menuitem" data-act="agent-queue">${ic('inbox')}Trung tâm AgentReview V2</button><button role="menuitem" data-act="school-manager">${ic('users')}SchoolManager · Quản lý trường</button><button role="menuitem" data-act="ai-connect">${ic('spark')}Kết nối AI chấm bài</button>` : ''}${isAdmin() ? `<button role="menuitem" data-act="tab" data-tab="members">${ic('users')}Thành viên</button><button role="menuitem" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button>` : ''}${isGV() && demoHidden() ? `<button role="menuitem" data-act="show-demo">${ic('book')}Hiện lại bảng mẫu</button>` : ''}<button role="menuitem" data-act="help">${ic('msg')}Hướng dẫn nhanh</button><button role="menuitem" data-act="logout">${ic('logout')}${me.guest ? 'Thoát lớp' : 'Đăng xuất'}</button>`;
   if (anchor === 'top') { pop.style.cssText = 'position:fixed;z-index:70;top:calc(56px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));left:auto;bottom:auto;width:230px'; document.body.appendChild(pop); }
   else $('.me').appendChild(pop);
 }
@@ -8934,6 +8958,7 @@ document.addEventListener('click', async (e) => {
     case 'mb-sort': { const k = t.dataset.k; S.memberSort = !k ? { k: '', dir: 1 } : S.memberSort.k === k ? { k, dir: -S.memberSort.dir } : { k, dir: 1 }; drawMembers(); break; }
     case 'mb-bulk': memberBulk(t.dataset.v); break;
     case 'agent-queue': $('.pop')?.remove(); openAgentReviewDashboard(); break;
+    case 'school-manager': $('.pop')?.remove(); openSchoolManager(); break;
     case 'new-board': closeDrawer(); boardForm(null); break;
     case 'join': closeDrawer(); joinForm(); break;
     case 'open-board': if (b && !b.trashed) { S.view = { name: 'board', boardId: b.id, tab: S.view.tab, q: '' }; render(); window.scrollTo(0, 0); } break;
@@ -8987,8 +9012,8 @@ document.addEventListener('click', async (e) => {
     case 'p-like': { const p = getPost(id); if (p) { const likes = tmeta(p).likes || []; await patchTeacher(p, { likes: likes.includes(S.meId) ? likes.filter((x) => x !== S.meId) : [...likes, S.meId] }); } break; }
     case 'slideshow': if (b) slideshow(b, shownPosts(b)); break;
     case 'progress': if (b) progressForm(b); break;
-    case 'progress-tracker': if (b) openProgressTracker(b); break;
-    case 'class-report': if (b) openClassReport(b); break;
+    case 'progress-tracker': if (b && await schoolManagerFeatureAllowed(b,'progressTracker')) openProgressTracker(b); break;
+    case 'class-report': if (b && await schoolManagerFeatureAllowed(b,'classReport')) openClassReport(b); break;
     case 'review': if (b) reviewForm(b); break;
     case 'export': if (b) exportForm(b); break;
     case 'fav': $('.menu')?.remove(); if (b) { const on = !(b.starred || b.pinned); await saveBoard({ ...b, starred: on, pinned: on }); toast(on ? 'Đã ghim bảng. Xem lại ở mục Đã đánh dấu.' : 'Đã bỏ ghim.'); } break;

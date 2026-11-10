@@ -34,6 +34,17 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 - Trợ lý AI cho bài làm, trong mục nhận xét khi mở một bài (chỉ giáo viên thấy): 1. Chat và đánh giá (hỏi AI về bài, đưa nhận xét đề xuất vào ô Viết nhận xét, đề bài và tiêu chí dùng cho AI), 2. Giáo viên duyệt (kiểm chứng từng lỗi và nguyên nhân, duyệt nhận xét và điểm), 3. Luyện tập (AI soạn bài theo lỗi đã xác nhận, tải phiếu cho học sinh), 4. Tiến bộ (ghi lần luyện tập, theo dõi kỹ năng đã khắc phục). Dữ liệu lưu ở `teacher.assist`; máy chủ không gửi phần này cho học sinh.
 - Bảng mẫu Toán 9 để thử (đường link `?lop=MAU009`). Thầy cô xóa được bảng mẫu (nút Xóa trên thẻ) và hiện lại từ menu tài khoản.
 
+## SchoolManager – Quản lý AI Agent cho nhiều trường
+
+- **Mở:** giáo viên đã đăng nhập → menu tài khoản → **SchoolManager · Quản lý trường**. Tài khoản quản trị hệ thống tạo trường và phân bổ giáo viên/bảng lớp. Quản trị trường do quản trị hệ thống chỉ định bằng vai trò thành viên SchoolManager, KHÔNG phải vai trò admin toàn hệ thống.
+- Mã trường duy nhất. Mỗi giáo viên có thể là thành viên nhiều trường. Bảng lớp chỉ được liên kết với một trường, và chỉ sau khi chủ bảng đã được gán vào trường.
+- **Không chuyển dữ liệu cũ:** các bảng và bài hiện có, đặc biệt TN1–TN4, không được tự phân loại theo chuỗi tên trường; chỉ khi quản trị chủ động gắn liên kết mới thuộc báo cáo trường.
+- Quản trị trường xem danh sách giáo viên, bảng đã được liên kết, số bài đã nộp và số bài có điểm giáo viên duyệt, nhật ký thay đổi; không được xem bài làm/đáp án/nhận xét riêng của học sinh từ dashboard trường. Quản trị trường có thể thêm/gỡ giáo viên hiện hữu, bật/tắt AgentReview, ProgressTracker, ClassReport trong trường mình. Chỉ quản trị toàn hệ thống bổ nhiệm quản trị trường và gắn/bỏ liên kết bảng lớp.
+- **Phân tách quyền:** Supabase tạo các bảng riêng school_manager_schools / members / boards / audit với RLS mặc định từ chối và REVOKE cho anon, authenticated. Chỉ Edge Function tuongai xác thực người gọi và trả dữ liệu phù hợp quyền.
+- **Chính sách AI:** chỉ áp dụng với bảng đã liên kết. AgentReview kiểm tra cả trong máy chủ và hàng chờ; ProgressTracker và ClassReport kiểm tra từ máy chủ trước khi mở. Các chức năng AI cũ ngoài ba module không bị chính sách này thay đổi.
+- **Triển khai thứ tự:** migration 20261110111000_school_manager.sql → cập nhật Edge Function tuongai cùng school-manager.ts → cập nhật giao diện Vercel. Không có thao tác UPDATE/DELETE dữ liệu học sinh hay thay đổi quyền của các bảng cũ.
+- **Kiểm thử:** node --test tests/school-manager.test.mjs và kiểm thử hồi quy AgentReview, ProgressTracker, ClassReport. Trước khi mở rộng nhiều trường cần chạy kiểm thử xác thực trực tiếp với tài khoản ở hai trường khác nhau, bao gồm Data API và quyền của người dùng đã bị gỡ khỏi trường.
+
 ## ClassReport – Trợ lý báo cáo lớp (chỉ giáo viên)
 
 - Trong bảng lớp do mình quản lý, chọn **ClassReport · Báo cáo**.
