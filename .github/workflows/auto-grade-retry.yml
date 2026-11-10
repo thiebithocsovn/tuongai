@@ -1,0 +1,43 @@
+name: Auto-grade retry and teacher feedback
+on:
+  push:
+    branches: ['fix/auto-grade-retry-*']
+    paths:
+      - 'supabase/functions/tuongai/index.ts'
+      - 'supabase/functions/tuongai/auto-grade-retry.ts'
+      - 'index.html'
+      - 'tests/auto-grade-retry.test.mjs'
+      - 'tests/agent-review.test.mjs'
+      - '.github/workflows/auto-grade-retry.yml'
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  auto-grade:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate TypeScript syntax and inline browser JS
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs'; import vm from 'node:vm';
+          import {stripTypeScriptTypes} from 'node:module';
+          for(const path of ['supabase/functions/tuongai/index.ts','supabase/functions/tuongai/auto-grade-retry.ts']){
+            const src=fs.readFileSync(path,'utf8');
+            const stripped=stripTypeScriptTypes(src.replace(/^import [\s\S]*?;\n/gm,''),{mode:'transform'});
+            new vm.Script(stripped,{filename:path});
+          }
+          const html=fs.readFileSync('index.html','utf8');
+          for(const match of html.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi)){
+            new vm.Script(match[1]);
+          }
+          JS
+      - name: Server retry and six-Agent regression tests
+        run: |
+          node --test tests/auto-grade-retry.test.mjs
+          node --test tests/agent-review.test.mjs tests/progress-tracker.test.mjs tests/class-report.test.mjs tests/school-manager.test.mjs
