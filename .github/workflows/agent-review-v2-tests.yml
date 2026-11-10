@@ -1,0 +1,23 @@
+name: AgentReview V2 regression
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/tuongai/**'
+      - 'tests/**'
+      - 'index.html'
+  push:
+    branches: ['feature/agentreview-v2-docs-offline-20261110']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Run AgentReview tests
+        run: node --test tests/agent-review.test.mjs
+      - name: Run regressions
+        run: node --test tests/student-classroom.test.mjs tests/school-manager.test.mjs
