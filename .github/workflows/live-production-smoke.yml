@@ -1,0 +1,27 @@
+name: Live Production read-only browser smoke
+on:
+  push:
+    branches: ['test/live-production-smoke-*']
+    paths:
+      - 'tests/live-production-smoke.mjs'
+      - '.github/workflows/live-production-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  production-smoke:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Playwright and browser on supported runner
+        working-directory: tests
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Check LIVE public website and unauthenticated API permissions
+        working-directory: tests
+        run: node live-production-smoke.mjs
