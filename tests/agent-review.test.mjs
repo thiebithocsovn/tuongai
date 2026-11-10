@@ -6,6 +6,7 @@ import { stripTypeScriptTypes } from 'node:module';
 import * as agent from '../supabase/functions/tuongai/agent-review.ts';
 import * as visibility from '../supabase/functions/tuongai/student-visibility.ts';
 import * as references from '../supabase/functions/tuongai/answer-reference.ts';
+import * as schoolManager from '../supabase/functions/tuongai/school-manager.ts';
 
 const server = fs.readFileSync(new URL('../supabase/functions/tuongai/index.ts', import.meta.url), 'utf8');
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -24,7 +25,7 @@ const board = { id: 'board-1', owner: 'teacher-1', code: 'AGTEST', shared: true,
 function setup() {
   const posts = [];
   const profiles = ['teacher-1', 'teacher-2'].map((id) => ({ id, full_name: id, role: 'teacher', status: 'active' }));
-  const rows = { posts, profiles, boards: [board], app_config: [], practice_submissions: [] };
+  const rows = { posts, profiles, boards: [board], app_config: [], practice_submissions: [], school_manager_boards: [], school_manager_schools: [] };
   let handler;
   const db = {
     auth: { getUser: async (id) => ({ data: { user: profiles.find((p) => p.id === id) } }) },
@@ -56,7 +57,7 @@ function setup() {
   };
   const compiled = stripTypeScriptTypes(server.replace(/^import [\s\S]*?;\n/gm, ''), { mode: 'transform' });
   vm.runInNewContext(compiled, {
-    ...agent, ...references, ...visibility, publicPost: visibility.studentPost, crypto, Request, Response, TextEncoder,
+    ...agent, ...references, ...visibility, ...schoolManager, publicPost: visibility.studentPost, crypto, Request, Response, TextEncoder,
     createClient: () => db, Deno: { env: { get: () => '' }, serve: (fn) => { handler = fn; } },
   });
   const call = async (action, input, user) => {
