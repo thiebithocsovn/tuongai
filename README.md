@@ -66,6 +66,16 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 - Xu hướng điểm chỉ là so sánh mô tả; nếu đề khác độ khó thì không thể tự quy kết mức tăng điểm là tác động của phần mềm.
 - Kiểm thử bằng `node --test tests/progress-tracker.test.mjs tests/agent-review.test.mjs`.
 
+## AgentReview V2 – Đọc tệp và hàng chờ không cần giáo viên trực tuyến
+
+- **Tệp đọc tự động:** DOCX (văn bản), XLSX (bảng tính), PDF (gửi cho Gemini đọc trực tiếp), TXT, CSV, JPG/PNG/WebP. Tệp nằm trong kho riêng tư, không chuyển đổi qua dịch vụ công cộng.
+- **Định dạng cũ:** DOC, XLS và PPT/PPTX không được trích xuất. Cần chuyển DOC sang DOCX, XLS sang XLSX hoặc xuất PDF. Hệ thống vẫn lưu và hiển thị tệp gốc.
+- **Giới hạn an toàn:** tệp Office 15 MB, giới hạn dữ liệu giải nén, ảnh/PDF tối đa 18 MB nội dung nhị phân mỗi lần gọi AI. Ảnh/PDF mờ phải được giáo viên xác minh; không đoán dữ liệu thiếu.
+- **Chạy ngoại tuyến:** pg_cron gọi Edge Function bằng pg_net và token bí mật, chỉ quét bảng có bật auto_grade + agentReviewV2. Mỗi lượt tối đa 2 công việc, có lease, retry giới hạn; không tự đánh giá TN1–TN4 cũ.
+- **Thứ tự triển khai:** áp dụng migration `20261110220000_agent_review_v2_offline_worker.sql`, triển khai Edge Function với `attachment-reader.ts`, sau đó áp dụng migration `20261110221500_agent_review_v2_schedule.sql`.
+- **Tắt lịch khi cần:** `select cron.unschedule('agent-review-v2-offline');`.
+- **Kiểm thử:** `node --test tests/agent-review.test.mjs` và nộp thử DOCX, XLSX, PDF trên bảng thử nghiệm; theo dõi trạng thái V2 và nhật ký cron.
+- **Quyền:** AI chỉ tạo nháp. Giáo viên quyết định điểm, nguyên nhân và nội dung luyện tập.
 ## AgentReview
 
 - Bài học sinh mới nộp vào bảng bật tự chấm sẽ vào hàng chờ. Với khóa Gemini chung, máy chủ dùng kết quả chấm tự động để tạo bản nháp. Nếu chưa có khóa chung, phiên web của giáo viên chủ lớp tự chạy hàng chờ qua Gemini · Google và Firebase App Check. Bài chỉ có tệp đính kèm cần giáo viên bổ sung phần chữ ở bước 1.
