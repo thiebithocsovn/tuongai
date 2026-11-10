@@ -101,9 +101,19 @@ try{
     const bounds=await home.boundingBox();
     assert.ok(bounds.width>100&&bounds.height>=38,
       'Admin CTA too small on '+name+': '+JSON.stringify(bounds));
-    const widthInfo=await page.evaluate(()=>({
-      window:innerWidth,scrollWidth:document.documentElement.scrollWidth,
-    }));
+    const widthInfo=await page.evaluate(()=>{
+      const bad=[...document.querySelectorAll('body *')].filter(e=>{
+        const r=e.getBoundingClientRect(),style=getComputedStyle(e);
+        return r.right>innerWidth+5 && r.width>0 && style.position!=='fixed' &&
+          style.visibility!=='hidden';
+      }).slice(0,14).map(e=>{
+        const r=e.getBoundingClientRect();
+        return {tag:e.tagName,cls:String(e.className||'').slice(0,90),
+          text:(e.textContent||'').slice(0,36),left:Math.round(r.left),
+          right:Math.round(r.right),width:Math.round(r.width)};
+      });
+      return {window:innerWidth,scrollWidth:document.documentElement.scrollWidth,offenders:bad};
+    });
     assert.ok(widthInfo.scrollWidth<=widthInfo.window+4,
       'Horizontal overflow '+name+' '+JSON.stringify(widthInfo));
     await openManager(page,'#view .admin-school-entry');
