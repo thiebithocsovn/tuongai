@@ -34,6 +34,16 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 - Trợ lý AI cho bài làm, trong mục nhận xét khi mở một bài (chỉ giáo viên thấy): 1. Chat và đánh giá (hỏi AI về bài, đưa nhận xét đề xuất vào ô Viết nhận xét, đề bài và tiêu chí dùng cho AI), 2. Giáo viên duyệt (kiểm chứng từng lỗi và nguyên nhân, duyệt nhận xét và điểm), 3. Luyện tập (AI soạn bài theo lỗi đã xác nhận, tải phiếu cho học sinh), 4. Tiến bộ (ghi lần luyện tập, theo dõi kỹ năng đã khắc phục). Dữ liệu lưu ở `teacher.assist`; máy chủ không gửi phần này cho học sinh.
 - Bảng mẫu Toán 9 để thử (đường link `?lop=MAU009`). Thầy cô xóa được bảng mẫu (nút Xóa trên thẻ) và hiện lại từ menu tài khoản.
 
+## ProgressTracker – Theo dõi tiến bộ học sinh (giáo viên xác minh)
+
+- **Cách mở:** đăng nhập giáo viên → vào bảng lớp → chọn **ProgressTracker · AI Agent** trên thanh công cụ.
+- Hệ thống tự tổng hợp điểm đã được giáo viên duyệt (quy về thang 10), lỗi có nguyên nhân và căn cứ giáo viên xác nhận, và các lượt luyện tập đã được giáo viên đánh giá.
+- Trạng thái kỹ năng: **Chưa đủ đánh giá**, **Còn mắc lỗi**, **Đang cải thiện**, **Đã khắc phục**. Chỉ ghi “Đã khắc phục” khi tất cả bài luyện tập liên quan có lượt đánh giá gần nhất đạt và có căn cứ giáo viên.
+- Dữ liệu theo từng bảng, chỉ chủ bảng/giáo viên được phân quyền quản lý xem. Không cho học sinh hoặc khách truy cập xem bảng tổng hợp cá nhân. Không tự ghép học sinh chỉ qua tên khi thiếu định danh; học sinh dùng thiết bị khác có thể được tính là phiên riêng.
+- **Không sửa số liệu cũ:** tính toán trên bản ghi đang có ở trình duyệt, không tạo bảng SQL mới, không tự chấm điểm, không gọi mô hình AI và không sửa hồ sơ minh chứng TN1–TN4.
+- Xu hướng điểm chỉ là so sánh mô tả; nếu đề khác độ khó thì không thể tự quy kết mức tăng điểm là tác động của phần mềm.
+- Kiểm thử bằng `node --test tests/progress-tracker.test.mjs tests/agent-review.test.mjs`.
+
 ## AgentReview
 
 - Bài học sinh mới nộp vào bảng bật tự chấm sẽ vào hàng chờ. Với khóa Gemini chung, máy chủ dùng kết quả chấm tự động để tạo bản nháp. Nếu chưa có khóa chung, phiên web của giáo viên chủ lớp tự chạy hàng chờ qua Gemini · Google và Firebase App Check. Bài chỉ có tệp đính kèm cần giáo viên bổ sung phần chữ ở bước 1.
