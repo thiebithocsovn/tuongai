@@ -263,6 +263,7 @@ async function retryAutoGrade(postId: string, boardId: string, expectedBody: str
       return;
     } catch (e) {
       const failure = gradeFailure(e);
+      if (failure.code === "stale_submission") return;
       const willRetry = failure.retryable && i < AUTO_GRADE_RETRY_MS.length - 1;
       await saveAutoGradeState(postId, failure, attempt, willRetry);
       console.warn("auto_grade_retry_failed", postId, attempt, failure.code);
@@ -1069,7 +1070,15 @@ async function handle(req: Request) {
           throw new Fail("forbidden", "Bài giáo viên giao cho cả lớp không thuộc diện chấm điểm.", 403);
         }
       }
-      return await gradePost(post, b);
+      try {
+        return await gradePost(post, b);
+      } catch (e) {
+        // Preserve original error response to the teacher, and persist a safe
+        // diagnostic for the review queue if the submission is still ungraded.
+        if (!post.ai && !post.teacher?.approvedAt)
+          await saveAutoGradeState(post.id, gradeFailure(e), 1, false);
+        throw e;
+      }
     }
     case "grade_demo": {
       needActive(me);
