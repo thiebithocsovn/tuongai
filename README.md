@@ -34,6 +34,17 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 - Trợ lý AI cho bài làm, trong mục nhận xét khi mở một bài (chỉ giáo viên thấy): 1. Chat và đánh giá (hỏi AI về bài, đưa nhận xét đề xuất vào ô Viết nhận xét, đề bài và tiêu chí dùng cho AI), 2. Giáo viên duyệt (kiểm chứng từng lỗi và nguyên nhân, duyệt nhận xét và điểm), 3. Luyện tập (AI soạn bài theo lỗi đã xác nhận, tải phiếu cho học sinh), 4. Tiến bộ (ghi lần luyện tập, theo dõi kỹ năng đã khắc phục). Dữ liệu lưu ở `teacher.assist`; máy chủ không gửi phần này cho học sinh.
 - Bảng mẫu Toán 9 để thử (đường link `?lop=MAU009`). Thầy cô xóa được bảng mẫu (nút Xóa trên thẻ) và hiện lại từ menu tài khoản.
 
+## ClassReport – Trợ lý báo cáo lớp (chỉ giáo viên)
+
+- Trong bảng lớp do mình quản lý, chọn **ClassReport · Báo cáo**.
+- Báo cáo tự tổng hợp theo kỳ **toàn bộ / 7 ngày / 30 ngày / tùy chọn**, gồm: số bài học sinh nộp, số bài có điểm giáo viên duyệt, số bài chờ, tỷ lệ duyệt, điểm trung bình thang 10, lỗi/kỹ năng được giáo viên xác minh, lượt luyện tập đã đánh giá và xu hướng theo tuần.
+- **Tải báo cáo Excel** gồm 4 trang: Tổng quan, Bài nộp, Kỹ năng và Theo tuần. Khi thư viện XLSX không tải được, cung cấp CSV UTF-8 thay thế và thông báo rõ.
+- **In / Lưu PDF** tạo báo cáo có tiêu đề, thời kỳ, bảng thống kê, đề xuất công việc dựa trên dữ liệu, nguồn/giới hạn thống kê và ô trống người lập ký tên. Chọn “Lưu thành PDF” trong hộp thoại in.
+- Chỉ sử dụng điểm đã có teacher.approvedAt và teacher.score hợp lệ; không tính điểm nháp AI là kết quả chính thức. Chỉ đếm lỗi nếu giáo viên đã xác nhận nguyên nhân kèm bằng chứng; không tự suy diễn nguyên nhân học sinh sai.
+- Báo cáo nội bộ chỉ giáo viên được quyền quản lý bảng truy cập. Không xuất bài làm nguyên văn, mã xem bài, token hay bản nháp AI; nhận xét giáo viên đã duyệt chỉ có trong file Excel.
+- **Chỉ đọc:** không ghi Supabase, không đổi hồ sơ nghiên cứu TN1–TN4, không dùng số liệu mô phỏng và không tự tạo minh chứng. “Số phiên học sinh” không đồng nghĩa số học sinh duy nhất; mức tăng điểm trên đề khác độ khó chỉ có giá trị mô tả.
+- Kiểm thử: node --test tests/class-report.test.mjs tests/progress-tracker.test.mjs tests/agent-review.test.mjs.
+
 ## ProgressTracker – Theo dõi tiến bộ học sinh (giáo viên xác minh)
 
 - **Cách mở:** đăng nhập giáo viên → vào bảng lớp → chọn **ProgressTracker · AI Agent** trên thanh công cụ.

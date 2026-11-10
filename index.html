@@ -2824,6 +2824,8 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 <script src="./m56.js?v=m56-20261106b"></script>
 <script src="./progress-tracker.js?v=pt-20261110a"></script>
 <script src="./progress-tracker-ui.js?v=pt-20261110a"></script>
+<script src="./class-report.js?v=cr-20261110a"></script>
+<script src="./class-report-ui.js?v=cr-20261110a"></script>
 <script>
 (() => {
 'use strict';
@@ -5215,7 +5217,7 @@ function renderBoard(b) {
         ${['cot', 'tuong'].includes(layoutKey(b.layout)) || !gv ? `<div class="bdirs" role="group" aria-label="Hướng sắp xếp nội dung bảng"><button class="btn btn-soft" data-act="bdir" data-v="h" aria-pressed="${dir === 'h'}">${ic('cols3')}<span>Chiều ngang</span></button><button class="btn btn-soft" data-act="bdir" data-v="v" aria-pressed="${dir === 'v'}">${ic('rows')}<span>Chiều dọc</span></button></div>` : ''}
         <select id="b-sort" data-chg="psort" aria-label="Sắp xếp bài đăng">${SORTS.map(([k, t]) => `<option value="${k}" ${k === S.psort ? 'selected' : ''}>${t}</option>`).join('')}</select>
         ${manage ? `<button class="btn btn-brand" data-act="publish-class" data-id="${b.id}">${ic('plus')}Đăng bài cho cả lớp</button><button class="btn btn-soft" data-act="capture" data-id="${b.id}">${ic('camera')}Chụp bài học sinh</button>` : ''}
-        ${gv ? `<button class="btn btn-soft" data-act="progress" data-id="${b.id}">📈 Tiến bộ học sinh</button><button class="btn btn-soft" data-act="progress-tracker" data-id="${b.id}">${ic('trend')}ProgressTracker · AI Agent</button>` : ''}
+        ${gv ? `<button class="btn btn-soft" data-act="progress" data-id="${b.id}">📈 Tiến bộ học sinh</button><button class="btn btn-soft" data-act="progress-tracker" data-id="${b.id}">${ic('trend')}ProgressTracker · AI Agent</button>${manage ? `<button class="btn btn-soft" data-act="class-report" data-id="${b.id}">${ic('chart')}ClassReport · Báo cáo</button>` : ''}` : ''}
         ${manage ? `<select id="b-layout" data-chg="blayout" data-id="${b.id}" aria-label="Bố cục bảng">${LAYOUTS.map(([k, t]) => `<option value="${k}" ${layoutKey(b.layout) === k ? 'selected' : ''}>${t}</option>`).join('')}</select>` : ''}
         ${gv ? `<button class="btn btn-soft" data-act="review" data-id="${b.id}" aria-label="Chờ duyệt${review ? ', ' + review + ' bài' : ''}">${ic('inbox')}Chờ duyệt${review ? `<b class="bcnt">${review}</b>` : ''}</button>` : ''}
       </div>
@@ -5632,6 +5634,23 @@ function slideshow(b, list, start = 0) {
   draw();
 }
 
+/* ---------- ClassReport: teacher-only, uses existing authorized in-memory data. ---------- */
+function openClassReport(board) {
+  const canUse = () => {
+    const latest = getBoard(board?.id);
+    return !!(latest && isGV() && !S.guest && !latest.demo && !latest.trashed && canManage(latest));
+  };
+  if (!canUse()) { toast('Chỉ giáo viên quản lý lớp được xem ClassReport.'); return; }
+  const app = window.TuongAiClassReportUI;
+  if (!app || !window.TuongAiClassReport) {
+    toast('Chưa tải được ClassReport. Hãy nhấn Ctrl + F5 để tải bản mới.'); return;
+  }
+  app.open(board, {
+    canUse, openModal, toast, esc, slug, loadXLSX,
+    posts: () => postsOf(board.id),
+    reload: () => loadData(),
+  });
+}
 /* ---------- tiến bộ học sinh ---------- */
 const norm10 = (p) => { const fs = finalScore(p); if (fs == null) return null; const max = getBoard(p.boardId)?.assignment?.maxScore || 10; return (fs / max) * 10; };
 function progressForm(b) {
@@ -8969,6 +8988,7 @@ document.addEventListener('click', async (e) => {
     case 'slideshow': if (b) slideshow(b, shownPosts(b)); break;
     case 'progress': if (b) progressForm(b); break;
     case 'progress-tracker': if (b) openProgressTracker(b); break;
+    case 'class-report': if (b) openClassReport(b); break;
     case 'review': if (b) reviewForm(b); break;
     case 'export': if (b) exportForm(b); break;
     case 'fav': $('.menu')?.remove(); if (b) { const on = !(b.starred || b.pinned); await saveBoard({ ...b, starred: on, pinned: on }); toast(on ? 'Đã ghim bảng. Xem lại ở mục Đã đánh dấu.' : 'Đã bỏ ghim.'); } break;

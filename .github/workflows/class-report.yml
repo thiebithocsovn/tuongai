@@ -1,0 +1,37 @@
+name: ClassReport verified report tests
+on:
+  push:
+    branches: [main, 'feat/classreport-*']
+    paths:
+      - 'class-report.js'
+      - 'class-report-ui.js'
+      - 'index.html'
+      - 'tests/class-report.test.mjs'
+      - '.github/workflows/class-report.yml'
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  class-report-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax checks
+        run: |
+          node --check class-report.js
+          node --check class-report-ui.js
+          node --input-type=module -e "
+            import fs from 'node:fs';import vm from 'node:vm';
+            const h=fs.readFileSync('index.html','utf8');
+            const scripts=[...h.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi)];
+            for(const x of scripts)new vm.Script(x[1]);
+            console.log('Inline scripts parsed:',scripts.length);
+          "
+      - name: Report and existing agent regression tests
+        run: |
+          node --test tests/class-report.test.mjs
+          node --test tests/progress-tracker.test.mjs tests/agent-review.test.mjs
