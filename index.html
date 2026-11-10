@@ -5897,6 +5897,8 @@ function boardForm(b) {
         <label class="chk"><input type="checkbox" id="bf-feedback" ${studentView.showFeedback!==false?'checked':''}> Hiển thị nhận xét của giáo viên ở bên phải khi xem bài đã duyệt</label>
         <label class="chk"><input type="checkbox" id="bf-similar" ${studentView.showSimilar!==false?'checked':''}> Hiển thị câu hỏi bài tập tương tự (không có đáp án) sau khi chấm</label>
       </section>
+      <label class="chk"><input type="checkbox" id="bf-agent-v2" ${a.agentReviewV2===true?'checked':''}> Bật AgentReview V2 cho bảng này (xử lý hàng chờ trên máy chủ; không tự duyệt điểm)</label>
+      <p class="meta">Mặc định tắt. Chỉ bật cho bảng thử nghiệm hoặc lớp đã đồng ý sử dụng. Các bảng TN1–TN4 hiện có không tự động được bật.</p>
       ${isNew ? '' : `<label class="chk"><input type="checkbox" id="bf-arch" ${d.archived ? 'checked' : ''}> Lưu trữ bảng</label>`}
       <p class="form-err" id="bf-err" role="alert"></p>
     </form>`,
@@ -5963,7 +5965,8 @@ function boardForm(b) {
       school: d.school || me.school || '', subject: d.subject || '', grade: d.grade || '',
       columns: b ? (b.columns || []) : (layout === 'cot' ? [{ id: uid('c'), name: 'Bài nộp' }] : []),
       assignment: { ...a, description: $('#bf-desc', el).value.trim(), icon: savedSymbol, bg, bgColor, bgImage, maxScore: a.maxScore || 10,
-        studentView: { showFeedback: $('#bf-feedback', el).checked, showSimilar: $('#bf-similar', el).checked } },
+        studentView: { showFeedback: $('#bf-feedback', el).checked, showSimilar: $('#bf-similar', el).checked },
+        agentReviewV2: $('#bf-agent-v2', el).checked },
       autoGrade: d.autoGrade !== false, private: d.private !== false,
       pinned: !!d.pinned, starred: !!d.starred,
       archived: $('#bf-arch', el) ? $('#bf-arch', el).checked : !!d.archived
@@ -8143,9 +8146,20 @@ async function asAct(as, a, t) {
     case 'assign': return run('save', async () => {
       const pr = as.a?.practice; if (!pr?.exercises.length) throw new Error('Bài luyện tập đang trống.');
       for (const e of pr.exercises) if (![e.question, e.hint, e.expectedAnswer, e.successCriteria].every((v) => String(v || '').trim())) throw new Error('Mỗi bài cần đủ đề, gợi ý, đáp án mẫu và tiêu chí.');
-      const next = { ...asNorm(as.a), practice: { ...clone(pr), status: 'assigned', assignedAt: now() } };
-      as.a = asLocal(next); as.dirty = false;
-      if (!await asPersist(as, { a: next })) throw new Error('Chưa giao được bài luyện tập.');
+      if (asSaved(p)?.agentReview) {
+        if (as.dirty) throw new Error('Lưu bản nháp trước khi duyệt giao luyện tập.');
+        const cur = getPost(p.id);
+        const response = await api('agent_review', {
+          operation: 'assign', post_id: p.id,
+          draft_id: as.a.id, practice_id: pr.id,
+        });
+        adoptTeacherPatch(p.id, cur.teacher, response.teacher);
+        asAdopt(as, response.teacher.assist);
+      } else {
+        const next = { ...asNorm(as.a), practice: { ...clone(pr), status: 'assigned', assignedAt: now() } };
+        as.a = asLocal(next); as.dirty = false;
+        if (!await asPersist(as, { a: next })) throw new Error('Chưa giao được bài luyện tập.');
+      }
       as.msg = 'Đã giao luyện tập. Học sinh mở lại bài đã nộp để làm trực tiếp, hoặc thầy cô tải phiếu để gửi.';
     });
     case 'dl-sheet': {
@@ -8793,11 +8807,84 @@ function createMemberForm() {
     finally { btn.disabled = false; }
   };
 }
+
+/** Teacher-only private dashboard; no student feeds or research exports are modified. */
+function openAgentReviewDashboard() {
+  if (!isGV() || S.guest) return toast('Chỉ giáo viên đã đăng nhập được mở hàng chờ.');
+  const m = openModal({
+    title: 'Trung tâm AgentReview V2', wide: true,
+    body: '<div class="modal-b"><p class="meta">Chỉ xử lý các bảng đã chủ động bật AgentReview V2. AI tạo bản nháp; giáo viên quyết định điểm và nguyên nhân.</p>' +
+      '<div class="as-row"><button class="btn btn-brand" id="arv2-refresh">Làm mới trạng thái</button>' +
+      '<button class="btn btn-ghost" id="arv2-start">Chạy hàng chờ máy chủ</button></div>' +
+      '<p id="arv2-message" class="meta" role="status">Đang tải dữ liệu…</p>' +
+      '<div id="arv2-data"></div></div>',
+  });
+  const el = m.el;
+  const out = $('#arv2-data', el), message = $('#arv2-message', el);
+  const start = $('#arv2-start', el), refresh = $('#arv2-refresh', el);
+  let pending = false;
+  async function load() {
+    if (pending) return;
+    pending = true; refresh.disabled = true;
+    try {
+      const data = await api('agent_review_queue', { operation: 'overview' });
+      const counts = data.counts || {}, items = Array.isArray(data.items) ? data.items : [];
+      const number = (key) => Number(counts[key] || 0);
+      const label = { pending: 'Chờ phân tích', running: 'Đang xử lý', ready: 'Đã tạo nháp', failed: 'Cần xử lý lỗi' };
+      const counters = Object.keys(label).map((key) =>
+        '<span class="as-chip">' + label[key] + ': <strong>' + number(key) + '</strong></span>').join(' ');
+      const rows = items.map((item) => {
+        const status = label[item.status] || item.status;
+        const when = item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : '';
+        const audit = (item.audit || []).slice(-5).map((entry) =>
+          '<li>' + esc(new Date(entry.at).toLocaleString('vi-VN')) + ' · ' +
+          esc(entry.event) + ' · ' + esc(entry.kind) +
+          (entry.code ? ' (' + esc(entry.code) + ')' : '') + '</li>').join('');
+        return '<tr><td><strong>' + esc(item.name || 'Học sinh') + '</strong><small style="display:block">' +
+          esc(item.boardName || '') + '</small></td><td>' + esc(status) +
+          '<small style="display:block">Lần chạy: ' + Number(item.attempts || 0) + '</small></td>' +
+          '<td>' + esc(item.reviewStatus || 'Chưa duyệt') +
+          ' / ' + esc(item.practiceStatus || 'Chưa giao') + '</td>' +
+          '<td><details><summary>Nhật ký</summary><ol>' + (audit || '<li>Chưa có</li>') +
+          '</ol></details></td><td><button class="btn btn-sm" data-open-agent-post="' +
+          esc(item.id) + '">Mở bài</button></td></tr>';
+      }).join('');
+      out.innerHTML = '<div class="as-row" style="flex-wrap:wrap;margin:12px 0">' + counters +
+        '</div><p class="meta">Tổng ' + items.length + ' bài có AgentReview V2 trong 100 bài gần nhất của các bảng đã bật.</p>' +
+        (rows ? '<div style="overflow-x:auto"><table><thead><tr><th>Học sinh / Bảng</th><th>Trạng thái</th><th>Duyệt / Luyện tập</th><th>Nhật ký</th><th></th></tr></thead><tbody>' +
+          rows + '</tbody></table></div>' :
+          '<p class="as-empty">Chưa có bài thuộc bảng đã bật AgentReview V2. Hãy bật trong Cài đặt bảng và nộp một bài thử.</p>');
+      $('[data-open-agent-post]', out).forEach((btn) => btn.onclick = () => {
+        const id = btn.dataset.openAgentPost;
+        if (!getPost(id)) { toast('Bài chưa có trong bộ nhớ. Hãy tải lại trang rồi thử lại.'); return; }
+        m.close(); openDetail(id, false);
+      });
+      start.disabled = !data.aiReady;
+      message.textContent = data.aiReady ?
+        'Máy chủ đã có Gemini chung. Nhấn Chạy hàng chờ để xử lý tối đa 2 bài mỗi lượt.' :
+        'Chưa có Gemini chung: hãy sử dụng Gemini · Google trong phiên giáo viên để chạy bài thủ công.';
+    } catch (e) {
+      message.textContent = 'Không tải được AgentReview: ' + aiMsg(e);
+    } finally { pending = false; refresh.disabled = false; }
+  }
+  refresh.onclick = load;
+  start.onclick = async () => {
+    start.disabled = true;
+    try {
+      await api('agent_review_queue', { operation: 'start' });
+      message.textContent = 'Đã yêu cầu máy chủ xử lý hàng chờ. Bấm Làm mới để xem trạng thái.';
+    } catch (e) {
+      message.textContent = aiMsg(e);
+    } finally { start.disabled = false; }
+  };
+  void load();
+}
+
 function meMenu(anchor) {
   const old = $('.pop'); if (old) { old.remove(); return; }
   const me = ME(); if (!me) return;
   const pop = document.createElement('div'); pop.className = 'pop'; pop.setAttribute('role', 'menu');
-  pop.innerHTML = `${!me.guest ? `<button role="menuitem" data-act="change-avatar">${ic('camera')}Đổi ảnh đại diện</button><button role="menuitem" data-act="change-pw">${ic('key')}Đổi mật khẩu</button>` : ''}${isGV() ? `<button role="menuitem" data-act="ai-connect">${ic('spark')}Kết nối AI chấm bài</button>` : ''}${isAdmin() ? `<button role="menuitem" data-act="tab" data-tab="members">${ic('users')}Thành viên</button><button role="menuitem" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button>` : ''}${isGV() && demoHidden() ? `<button role="menuitem" data-act="show-demo">${ic('book')}Hiện lại bảng mẫu</button>` : ''}<button role="menuitem" data-act="help">${ic('msg')}Hướng dẫn nhanh</button><button role="menuitem" data-act="logout">${ic('logout')}${me.guest ? 'Thoát lớp' : 'Đăng xuất'}</button>`;
+  pop.innerHTML = `${!me.guest ? `<button role="menuitem" data-act="change-avatar">${ic('camera')}Đổi ảnh đại diện</button><button role="menuitem" data-act="change-pw">${ic('key')}Đổi mật khẩu</button>` : ''}${isGV() ? `<button role="menuitem" data-act="agent-queue">${ic('inbox')}Trung tâm AgentReview V2</button><button role="menuitem" data-act="ai-connect">${ic('spark')}Kết nối AI chấm bài</button>` : ''}${isAdmin() ? `<button role="menuitem" data-act="tab" data-tab="members">${ic('users')}Thành viên</button><button role="menuitem" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button>` : ''}${isGV() && demoHidden() ? `<button role="menuitem" data-act="show-demo">${ic('book')}Hiện lại bảng mẫu</button>` : ''}<button role="menuitem" data-act="help">${ic('msg')}Hướng dẫn nhanh</button><button role="menuitem" data-act="logout">${ic('logout')}${me.guest ? 'Thoát lớp' : 'Đăng xuất'}</button>`;
   if (anchor === 'top') { pop.style.cssText = 'position:fixed;z-index:70;top:calc(56px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));left:auto;bottom:auto;width:230px'; document.body.appendChild(pop); }
   else $('.me').appendChild(pop);
 }
@@ -8838,6 +8925,7 @@ document.addEventListener('click', async (e) => {
     case 'mb-more': { const mm = memberOf(id); if (mm) memberMenu(t, mm); break; }
     case 'mb-sort': { const k = t.dataset.k; S.memberSort = !k ? { k: '', dir: 1 } : S.memberSort.k === k ? { k, dir: -S.memberSort.dir } : { k, dir: 1 }; drawMembers(); break; }
     case 'mb-bulk': memberBulk(t.dataset.v); break;
+    case 'agent-queue': $('.pop')?.remove(); openAgentReviewDashboard(); break;
     case 'new-board': closeDrawer(); boardForm(null); break;
     case 'join': closeDrawer(); joinForm(); break;
     case 'open-board': if (b && !b.trashed) { S.view = { name: 'board', boardId: b.id, tab: S.view.tab, q: '' }; render(); window.scrollTo(0, 0); } break;
