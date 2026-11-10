@@ -17,7 +17,7 @@ language sql stable security invoker set search_path = '' as $$
       or
       ((p.teacher #>> '{assist,agentReview,kind}') = 'practice'
        and p.teacher->>'approvedAt' is not null
-       and p.teacher #> '{assist,a,practice}' is null)
+       and coalesce(p.teacher #> '{assist,a,practice}', 'null'::jsonb) = 'null'::jsonb)
     )
     and (
       p.teacher #>> '{assist,agentReview,status}' = 'pending'
