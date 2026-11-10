@@ -30,7 +30,7 @@ jobs:
           for(const path of ['supabase/functions/tuongai/index.ts','supabase/functions/tuongai/auto-grade-retry.ts']){
             const src=fs.readFileSync(path,'utf8');
             const stripped=stripTypeScriptTypes(src.replace(/^import [\s\S]*?;\n/gm,''),{mode:'transform'});
-            new vm.Script(stripped,{filename:path});
+            new vm.Script(stripped.replace(/^export /gm,''),{filename:path});
           }
           const html=fs.readFileSync('index.html','utf8');
           for(const match of html.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi)){
