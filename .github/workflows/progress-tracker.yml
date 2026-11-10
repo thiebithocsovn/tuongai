@@ -1,0 +1,35 @@
+name: ProgressTracker verified progress tests
+on:
+  push:
+    branches: [main, 'feat/progresstracker-*']
+    paths:
+      - 'progress-tracker.js'
+      - 'progress-tracker-ui.js'
+      - 'index.html'
+      - 'tests/progress-tracker.test.mjs'
+      - '.github/workflows/progress-tracker.yml'
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verified-progress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check script syntax
+        run: |
+          node --check progress-tracker.js
+          node --check progress-tracker-ui.js
+          node --input-type=module -e "
+            import fs from 'node:fs'; import vm from 'node:vm';
+            const page=fs.readFileSync('index.html','utf8');
+            const scripts=[...page.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi)];
+            for (const s of scripts) new vm.Script(s[1]);
+            console.log('Inline scripts checked:',scripts.length);
+          "
+      - name: Test ProgressTracker and AgentReview
+        run: node --test tests/progress-tracker.test.mjs tests/agent-review.test.mjs
