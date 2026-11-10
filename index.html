@@ -7779,6 +7779,8 @@ function reviewJobKind(p, retry = false) {
   const { agentReview: job, a } = asSaved(p) || {};
   if (!job || !(job.status === 'pending' || (retry && job.status === 'failed') ||
     (job.status === 'running' && job.until <= Date.now()))) return '';
+  // Attachment analysis is server-only: the browser worker cannot parse DOCX/XLSX/PDF.
+  if (job.kind === 'analysis' && b.assignment?.agentReviewV2 === true && p.attachments?.length) return '';
   if (job.kind === 'analysis' && b.autoGrade !== false && !a && (p.images?.length || p.text?.trim())) return 'analysis';
   if (job.kind === 'practice' && p.teacher?.approvedAt && a?.review?.status === 'approved' && !a.practice) return 'practice';
   return '';
@@ -8421,7 +8423,7 @@ function asHtml(as) {
   const agentLabel = practiceJob ? 'soạn luyện tập' : 'phân tích bài';
   const agentStatus = job && (practiceJob ? !x?.practice : !x)
     ? (!practiceJob && !(p.images?.length || p.text?.trim())
-      ? 'Bài chỉ có tệp đính kèm. Thầy cô xem tệp và bổ sung nội dung ở bước 1 để AI phân tích.'
+      ? (b.assignment?.agentReviewV2 === true && p.attachments?.length ? 'Máy chủ AgentReview V2 tự đọc tệp DOCX, XLSX, PDF và ghi kết quả nháp. Thầy cô kiểm tra trạng thái tại Trung tâm AgentReview V2.' : 'Bài chỉ có tệp đính kèm. Thầy cô xem tệp và bổ sung nội dung ở bước 1 để AI phân tích.')
       : { pending: 'Đang chờ ' + agentLabel + '.', running: 'Đang ' + agentLabel + '…',
         failed: 'Chưa ' + agentLabel + ' được. Thầy cô có thể thử lại.' }[job.status])
     : '';
