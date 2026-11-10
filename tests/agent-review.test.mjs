@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { stripTypeScriptTypes } from 'node:module';
 import * as agent from '../supabase/functions/tuongai/agent-review.ts';
+import * as autoGrade from '../supabase/functions/tuongai/auto-grade-retry.ts';
 import * as visibility from '../supabase/functions/tuongai/student-visibility.ts';
 import * as references from '../supabase/functions/tuongai/answer-reference.ts';
 import * as schoolManager from '../supabase/functions/tuongai/school-manager.ts';
@@ -57,7 +58,7 @@ function setup() {
   };
   const compiled = stripTypeScriptTypes(server.replace(/^import [\s\S]*?;\n/gm, ''), { mode: 'transform' });
   vm.runInNewContext(compiled, {
-    ...agent, ...references, ...visibility, ...schoolManager, publicPost: visibility.studentPost, crypto, Request, Response, TextEncoder,
+    ...agent, ...autoGrade, ...references, ...visibility, ...schoolManager, publicPost: visibility.studentPost, crypto, Request, Response, TextEncoder,
     createClient: () => db, Deno: { env: { get: () => '' }, serve: (fn) => { handler = fn; } },
   });
   const call = async (action, input, user) => {

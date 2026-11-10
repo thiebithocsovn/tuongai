@@ -4,6 +4,7 @@
 // - AI chấm bài bằng một khóa Gemini chung do quản trị đặt (lưu trong app_config).
 // - Quản trị: danh sách thành viên, duyệt, khóa, đặt lại mật khẩu, tạo, xóa.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { AUTO_GRADE_RETRY_MS, gradeFailure } from "./auto-grade-retry.ts";
 import { encodeBase64, decodeBase64 } from "jsr:@std/encoding@1/base64";
 import { studentPost as publicPost, ownsStudentPost, visibleToStudent, isTeacherAnnouncement, studentSimilarQuestions } from "./student-visibility.ts";
 import { answerReference, answerImages, answerImageRules } from "./answer-reference.ts";
@@ -181,6 +182,96 @@ async function gradePost(post: any, board: any) {
   if (!saved) throw new Fail("stale_submission", "Bài làm đã thay đổi trong lúc AI chấm. Hãy mở lại bài và chấm phiên bản mới.", 409);
   return { ai, ai_at };
 }
+
+// Record only non-sensitive error codes in a teacher-only CAS field.
+// Never store Gemini raw responses, prompts, key material or unpublished score data.
+async function saveAutoGradeState(postId: string, failure: ReturnType<typeof gradeFailure>, attempt: number, retrying: boolean) {
+  const { data: current, error } = await db.from("posts").select("*").eq("id", postId).maybeSingle();
+  if (error || !current || current.ai || current.ai_at || current.teacher?.approvedAt ||
+      typeof current.teacher?.score === "number") return false;
+  const teacher = { ...(current.teacher || {}), assist: {
+    ...(current.teacher?.assist || {}),
+    autoGrade: {
+      status: retrying ? "retrying" : "failed", code: failure.code,
+      message: failure.message, attempts: attempt, updatedAt: Date.now(),
+      ...(retrying ? { nextAt: Date.now() + AUTO_GRADE_RETRY_MS[Math.max(0,attempt-1)] } : {}),
+    },
+  } };
+  try {
+    await writeReviewTeacher(current, teacher);
+    return true;
+  } catch (e) {
+    // A concurrent teacher action takes precedence; never overwrite its work.
+    console.warn("auto_grade_audit_conflict", postId, gradeFailure(e).code);
+    return false;
+  }
+}
+
+// Keep the original server-side grade-to-draft behavior, also for retry success.
+async function saveAutoGradedReviewDraft(post: any, board: any) {
+  if (!post.ai || post.teacher?.approvedAt || post.teacher?.assist?.a) return;
+  const ai = post.ai;
+  try {
+    const analysis = cleanAnalysis({
+      summary: ai.nhan_xet || "Thầy cô kiểm tra nội dung và đối chiếu bài làm trước khi duyệt.",
+      feedback: ai.nhan_xet,
+      strengths: ai.diem_manh,
+      limitations: ai.canh_bao ? [ai.canh_bao] : [],
+      errors: (Array.isArray(ai.loi_sai) ? ai.loi_sai : []).filter((e: any) => e.buoc || e.vi_tri).map((e: any) => ({
+        title: e.loi, skill: e.loi, evidence: [e.cau || e.vi_tri, e.buoc].filter(Boolean).join(" · "),
+        hypothesis: e.nguyen_nhan,
+        verificationQuestion: "Em hãy giải thích vì sao em thực hiện bước này và thử làm lại.",
+        remediation: e.sua, confidence: ai.canh_bao ? "low" : "medium",
+      })),
+    });
+    const model = (await config("gemini_model")) || "gemini-flash-latest";
+    const a = makeReviewDraft(analysis, reviewContext(post, board), model, Date.now(), crypto.randomUUID());
+    post.teacher = await writeReviewTeacher(post, { ...post.teacher, assist: reviewAudit({
+      ...post.teacher?.assist, a, autoGrade: {
+        status: "ready", attempts: Math.max(1, Number(post.teacher?.assist?.autoGrade?.attempts || 1)),
+        updatedAt: Date.now(),
+      },
+      agentReview: { kind: "analysis", status: "ready", attempts: 1 },
+    }, "completed", "analysis", "server") });
+  } catch (e) {
+    // AI grade is already safely persisted. The draft can be prepared by the teacher later.
+    console.warn("auto_grade_review_draft_skipped", post.id, gradeFailure(e).code);
+  }
+}
+
+// Follow-up retries run only for the specific, unchanged, unapproved submission.
+// At most two additional Gemini calls. No database scan and no research backfill.
+async function retryAutoGrade(postId: string, boardId: string, expectedBody: string, expectedImages: any[]) {
+  for (let i = 0; i < AUTO_GRADE_RETRY_MS.length; i++) {
+    await new Promise<void>((resolve) => setTimeout(resolve, AUTO_GRADE_RETRY_MS[i]));
+    const [p, b] = await Promise.all([
+      db.from("posts").select("*").eq("id", postId).maybeSingle(),
+      db.from("boards").select("*").eq("id", boardId).maybeSingle(),
+    ]);
+    const post = p.data, board = b.data;
+    if (p.error || b.error || !post || !board || post.board_id !== board.id ||
+        post.owner !== board.owner || post.by !== "hs" || !board.auto_grade ||
+        board.archived || board.trashed || post.ai || post.ai_at ||
+        post.teacher?.approvedAt || typeof post.teacher?.score === "number" ||
+        post.body !== expectedBody ||
+        JSON.stringify(post.images || []) !== JSON.stringify(expectedImages)) return;
+    const attempt = i + 2;
+    try {
+      Object.assign(post, await gradePost(post, board));
+      await saveAutoGradedReviewDraft(post, board);
+      console.info("auto_grade_retry_succeeded", postId, attempt);
+      return;
+    } catch (e) {
+      const failure = gradeFailure(e);
+      if (failure.code === "stale_submission") return;
+      const willRetry = failure.retryable && i < AUTO_GRADE_RETRY_MS.length - 1;
+      await saveAutoGradeState(postId, failure, attempt, willRetry);
+      console.warn("auto_grade_retry_failed", postId, attempt, failure.code);
+      if (!willRetry) return;
+    }
+  }
+}
+
 async function signed(paths: string[]) {
   if (!paths.length) return {};
   const { data } = await db.storage.from("work").createSignedUrls(paths, 3600);
@@ -857,26 +948,24 @@ async function handle(req: Request) {
       if (error) throw new Fail("server", error.message, 500);
       let gradeError: string | null = null;
       if (b.auto_grade && (imgs.length || text) && (await config("gemini_key"))) {
-        try { Object.assign(post, await gradePost(post, b)); } catch (e) { gradeError = e instanceof Fail ? e.message : "AI chưa chấm được."; }
-        if (post.ai) {
-          // Reuse the automatic grade instead of sending student work to Gemini twice.
-          try {
-            const ai = post.ai;
-            const analysis = cleanAnalysis({
-              summary: ai.nhan_xet || "Thầy cô kiểm tra nội dung và đối chiếu bài làm trước khi duyệt.",
-              feedback: ai.nhan_xet, strengths: ai.diem_manh, limitations: ai.canh_bao ? [ai.canh_bao] : [],
-              errors: ai.loi_sai.filter((e: any) => e.buoc || e.vi_tri).map((e: any) => ({
-                title: e.loi, skill: e.loi, evidence: [e.cau || e.vi_tri, e.buoc].filter(Boolean).join(" · "),
-                hypothesis: e.nguyen_nhan, verificationQuestion: "Em hãy giải thích vì sao em thực hiện bước này và thử làm lại.",
-                remediation: e.sua, confidence: ai.canh_bao ? "low" : "medium",
-              })),
-            });
-            const model = (await config("gemini_model")) || "gemini-flash-latest";
-            const a = makeReviewDraft(analysis, reviewContext(post, b), model, Date.now(), crypto.randomUUID());
-            post.teacher = await writeReviewTeacher(post, { ...post.teacher, assist: reviewAudit({
-              ...post.teacher.assist, a, agentReview: { kind: "analysis", status: "ready", attempts: 1 },
-            }, "completed", "analysis", "server") });
-          } catch { /* The queued job is still available to the teacher's browser. */ }
+        try {
+          Object.assign(post, await gradePost(post, b));
+          await saveAutoGradedReviewDraft(post, b);
+        } catch (e) {
+          const failure = gradeFailure(e);
+          const runtime = (globalThis as typeof globalThis & {
+            EdgeRuntime?: { waitUntil(task: Promise<unknown>): void }
+          }).EdgeRuntime;
+          const retrying = failure.retryable && typeof runtime?.waitUntil === "function";
+          await saveAutoGradeState(post.id, failure, 1, retrying);
+          gradeError = failure.message + (retrying
+            ? " Máy chủ đang tự thử lại; thầy cô sẽ kiểm tra kết quả."
+            : " Thầy cô có thể mở bài và chấm lại.");
+          console.warn("auto_grade_submission_failed", post.id, failure.code);
+          if (retrying) {
+            runtime!.waitUntil(retryAutoGrade(post.id, b.id, post.body, post.images || [])
+              .catch((error) => console.warn("auto_grade_retry_interrupted", post.id, gradeFailure(error).code)));
+          }
         }
       }
       if (v2EligibleBoard(b) && !post.teacher?.assist?.a && !gradeError &&
@@ -981,7 +1070,15 @@ async function handle(req: Request) {
           throw new Fail("forbidden", "Bài giáo viên giao cho cả lớp không thuộc diện chấm điểm.", 403);
         }
       }
-      return await gradePost(post, b);
+      try {
+        return await gradePost(post, b);
+      } catch (e) {
+        // Preserve original error response to the teacher, and persist a safe
+        // diagnostic for the review queue if the submission is still ungraded.
+        if (!post.ai && !post.teacher?.approvedAt)
+          await saveAutoGradeState(post.id, gradeFailure(e), 1, false);
+        throw e;
+      }
     }
     case "grade_demo": {
       needActive(me);
