@@ -83,7 +83,7 @@ test('interface links, privacy guard, and syntax work',()=>{
   assert.match(html,/progress-tracker\.js\?v=pt-20261110a/);
   assert.match(html,/progress-tracker-ui\.js\?v=pt-20261110a/);
   assert.match(html,/data-act="progress-tracker"/);
-  assert.match(html,/case 'progress-tracker': if \(b\) openProgressTracker\(b\)/);
+  assert.match(html,/case 'progress-tracker': if \(b && await schoolManagerFeatureAllowed\(b,'progressTracker'\)\) openProgressTracker\(b\)/);
   assert.match(html,/function asProgress\(p\)[\s\S]*TuongAiProgressTracker/);
   assert.match(ui,/!isGV\(\) \|\| S\.guest \|\| !canManage\(board\)/);
   new vm.Script(ui);
