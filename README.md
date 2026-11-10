@@ -36,7 +36,7 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 
 ## SchoolManager – Quản lý AI Agent cho nhiều trường
 
-- **Mở:** giáo viên đã đăng nhập → menu tài khoản → **SchoolManager · Quản lý trường**. Tài khoản quản trị hệ thống tạo trường và phân bổ giáo viên/bảng lớp. Quản trị trường do quản trị hệ thống chỉ định bằng vai trò thành viên SchoolManager, KHÔNG phải vai trò admin toàn hệ thống.
+- **Mở:** tài khoản quản trị toàn hệ thống đăng nhập → **Quản lý trường** ngay tại trang **Bảng toàn hệ thống**, hoặc mục **Thành viên** hoặc thanh điều hướng (**kể cả Android**). Mục **SchoolManager · Quản lý trường** cũng giữ trong menu tài khoản cho giáo viên có quyền SchoolManager. Quản trị trường do quản trị hệ thống chỉ định bằng vai trò thành viên SchoolManager, KHÔNG phải vai trò admin toàn hệ thống.
 - Mã trường duy nhất. Mỗi giáo viên có thể là thành viên nhiều trường. Bảng lớp chỉ được liên kết với một trường, và chỉ sau khi chủ bảng đã được gán vào trường.
 - **Không chuyển dữ liệu cũ:** các bảng và bài hiện có, đặc biệt TN1–TN4, không được tự phân loại theo chuỗi tên trường; chỉ khi quản trị chủ động gắn liên kết mới thuộc báo cáo trường.
 - Quản trị trường xem danh sách giáo viên, bảng đã được liên kết, số bài đã nộp và số bài có điểm giáo viên duyệt, nhật ký thay đổi; không được xem bài làm/đáp án/nhận xét riêng của học sinh từ dashboard trường. Quản trị trường có thể thêm/gỡ giáo viên hiện hữu, bật/tắt AgentReview, ProgressTracker, ClassReport trong trường mình. Chỉ quản trị toàn hệ thống bổ nhiệm quản trị trường và gắn/bỏ liên kết bảng lớp.
