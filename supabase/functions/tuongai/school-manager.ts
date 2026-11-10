@@ -171,7 +171,7 @@ export async function handleSchoolManager(db,user,body,Fail) {
       bad(Fail,'forbidden','Chỉ quản trị hệ thống bổ nhiệm quản trị trường.',403);
     const userId=getUuid(body.user_id);
     const email=asText(body.email,200).toLowerCase();
-    if(!userId && (!email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)))
+    if(!userId && (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))
       bad(Fail,'invalid','Nhập email giáo viên đã có tài khoản hoặc chọn giáo viên.');
     const profile=await one(userId?
       db.from('profiles').select('id,role,status').eq('id',userId).maybeSingle():
