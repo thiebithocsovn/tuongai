@@ -55,3 +55,26 @@ comment on table public.school_manager_schools is
   'Opt-in SchoolManager schools. Existing boards and posts are NOT reclassified.';
 comment on table public.school_manager_boards is
   'Explicitly assigned class boards only; never infer school from a free-text name.';
+
+-- Only the authenticated, scoped Edge Function (service_role) can call this
+-- aggregate; no raw student body, token, score or comment is returned.
+create or replace function public.school_manager_board_metrics(p_school_ids uuid[])
+returns table (
+  school_id uuid, board_id uuid, submissions bigint, reviewed bigint
+)
+language sql stable security invoker
+set search_path = public
+as $$
+  select l.school_id,l.board_id,
+    count(p.id) filter (where p.by='hs')::bigint as submissions,
+    count(p.id) filter (
+      where p.by='hs' and p.teacher->>'approvedAt' is not null and
+        jsonb_typeof(p.teacher->'score') = 'number'
+    )::bigint as reviewed
+  from public.school_manager_boards l
+  left join public.posts p on p.board_id=l.board_id
+  where l.school_id = any(p_school_ids)
+  group by l.school_id,l.board_id;
+$$;
+revoke all on function public.school_manager_board_metrics(uuid[]) from public, anon, authenticated;
+grant execute on function public.school_manager_board_metrics(uuid[]) to service_role;
