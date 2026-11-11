@@ -6,9 +6,8 @@ import vm from 'node:vm';
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const viewer=fs.readFileSync(new URL('../file-preview.js',import.meta.url),'utf8');
 
-test('Classroom file preview loads before the application and provides an eye action',()=>{
-  assert.match(html,/<script src="\.\/file-preview\.js"><\/script>/);
-  assert.ok(html.indexOf('src="./file-preview.js"')<html.indexOf('function previewAttachmentFile('));
+test('Classroom file preview loads without blocking class entry and provides an eye action',()=>{
+  assert.match(html,/<script defer src="\.\/file-preview\.js"><\/script>/);
   assert.match(html,/data-view-file="\$\{i\}"/);
   assert.match(html,/data-file-preview="\$\{i\}"/);
   assert.match(html,/function previewAttachmentFile\(p,index,button\)/);
