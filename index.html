@@ -5365,6 +5365,7 @@ function studentFeedbackInlineHtml(p) {
   const recent = f.comments.slice(-2);
   for (const c of recent) texts.push('<p><b>' + esc(c.name || 'Giáo viên') + ':</b> ' + esc(c.text) + '</p>');
   if (!texts.length && f.aiText) texts.push('<p><b>Gợi ý AI đã duyệt:</b> ' + esc(f.aiText) + '</p>');
+  if (!texts.length && p.teacher?.notePrivate) return '';
   if (!texts.length) texts.push('<p>Giáo viên đã duyệt bài nhưng chưa công bố nhận xét bằng chữ.</p>');
   const more = f.comments.length > 2 ? '<small>Còn ' + (f.comments.length - 2) + ' nhận xét khác trong chi tiết bài.</small>' : '';
   return `<section class="student-feedback-inline" aria-label="Nhận xét của giáo viên sau khi chấm">
@@ -5382,7 +5383,7 @@ function studentFeedbackDetail(p) {
     <h4>${ic('msg','ic-sm')} Nhận xét sau khi chấm</h4>
     ${f.note ? `<div class="student-feedback-note"><b>Nhận xét chốt</b><p>${esc(f.note)}</p></div>` : ''}
     ${f.comments.length ? `<div class="student-feedback-comments"><h5>Nhận xét bổ sung (${f.comments.length})</h5>${f.comments.map(c => `<div class="student-feedback-comment"><b>${esc(c.name)}</b><small>${esc(vnTime(c.at))}</small><p>${esc(c.text)}</p></div>`).join('')}</div>` : ''}
-    ${!f.note && !f.comments.length ? '<p class="meta">Bài đã được duyệt. Giáo viên chưa công bố nhận xét bằng chữ cho bài này.</p>' : ''}
+    ${!f.note && !f.comments.length ? `<p class="meta">${p.teacher?.notePrivate ? 'Nhận xét đã được gửi riêng cho chủ bài.' : 'Bài đã được duyệt. Giáo viên chưa công bố nhận xét bằng chữ cho bài này.'}</p>` : ''}
     ${f.aiText ? `<div class="student-feedback-ai"><h5>${ic('spark','ic-sm')} Gợi ý từ AI (đã duyệt)</h5><p>${esc(f.aiText)}</p></div>` : ''}
   </section>`;
 }
@@ -5541,13 +5542,15 @@ function postCard(p, studentView) {
   const liked = likes.includes(S.meId);
   const grading = S.grading.has(p.id);
   const fileOnly = !!p.attachments?.length && !(p.images||[]).length && !String(p.text||'').trim();
-  const autoGrade = gv && !announcement && !fileOnly && !p.ai && !grading && aiOn();
+  const agentV2 = p.by === 'hs' && b?.assignment?.agentReviewV2 === true && b.autoGrade !== false;
+  const autoGrade = gv && !agentV2 && !announcement && !fileOnly && !p.ai && !grading && aiOn();
   const { text: body, links } = splitLinks(p.text);
   const media = img ? `<span class="pthumb">${src ? `<img src="${esc(src)}" alt="Ảnh bài làm của ${esc(p.studentName)}" loading="lazy">` : ''}${p.images.length > 1 ? `<span class="more">${p.images.length} ảnh</span>` : ''}</span>` : '';
   const text = body ? `<span class="ptext">${esc(body)}</span>` : '';
   const approved = !!tm.approvedAt;
   const aiLabel = announcement ? '📘 Xem bài giáo viên giao' : !gv && p.studentAcc === S.meId && approved ? '📝 Xem điểm và nhận xét' : !gv && approved ? '📝 Xem bài và nhận xét' : grading ? '✨ AI đang phân tích…'
-    : gv ? (fileOnly ? '📎 Xem tệp · Chấm thủ công' : '✨ Phân tích AI' + (approved ? ' · Đã duyệt' : p.ai ? ' · Chờ duyệt' : ''))
+    : gv ? (agentV2 ? '✨ AgentReview V2' + (approved ? ' · Đã duyệt' : p.teacher?.assist?.a ? ' · Chờ duyệt' : '')
+      : fileOnly ? '📎 Xem tệp · Chấm thủ công' : '✨ Phân tích AI' + (approved ? ' · Đã duyệt' : p.ai ? ' · Chờ duyệt' : ''))
     : p.by === 'gv' ? '📘 Xem bài đã đăng'
     : p.practice?.length ? '📚 Làm bài luyện tập (' + p.practice.reduce((n, v) => n + (v.exercises?.length || 0), 0) + ' bài)'
     : p.ai || tm.note ? '✨ Xem nhận xét' : 'Xem bài đã nộp';
@@ -5996,7 +5999,7 @@ function boardForm(b) {
         <label class="chk"><input type="checkbox" id="bf-similar" ${studentView.showSimilar!==false?'checked':''}> Hiển thị câu hỏi bài tập tương tự (không có đáp án) sau khi chấm</label>
       </section>
       <label class="chk"><input type="checkbox" id="bf-agent-v2" ${a.agentReviewV2===true?'checked':''}> Bật AgentReview V2 cho bảng này (xử lý hàng chờ trên máy chủ; không tự duyệt điểm)</label>
-      <p class="meta">Mặc định tắt. Chỉ bật cho bảng thử nghiệm hoặc lớp đã đồng ý sử dụng. Các bảng TN1–TN4 hiện có không tự động được bật.</p>
+      <p class="meta">Khi bật, máy chủ tự đề xuất điểm, viết nhận xét và tìm nguyên nhân sai. Giáo viên duyệt một lần để gửi điểm và nhận xét cho học sinh.</p>
       ${isNew ? '' : `<label class="chk"><input type="checkbox" id="bf-arch" ${d.archived ? 'checked' : ''}> Lưu trữ bảng</label>`}
       <p class="form-err" id="bf-err" role="alert"></p>
     </form>`,
@@ -7319,6 +7322,10 @@ function openDetail(id, autoGrade, focus) {
   }
   if (!announcement && !gv && S.guest) { studentPracticeRefresh(id); studentSimilarRefresh(id); }
   if (!announcement && autoGrade && gv && !p.ai) runGrade(id);
+  if (focus === 'agent-review' && detail.as) {
+    detail.as.step = 1;
+    asRender(detail.as);
+  }
   if (focus === 'cmt') setTimeout(() => { $('#pd-cmt', m.el)?.scrollIntoView({ block: 'center' }); $('#cm-text', m.el)?.focus(); }, 80);
 }
 function drawMedia() {
@@ -7487,14 +7494,14 @@ function drawSide() {
     el.innerHTML = `<header class="student-peer-result-head">
       <span class="chip chip-ok">${ic('check','ic-sm')} ${ready?'Bài đã được duyệt':'Bài chưa được duyệt'}</span>
       <h3>Nhận xét bài làm · ${esc(p.studentName)}</h3>
-      <p>Giáo viên đã duyệt bài. Em có thể đọc lời nhận xét và tham khảo bài tập tương tự ở bên dưới.</p>
+      <p>Em có thể xem những nội dung giáo viên đã chia sẻ cho lớp.</p>
       <p class="student-peer-privacy">${ic('lock','ic-sm')} Điểm và nhận xét AI riêng của bạn không hiển thị.</p>
     </header>
     <section class="student-own-grade-card" aria-label="Điểm bài làm">
       <span class="student-own-grade-kicker">ĐIỂM BÀI LÀM${ready ? ' ĐÃ ĐƯỢC DUYỆT' : ' · CHỜ THẦY CÔ DUYỆT'}</span>
       <div class="student-own-grade-body">
         <span class="student-own-grade-circle is-private" aria-label="Điểm riêng của chủ bài">${ic('lock')}<small>/${fmt(b?.assignment?.maxScore || 10)}</small></span>
-        <div class="student-own-grade-comment"><b>${S.guest?.preview ? 'Đây là bài của em?' : 'Điểm riêng của chủ bài'}</b><p>${S.guest?.preview ? 'Mở kết quả cá nhân để xem điểm trong ô này, cùng nhận xét và các mục bên dưới.' : 'Em chỉ xem được điểm của bài mình đã nộp. Nhận xét đã công bố của bài này vẫn ở bên dưới.'}</p></div>
+        <div class="student-own-grade-comment"><b>${S.guest?.preview ? 'Đây là bài của em?' : 'Điểm riêng của chủ bài'}</b><p>${S.guest?.preview ? 'Mở kết quả cá nhân để xem điểm và nhận xét.' : 'Em chỉ xem được điểm của bài mình đã nộp.'}</p></div>
       </div>
       ${S.guest?.preview ? `<button type="button" class="btn student-grade-open" data-pd="student-open-grade">${ic('eye','ic-sm')} Xem điểm bài làm của em</button>` : ''}
     </section>
@@ -7571,7 +7578,7 @@ function drawSide() {
   /* Thầy cô: mục nhận xét có Trợ lý AI cho bài làm (theo mẫu Tường học tập Ai), danh sách nhận xét và ô Viết nhận xét. */
   const cmtHtml = gv
     ? `<section class="blk pd-cmt" id="pd-cmt" aria-label="Nhận xét riêng của giáo viên">
-      <header class="pd-review-heading"><h4>Nhận xét của giáo viên</h4><p class="meta">Sau khi duyệt, cả lớp xem được bài và nhận xét. Điểm chỉ hiển thị cho chủ bài; Trợ lý AI luôn là ghi chú riêng.</p>${p.by === "hs" && p.teacher?.approvedAt && p.studentToken?.length >= 16 ? `<button type="button" class="btn btn-sm btn-soft" data-pd="copy-student-result">${ic("copy","ic-sm")} Sao chép liên kết điểm riêng gửi cho học sinh</button>` : ""}</header>
+      <header class="pd-review-heading"><h4>Nhận xét của giáo viên</h4><p class="meta">${p.by === 'hs' && (b.assignment?.agentReviewV2 === true || p.teacher?.notePrivate) ? 'Điểm và nhận xét đã duyệt qua AgentReview V2 được gửi vào kết quả cá nhân của học sinh.' : 'Cả lớp xem được bài và nhận xét đã chia sẻ. Điểm chỉ hiển thị cho chủ bài.'}</p>${p.by === "hs" && p.teacher?.approvedAt && p.studentToken?.length >= 16 ? `<button type="button" class="btn btn-sm btn-soft" data-pd="copy-student-result">${ic("copy","ic-sm")} Sao chép liên kết điểm riêng gửi cho học sinh</button>` : ""}</header>
       <div id="pd-assist-slot"></div>
       <div class="as-row"><button type="button" class="btn btn-sm btn-soft" data-pd="m56-open">${ic('spark','ic-sm')} M5–M6 · Kiểm chứng nguyên nhân</button></div>
       ${p.ai && !S.grading.has(p.id) ? `<details class="pd-review-history"><summary>${ic('sparkles','ic-sm')} Xem kết quả AI chấm và lỗi sai từng câu</summary>${aiPartsHtml(p, b)}</details>` : ''}
@@ -7777,11 +7784,12 @@ function reviewJobKind(p, retry = false) {
   const b = getBoard(p.boardId);
   if (!canManage(b) || b.archived || b.trashed || p.by !== 'hs') return '';
   const { agentReview: job, a } = asSaved(p) || {};
+  const v2 = b.assignment?.agentReviewV2 === true && b.autoGrade !== false;
   if (!job || !(job.status === 'pending' || (retry && job.status === 'failed') ||
     (job.status === 'running' && job.until <= Date.now()))) return '';
-  // Attachment analysis is server-only: the browser worker cannot parse DOCX/XLSX/PDF.
-  if (job.kind === 'analysis' && b.assignment?.agentReviewV2 === true && p.attachments?.length) return '';
-  if (job.kind === 'analysis' && b.autoGrade !== false && !a && (p.images?.length || p.text?.trim())) return 'analysis';
+  if (job.v2 && !v2) return '';
+  if (job.kind === 'analysis' && !v2 && b.autoGrade !== false && !p.teacher?.approvedAt &&
+      p.teacher?.score == null && !a && (p.images?.length || p.text?.trim())) return 'analysis';
   if (job.kind === 'practice' && p.teacher?.approvedAt && a?.review?.status === 'approved' && !a.practice) return 'practice';
   return '';
 }
@@ -7838,6 +7846,11 @@ async function runAgentReview(id, retry = false) {
   } finally { reviewWorkerBusy = false; wakeAgentReview(); }
 }
 const asLocal = (a) => (a ? { ...clone(a), review: { ...a.review, score: a.review.score == null ? '' : String(a.review.score) } } : null);
+function asSuggestedScore(analysis, post, max) {
+  const score = analysis?.maxScore == null
+    ? post.ai?.diem : analysis.maxScore === Number(max) ? analysis.suggestedScore : null;
+  return Number.isFinite(score) && score >= 0 && score <= max ? score : null;
+}
 function asNorm(a) {
   const x = clone(a); if (!x) return null;
   const raw = String(x.review.score ?? '').trim().replace(',', '.');
@@ -8129,9 +8142,22 @@ async function asAct(as, a, t) {
     });
     case 'agent-retry': return run('analyze', async () => {
       if (as.dirty || as.contextDirty || as.similarDirty) throw new Error('Hãy lưu các thay đổi trước khi chạy AgentReview.');
+      if (b.assignment?.agentReviewV2 === true && b.autoGrade !== false) {
+        const result = await api('agent_review', { operation: 'run_analysis', post_id: p.id });
+        as.msg = result.started ? 'Máy chủ đã nhận yêu cầu chấm nháp. Bản nháp sẽ tự cập nhật tại đây.'
+          : 'Bài đã được xử lý hoặc đang có một lượt chạy.';
+        return;
+      }
       await runAgentReview(p.id, true);
       asAdopt(as, asSaved(getPost(p.id)));
     });
+    case 'use-suggested-score': {
+      const score = asSuggestedScore(as.a?.analysis, p, max);
+      if (score == null || as.a?.review.status !== 'draft') return;
+      as.a.review.score = String(score); as.dirty = true;
+      asRender(as);
+      return;
+    }
     case 'approve': return run('save', async () => {
       const x = as.a;
       for (const e of x.analysis.errors) {
@@ -8141,7 +8167,8 @@ async function asAct(as, a, t) {
       const fb = String(x.review.feedback || '').trim();
       if (!fb) throw new Error('Hãy viết nhận xét trước khi duyệt.');
       const raw = String(x.review.score ?? '').trim().replace(',', '.');
-      let sc = raw === '' ? finalScore(p) : parseFloat(raw);
+      const v2 = p.by === 'hs' && (asSaved(p)?.agentReview?.v2 || b.assignment?.agentReviewV2 === true);
+      let sc = raw === '' ? (v2 ? p.teacher?.score : finalScore(p)) : Number(raw);
       if (sc == null) throw new Error('Bài chưa có điểm. Hãy nhập điểm do thầy cô quyết định.');
       if (!(sc >= 0 && sc <= max)) throw new Error('Điểm cần từ 0 đến ' + max + '.');
       if (asSaved(p)?.agentReview) {
@@ -8159,8 +8186,8 @@ async function asAct(as, a, t) {
         if (detail?.id === p.id) detail.dirty = false;
         const queued = r.teacher.assist.agentReview.kind === 'practice';
         if (queued) { as.step = 2; wakeAgentReview(); }
-        as.msg = queued ? 'Đã duyệt nhận xét và điểm. AgentReview đang chờ soạn luyện tập theo lỗi đã xác minh.'
-          : 'Đã duyệt nhận xét và điểm. Không có lỗi đã xác nhận cần tạo luyện tập.';
+        as.msg = 'Đã công bố điểm và nhận xét trong kết quả của học sinh.' +
+          (queued ? ' AgentReview đang chờ soạn luyện tập theo lỗi đã xác minh.' : '');
         return;
       }
       sc = Math.round(sc * 4) / 4;
@@ -8419,16 +8446,22 @@ function asHtml(as) {
   const busy = !!as.busy; const lock = busy || as.ext; const off = lock || !aiOn();
   const dis = (c) => (c ? 'disabled' : '');
   const job = saved.agentReview;
+  const v2Enabled = p.by === 'hs' && b.assignment?.agentReviewV2 === true && b.autoGrade !== false && !b.archived && !b.trashed;
+  const v2Draft = v2Enabled || job?.v2 === true;
   const practiceJob = job?.kind === 'practice';
   const agentLabel = practiceJob ? 'soạn luyện tập' : 'phân tích bài';
   const agentStatus = job && (practiceJob ? !x?.practice : !x)
-    ? (!practiceJob && !(p.images?.length || p.text?.trim())
-      ? (b.assignment?.agentReviewV2 === true && p.attachments?.length ? 'Máy chủ AgentReview V2 tự đọc tệp DOCX, XLSX, PDF và ghi kết quả nháp. Thầy cô kiểm tra trạng thái tại Trung tâm AgentReview V2.' : 'Bài chỉ có tệp đính kèm. Thầy cô xem tệp và bổ sung nội dung ở bước 1 để AI phân tích.')
+    ? (v2Enabled && !practiceJob
+      ? { pending: 'Máy chủ sẽ tự chấm nháp và viết nhận xét.', running: 'Máy chủ đang đọc bài, chấm nháp và tìm lỗi…',
+        failed: 'Máy chủ chưa tạo được bản nháp. Thầy cô có thể thử lại.' }[job.status]
+      : !practiceJob && !(p.images?.length || p.text?.trim())
+      ? 'Bài chỉ có tệp đính kèm. Thầy cô xem tệp và bổ sung nội dung ở bước 1 để AI phân tích.'
       : { pending: 'Đang chờ ' + agentLabel + '.', running: 'Đang ' + agentLabel + '…',
         failed: 'Chưa ' + agentLabel + ' được. Thầy cô có thể thử lại.' }[job.status])
     : '';
+  const retryAvailable = v2Enabled && !practiceJob ? ['pending', 'failed'].includes(job?.status) : reviewJobKind(p, true);
   const agentNotice = agentStatus ? `<div class="as-warn" role="status"><strong>AgentReview</strong> · ${esc(agentStatus)}
-    ${reviewJobKind(p, true) ? `<button type="button" class="btn btn-sm as-btn" data-as="${practiceJob ? 'gen-prac' : 'agent-retry'}" ${dis(lock)}>${job.status === 'failed' ? 'Thử lại' : 'Chạy ngay'}</button>` : ''}</div>` : '';
+    ${retryAvailable ? `<button type="button" class="btn btn-sm as-btn" data-as="${practiceJob ? 'gen-prac' : 'agent-retry'}" ${dis(lock)}>${job.status === 'failed' ? 'Thử lại' : 'Chạy ngay'}</button>` : ''}</div>` : '';
   const fs = finalScore(p);
   const when = (t) => (t ? new Date(t).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
   const busyLine = { answers: 'Đang đọc tệp đáp án…', analyze: 'AI đang đọc bài và phân tích…', practice: 'AI đang soạn bài luyện tập…', similar: 'AI đang tạo bộ bài tương tự…', ping: 'Đang kiểm tra kết nối AI…', save: 'Đang lưu…' }[as.busy];
@@ -8459,6 +8492,7 @@ function asHtml(as) {
     if (!x) body = '<p class="as-empty">Bản nháp sẽ hiện ở đây. Thầy cô cũng có thể yêu cầu AI đánh giá ở bước 1.</p>';
     else {
       const an = x.analysis; const ed = dis(lock || approved);
+      const suggested = v2Draft ? asSuggestedScore(an, p, max) : null;
       body = `<div class="as-card"><p class="as-eyebrow">Gemini · ${esc(x.model || '')} · ${when(x.at)}</p><h4>Nhận định từ bài làm</h4><p>${esc(an.summary)}</p>${an.strengths?.length ? `<strong>Điểm làm tốt</strong><ul>${an.strengths.map((v) => `<li>${esc(v)}</li>`).join('')}</ul>` : ''}${an.limitations?.length ? `<div class="as-warn"><strong>Phần AI chưa đủ căn cứ</strong><ul>${an.limitations.map((v) => `<li>${esc(v)}</li>`).join('')}</ul></div>` : ''}</div>
         <p class="as-help">Thầy cô hỏi học sinh hoặc đối chiếu bài làm để xác minh giả thuyết. Xác nhận lỗi cần nguyên nhân do thầy cô kết luận và căn cứ cụ thể.</p>
         ${!an.errors.length ? '<p>AI chưa chỉ ra lỗi có căn cứ. Thầy cô vẫn cần kiểm tra bài và nhận xét trước khi duyệt.</p>' : ''}
@@ -8467,10 +8501,11 @@ function asHtml(as) {
           <label class="as-lbl">Kết luận của giáo viên<select data-asf="err.${esc(e.id)}.decision" ${ed}>${[['pending', 'Chưa kiểm chứng'], ['confirmed', 'Xác nhận lỗi và nguyên nhân'], ['insufficient', 'Chưa đủ căn cứ'], ['rejected', 'Loại bỏ nhận định của AI']].map(([k, v]) => `<option value="${k}" ${e.decision === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
           ${e.decision === 'confirmed' ? `<label class="as-lbl">Nguyên nhân đã xác minh<textarea data-asf="err.${esc(e.id)}.teacherCause" rows="2" maxlength="1200" placeholder="Kết luận của thầy cô sau khi kiểm chứng…" ${ed}>${esc(e.teacherCause)}</textarea></label><label class="as-lbl">Căn cứ kiểm chứng / câu trả lời của học sinh<textarea data-asf="err.${esc(e.id)}.verificationEvidence" rows="2" maxlength="1200" placeholder="Học sinh giải thích gì? Bước nào trong bài xác nhận nguyên nhân?" ${ed}>${esc(e.verificationEvidence)}</textarea></label>` : ''}
         </article>`).join('')}
-        <label class="as-lbl">Nhận xét giáo viên sẽ duyệt<textarea data-asf="review.feedback" rows="4" maxlength="2000" ${ed}>${esc(x.review.feedback)}</textarea></label>
+        ${v2Draft && (suggested != null || an.scoreReason) ? `<div class="as-card"><strong>${suggested == null ? 'AI chưa đủ căn cứ đề xuất điểm' : 'Điểm AI đề xuất · ' + fmt(suggested) + ' / ' + fmt(max)}</strong>${an.scoreReason ? `<p>${esc(an.scoreReason)}</p>` : ''}${!approved && suggested != null ? `<button type="button" class="btn btn-sm as-btn" data-as="use-suggested-score" ${ed}>Dùng điểm đề xuất</button>` : ''}</div>` : ''}
+        <label class="as-lbl">Nhận xét gửi học sinh<textarea data-asf="review.feedback" rows="4" maxlength="2000" ${ed}>${esc(x.review.feedback)}</textarea></label>
         <label class="as-lbl">Điểm do giáo viên quyết định / ${max}<input data-asf="review.score" type="number" inputmode="decimal" min="0" max="${max}" step="0.25" value="${esc(x.review.score)}" ${ed}></label>
-        <p class="as-help">Để trống sẽ giữ điểm hiện có${fs != null ? ' (' + fmt(fs) + '/' + max + ')' : ''}. AI không tự đặt điểm. Khi duyệt, nhận xét và điểm này được lưu vào phần Giáo viên duyệt; học sinh thấy khi mở bài.</p>
-        <div class="as-row">${!approved ? `<button type="button" class="btn as-btn" data-as="save-a" ${dis(lock)}>${ic('save')}Lưu bản nháp</button><button type="button" class="btn as-primary" data-as="approve" ${dis(lock)}>${ic('clipck')}Duyệt nhận xét và lưu điểm</button>` : `<button type="button" class="btn as-btn" data-as="copy-fb" ${dis(lock)}>${ic('copy')}Sao chép nhận xét đã duyệt</button><button type="button" class="btn as-btn" data-as="redo" ${dis(lock)}>Chỉnh nhận xét thành bản mới</button>`}</div>
+        ${!approved ? `<p class="as-help">${v2Draft ? 'Thầy cô kiểm tra điểm, nhận xét và kết luận nguyên nhân trước khi duyệt. Kết quả sẽ được gửi vào mục xem điểm riêng của học sinh.' : 'Để trống sẽ giữ điểm hiện có' + (fs != null ? ' (' + fmt(fs) + '/' + max + ')' : '') + '. Học sinh thấy nhận xét và điểm sau khi duyệt.'}</p>` : ''}
+        <div class="as-row">${!approved ? `<button type="button" class="btn as-btn" data-as="save-a" ${dis(lock)}>${ic('save')}Lưu bản nháp</button><button type="button" class="btn as-primary" data-as="approve" ${dis(lock)}>${ic('clipck')}${v2Draft ? 'Duyệt và công bố điểm, nhận xét' : 'Duyệt nhận xét và lưu điểm'}</button>` : `<button type="button" class="btn as-btn" data-as="copy-fb" ${dis(lock)}>${ic('copy')}Sao chép nhận xét đã duyệt</button><button type="button" class="btn as-btn" data-as="redo" ${dis(lock)}>Chỉnh nhận xét thành bản mới</button>`}</div>
         ${approved ? `<p class="as-ok">${esc(x.review.byName)} đã duyệt lúc ${when(x.review.at)}. Điểm: ${x.review.score === '' ? 'chưa đặt' : fmt(+x.review.score) + '/' + max}.</p>` : ''}`;
     }
   } else if (as.step === 2) {
@@ -8909,11 +8944,13 @@ function createMemberForm() {
 /** Teacher-only private dashboard; no student feeds or research exports are modified. */
 function openAgentReviewDashboard() {
   if (!isGV() || S.guest) return toast('Chỉ giáo viên đã đăng nhập được mở hàng chờ.');
+  let timer;
   const m = openModal({
     title: 'Trung tâm AgentReview V2', wide: true,
-    body: '<div class="modal-b"><p class="meta">Chỉ xử lý các bảng đã chủ động bật AgentReview V2. AI tạo bản nháp; giáo viên quyết định điểm và nguyên nhân.</p>' +
+    onClose: () => clearInterval(timer),
+    body: '<div class="modal-b"><p class="meta">AI tự đề xuất điểm, nhận xét và nguyên nhân sai ở các bảng đã bật AgentReview V2. Giáo viên kiểm tra và duyệt để gửi kết quả cho học sinh.</p>' +
       '<div class="as-row"><button class="btn btn-brand" id="arv2-refresh">Làm mới trạng thái</button>' +
-      '<button class="btn btn-ghost" id="arv2-start">Chạy hàng chờ máy chủ</button></div>' +
+      '<button class="btn btn-ghost" id="arv2-start" disabled>Chạy hàng chờ ngay</button></div>' +
       '<p id="arv2-message" class="meta" role="status">Đang tải dữ liệu…</p>' +
       '<div id="arv2-data"></div></div>',
   });
@@ -8928,24 +8965,26 @@ function openAgentReviewDashboard() {
       const data = await api('agent_review_queue', { operation: 'overview' });
       const counts = data.counts || {}, items = Array.isArray(data.items) ? data.items : [];
       const number = (key) => Number(counts[key] || 0);
-      const label = { pending: 'Chờ phân tích', running: 'Đang xử lý', ready: 'Đã tạo nháp', failed: 'Cần xử lý lỗi' };
+      const label = { pending: 'Chờ xử lý', running: 'Đang xử lý', ready: 'Đã xử lý', failed: 'Cần xử lý lỗi' };
       const counters = Object.keys(label).map((key) =>
         '<span class="as-chip">' + label[key] + ': <strong>' + number(key) + '</strong></span>').join(' ');
       const rows = items.map((item) => {
-        const status = label[item.status] || item.status;
-        const when = item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : '';
+        const status = item.published ? 'Đã công bố điểm' : item.reviewStatus === 'draft' ? 'Chờ giáo viên duyệt' : label[item.status] || item.status;
+        const proposal = !item.published && Number.isFinite(item.suggestedScore)
+          ? '<small style="display:block">Điểm đề xuất ' + fmt(item.suggestedScore) + ' / ' + fmt(item.maxScore) + '</small>' : '';
+        const review = item.reviewStatus === 'draft' ? (item.pendingErrors ? item.pendingErrors + ' lỗi cần kiểm chứng' : 'Có bản nháp')
+          : item.practiceStatus === 'assigned' ? 'Đã giao luyện tập' : item.practiceStatus === 'draft' ? 'Có bài luyện tập nháp' : '';
         const audit = (item.audit || []).slice(-5).map((entry) =>
           '<li>' + esc(new Date(entry.at).toLocaleString('vi-VN')) + ' · ' +
           esc(entry.event) + ' · ' + esc(entry.kind) +
           (entry.code ? ' (' + esc(entry.code) + ')' : '') + '</li>').join('');
         return '<tr><td><strong>' + esc(item.name || 'Học sinh') + '</strong><small style="display:block">' +
-          esc(item.boardName || '') + '</small></td><td>' + esc(status) +
+          esc(item.boardName || '') + '</small></td><td>' + esc(status) + proposal +
           '<small style="display:block">Lần chạy: ' + Number(item.attempts || 0) + '</small></td>' +
-          '<td>' + esc(item.reviewStatus || 'Chưa duyệt') +
-          ' / ' + esc(item.practiceStatus || 'Chưa giao') + '</td>' +
+          '<td>' + esc(review) + '</td>' +
           '<td><details><summary>Nhật ký</summary><ol>' + (audit || '<li>Chưa có</li>') +
           '</ol></details></td><td><button class="btn btn-sm" data-open-agent-post="' +
-          esc(item.id) + '">Mở bài</button></td></tr>';
+          esc(item.id) + '">' + (!item.published && item.reviewStatus === 'draft' ? 'Duyệt bản nháp' : 'Mở bài') + '</button></td></tr>';
       }).join('');
       out.innerHTML = '<div class="as-row" style="flex-wrap:wrap;margin:12px 0">' + counters +
         '</div><p class="meta">Tổng ' + items.length + ' bài có AgentReview V2 trong 100 bài gần nhất của các bảng đã bật.</p>' +
@@ -8955,15 +8994,15 @@ function openAgentReviewDashboard() {
       $$('[data-open-agent-post]', out).forEach((btn) => btn.onclick = () => {
         const id = btn.dataset.openAgentPost;
         if (!getPost(id)) { toast('Bài chưa có trong bộ nhớ. Hãy tải lại trang rồi thử lại.'); return; }
-        m.close(); openDetail(id, false);
+        m.close(); openDetail(id, false, 'agent-review');
       });
       const waiting = number('pending');
       start.disabled = !data.aiReady || !waiting;
       message.textContent = !data.aiReady ?
-        'Chưa có Gemini chung: hãy sử dụng Gemini · Google trong phiên giáo viên để chạy bài thủ công.' :
-        !items.length ? 'Chưa có bài AgentReview V2 trong các bảng được bật của tài khoản này. Chức năng không chạy cho bảng chưa bật V2.' :
-        !waiting ? 'Hiện không có bài V2 đang chờ. Những bài đã tạo nháp không cần chạy lại.' :
-        'Máy chủ có Gemini chung và ' + waiting + ' bài V2 chờ phân tích. Nhấn Chạy hàng chờ để xử lý tối đa 2 bài mỗi lượt.';
+        'Máy chủ chưa có khóa Gemini chung để tự chấm nháp.' :
+        !items.length ? 'Chưa có bài AgentReview V2 trong các bảng đã bật của tài khoản này.' :
+        !waiting ? 'Hàng chờ tự cập nhật. Mở bản nháp để xem điểm và nhận xét đề xuất.' :
+        'Máy chủ sẽ tự xử lý ' + waiting + ' bài đang chờ, kể cả khi giáo viên đóng trang.';
     } catch (e) {
       message.textContent = 'Không tải được AgentReview: ' + aiMsg(e);
     } finally { pending = false; refresh.disabled = false; }
@@ -8974,12 +9013,13 @@ function openAgentReviewDashboard() {
     message.textContent = 'Đang gửi yêu cầu xử lý hàng chờ lên máy chủ…';
     try {
       await api('agent_review_queue', { operation: 'start' });
-      message.textContent = 'Đã gửi yêu cầu. AI cần thời gian xử lý; nhấn Làm mới trạng thái để xem kết quả.';
+      message.textContent = 'Máy chủ đã nhận yêu cầu. Trạng thái sẽ tự cập nhật tại đây.';
     } catch (e) {
       message.textContent = 'Không khởi động được AgentReview V2: ' + aiMsg(e);
     } finally { refresh.disabled = false; }
   };
   void load();
+  timer = setInterval(load, 15000);
 }
 
 async function schoolManagerFeatureAllowed(board,feature) {
