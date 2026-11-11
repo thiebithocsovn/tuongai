@@ -12,8 +12,18 @@
 <meta name="apple-mobile-web-app-title" content="Tường AI">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
+<base id="site-base">
 <link rel="manifest" href="./manifest.webmanifest" id="platform-manifest">
 <script>
+  function studentLinkCode(pathname, search) {
+    var route = /^\/nop-bai(?:\/([^/]+))?\/?$/.exec(pathname);
+    if (route) return (route[1] || '').toUpperCase();
+    if (typeof URLSearchParams !== 'function') return /(?:^\?|&)lop(?:[=&]|$)/.test(search) ? '' : null;
+    var code = new URLSearchParams(search).get('lop');
+    return code === null ? null : code.trim().toUpperCase();
+  }
+  if (/^\/nop-bai(?:\/|$)/.test(location.pathname)) document.getElementById('site-base').href = '/';
+  if (studentLinkCode(location.pathname, location.search) !== null) document.documentElement.classList.add('student-entry');
   if (location.origin === 'https://tuonghoctap.vercel.app') {
     document.getElementById('platform-manifest').href = './manifest-vercel.webmanifest';
   }
@@ -62,7 +72,7 @@
 <title>Tường học tập AI - Truy gốc lỗi | Learning Wall AI – Error Root Tracer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700&family=Nunito:wght@500;600;700;800&family=Patrick+Hand&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700&family=Nunito:wght@500;600;700;800&family=Patrick+Hand&display=swap" media="print" onload="this.media='all'">
 <style>
 /* Giao diện Tường Học Tập AI theo ảnh mẫu: nền trắng xám xanh có hình vẽ mờ, thanh bên sáng, nút Tạo bảng mới
    xanh chuyển màu, mục đang chọn nền xanh nhạt, thẻ bảng có tranh minh họa nhiều màu, nút Sửa/Xóa màu xám nhạt. */
@@ -191,6 +201,8 @@ a{color:inherit}
 .divider{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
 .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
 .auth-for{font-size:14px;color:var(--muted);margin:-4px 0 14px;text-align:center}
+.student-entry #auth{display:none!important}
+.student-entry #join[data-student-startup]{display:grid!important}
 .join-card{width:min(540px,100%);background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:22px;display:grid;gap:18px}
 #join-body{display:grid;gap:16px}
 .join-cover{border-radius:12px;overflow:hidden;aspect-ratio:16/9;max-width:100%}
@@ -2746,7 +2758,7 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
         <button type="button" role="tab" id="tab-login" aria-selected="true" aria-controls="f-login">Đăng nhập</button>
         <button type="button" role="tab" id="tab-reg" aria-selected="false" aria-controls="f-reg">Đăng ký</button>
       </div>
-      <p class="auth-for">Dành cho giáo viên. Học sinh vào lớp bằng <b>đường link thầy cô gửi</b>, không cần tài khoản.</p>
+      <p class="auth-for">Dành cho giáo viên. Học sinh có thể <a class="link" href="?lop=">vào lớp bằng mã</a> nếu chưa mở được link thầy cô gửi.</p>
 
       <form id="f-login" class="form" novalidate role="tabpanel" aria-labelledby="tab-login">
         <label class="fld"><span>Email</span><input id="li-user" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Email đã đăng ký"></label>
@@ -2824,10 +2836,16 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
   </section>
 </section>
 
-<section id="join" class="auth" aria-label="Vào lớp" hidden>
+<section id="join" class="auth" aria-label="Vào lớp" hidden data-student-startup>
   <div class="join-card">
     <div class="brand"><span class="logo-slot"></span><div><b class="brand-wordmark" aria-label="Tường học tập AI - Truy gốc lỗi"><span class="brand-primaryline"><span class="brand-core">Tường học tập</span><span class="brand-ai">AI</span></span><span class="brand-featureline"><span class="brand-spark" aria-hidden="true">✦</span>Truy gốc lỗi</span></b><span class="brand-en" lang="en">Learning Wall AI – Error Root Tracer</span></div></div>
-    <div id="join-body"></div>
+    <div id="join-body" aria-live="polite">
+      <div class="join-state"><span class="spin" aria-hidden="true"></span><p>Đang mở bảng lớp…</p><p class="meta">Nếu trang tải lâu trong Zalo hoặc Messenger, hãy mở đường link bằng Chrome hoặc Safari.</p></div>
+    </div>
+    <form id="join-code-form" class="form" action="./" method="get" hidden>
+      <label class="fld"><span>Mã lớp gồm 6 ký tự</span><input class="code-inp" name="lop" type="text" maxlength="6" pattern="[A-Za-z0-9]{6}" autocapitalize="characters" autocomplete="off" spellcheck="false" required></label>
+      <button type="submit" class="btn btn-brand">Vào lớp</button>
+    </form>
   </div>
 </section>
 
@@ -2848,15 +2866,14 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 <div id="modals"></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="./answer-materials.js"></script>
-<script src="./file-preview.js"></script>
-<script src="./m56.js?v=m56-20261106b"></script>
-<script src="./progress-tracker.js?v=pt-20261110a"></script>
-<script src="./progress-tracker-ui.js?v=pt-20261110b"></script>
-<script src="./class-report.js?v=cr-20261110a"></script>
-<script src="./class-report-ui.js?v=cr-20261110a"></script>
-<script src="./school-manager-ui.js?v=sm-20261110a"></script>
+<script defer src="./answer-materials.js"></script>
+<script defer src="./file-preview.js"></script>
+<script defer src="./m56.js?v=m56-20261106b"></script>
+<script defer src="./progress-tracker.js?v=pt-20261110a"></script>
+<script defer src="./progress-tracker-ui.js?v=pt-20261110b"></script>
+<script defer src="./class-report.js?v=cr-20261110a"></script>
+<script defer src="./class-report-ui.js?v=cr-20261110a"></script>
+<script defer src="./school-manager-ui.js?v=sm-20261110a"></script>
 <script>
 (() => {
 'use strict';
@@ -3441,9 +3458,20 @@ async function uploadAttachments(board,student,files,progress,postId) {
    progress('Đang tải tệp '+(i+1)+'/'+files.length+': '+name);
    if(student){
      const ticket=await api('student_prepare_attachment',{code:board.code,token:student.token,name,size:f.size});
-     if(!CAP.sb)throw new Error('Chưa kết nối kho tệp. Hãy kiểm tra mạng và thử lại.');
-     const {error}=await CAP.sb.storage.from('work').uploadToSignedUrl(ticket.path,ticket.token,f,{contentType:ticket.type,upsert:false});
-     if(error)throw new Error('Không tải được '+name+': '+error.message);
+     // Học sinh dùng vé tải tệp do máy chủ cấp, độc lập với thư viện đăng nhập.
+     const path=ticket.path.split('/').map(encodeURIComponent).join('/');
+     const url=new URL(SB_URL+'/storage/v1/object/upload/sign/work/'+path);
+     url.searchParams.set('token',ticket.token);
+     const body=new FormData();
+     body.append('cacheControl','0');
+     body.append('',f);
+     const response=await fetch(url,{
+       method:'PUT', headers:{apikey:SB_KEY,authorization:'Bearer '+SB_KEY,'x-upsert':'false'}, body,
+     });
+     if(!response.ok){
+       const error=await response.json().catch(()=>null);
+       throw new Error('Không tải được '+name+': '+(error?.message||'Kho tệp chưa phản hồi thành công.'));
+     }
      saved.push({path:ticket.path,name:ticket.name,size:f.size,type:ticket.type});
    }else{
      const id=crypto.randomUUID(),path=board.ownerAcc+'/'+board.id+'/'+postId+'/files/'+id+'.'+attachmentExt(name);
@@ -3496,14 +3524,14 @@ function attachmentList(p,expanded=false){
  </section>`;
 }
 
-const previewLibraries = new Map();
-function loadPreviewLibrary(src) {
-  if (!previewLibraries.has(src)) previewLibraries.set(src, new Promise((resolve,reject) => {
+const externalScripts = new Map();
+function loadExternalScript(src) {
+  if (!externalScripts.has(src)) externalScripts.set(src, new Promise((resolve,reject) => {
     const script=document.createElement('script'); script.src=src;
-    script.onload=resolve; script.onerror=()=>{ previewLibraries.delete(src); script.remove(); reject(new Error('Chưa tải được trình xem tệp. Hãy thử lại.')); };
+    script.onload=resolve; script.onerror=()=>{ externalScripts.delete(src); script.remove(); reject(new Error('Chưa tải được thư viện. Hãy thử lại.')); };
     document.head.appendChild(script);
   }));
-  return previewLibraries.get(src);
+  return externalScripts.get(src);
 }
 async function previewPeerFile(p,index,button) {
   if (!peerPost(p) || !detail || detail.id!==p.id) return;
@@ -3542,7 +3570,7 @@ async function previewPeerFile(p,index,button) {
       return;
     }
     if (ext==='docx') {
-      await loadPreviewLibrary('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js');
+      await loadExternalScript('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js');
       const result=await window.mammoth.extractRawText({arrayBuffer:buffer});
       el.textContent=result.value || 'Tài liệu không có phần văn bản để xem trước.';
     } else if (['xls','xlsx'].includes(ext)) {
@@ -3572,20 +3600,25 @@ async function previewAttachmentFile(p,index,button) {
 /* ================= gọi máy chủ ================= */
 async function api(action, payload = {}, signal) {
   let token = '';
-  try { const { data } = await CAP.sb.auth.getSession(); token = data?.session?.access_token || ''; } catch (e) {}
-  let res;
+  if (S.profile && !action.startsWith('student_')) {
+    try { const { data } = await CAP.sb.auth.getSession(); token = data?.session?.access_token || ''; } catch (e) {}
+  }
+  const classRead = !signal && /^student_(board|feed|mine)$/.test(action) ? new AbortController() : null;
+  const timer = classRead && setTimeout(() => classRead.abort(), 12000);
+  let res, data;
   try {
     res = await fetch(SB_URL + '/functions/v1/tuongai', {
-      method: 'POST', signal,
+      method: 'POST', signal: signal || classRead?.signal,
       headers: { 'content-type': 'application/json', apikey: SB_KEY, ...(token ? { authorization: 'Bearer ' + token } : {}) },
       body: JSON.stringify({ action, ...payload }),
     });
+    try { data = await res.json(); } catch (e) { if (e?.name === 'AbortError') throw e; }
   } catch (e) {
+    if (classRead?.signal.aborted) throw { code: 'network', message: 'Máy chủ phản hồi chậm. Em hãy kiểm tra mạng rồi thử lại.' };
     if (e && e.name === 'AbortError') throw { code: 'cancelled' };
     throw { code: 'network', message: 'Không kết nối được máy chủ Tường học tập AI. Kiểm tra mạng rồi thử lại.' };
-  }
-  let data = null; try { data = await res.json(); } catch (e) {}
-  if (!res.ok || data?.error) throw { code: data?.error?.code || 'server', message: data?.error?.message || 'Máy chủ đang bận. Hãy thử lại sau ít phút.' };
+  } finally { if (classRead) clearTimeout(timer); }
+  if (!res.ok || !data || data.error) throw { code: data?.error?.code || 'server', message: data?.error?.message || 'Máy chủ đang bận. Hãy thử lại sau ít phút.' };
   return data;
 }
 function dbErr(error) {
@@ -3843,26 +3876,26 @@ async function loadPublicMetrics() {
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#auth')?.hidden) loadPublicMetrics(); });
 /* ================= khởi động ================= */
-let readyResolve; const ready = new Promise((r) => (readyResolve = r));
+async function initCloud() {
+  try {
+    await loadExternalScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js');
+    const auth = LINK_CODE === null
+      ? { storage: authStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+      : { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false };
+    CAP.sb = window.supabase.createClient(SB_URL, SB_KEY, { auth });
+    startSiteTraffic();
+    loadPublicMetrics();
+    updateStoreNote();
+  } catch (e) {
+    $('#store-note-t').textContent = 'Chưa tải được thư viện đăng nhập giáo viên. Chế độ vào lớp bằng liên kết vẫn có thể dùng nếu máy chủ sẵn sàng.';
+  }
+}
+let ready;
 async function init() {
   makeDemo();
-  if (!window.supabase || !/^https:\/\//.test(SB_URL)) {
-    $('#store-note-t').textContent = 'Chưa tải được thư viện đăng nhập giáo viên. Chế độ vào lớp bằng liên kết vẫn có thể dùng nếu máy chủ sẵn sàng.';
-    readyResolve();
-    // Học sinh không cần Supabase Auth SDK; API học sinh gọi Edge Function bằng fetch.
-    // Nếu CDN bị chặn trên điện thoại, vẫn phải hiển thị trang vào lớp thay vì màn hình đăng nhập giáo viên.
-    if (LINK_CODE && /^https:\/\//.test(SB_URL)) { await openStudentLink(LINK_CODE); }
-    return;
-  }
-  CAP.sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { storage: authStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
-  startSiteTraffic();
-  loadPublicMetrics();
-  updateStoreNote();
-  readyResolve();
-  if (LINK_CODE) {
-    await openStudentLink(LINK_CODE);
-    return;
-  }
+  ready = initCloud();
+  if (LINK_CODE !== null) return openStudentLink(LINK_CODE);
+  await ready;
   try {
     const { data } = await CAP.sb.auth.getSession();
     if (data?.session) { await afterSignIn(false); return; }
@@ -3936,27 +3969,36 @@ function privateStudentResultLink(guest, board) {
   return url.href;
 }
 async function openStudentLink(code) {
+  const body = showJoinProgress();
+  if (!/^[A-Z0-9]{6}$/.test(code)) {
+    body.innerHTML = joinState('book', 'Vào lớp bằng mã', 'Nhập mã 6 ký tự do thầy cô gửi để mở trang nộp bài. Em không cần tài khoản.');
+    $('#join-code-form').hidden = false;
+    return;
+  }
   const resultToken = new URLSearchParams(location.hash.replace(/^#/, '')).get('ketqua') || '';
-  if (/^[a-zA-Z0-9_-]{16,80}$/.test(resultToken)) {
-    try {
+  let guest = readGuest(), recovered = false;
+  try {
+    if (code !== DEMO.code && /^[a-zA-Z0-9_-]{16,80}$/.test(resultToken)) {
       const response = await api('student_mine', { code, token:resultToken });
       const first = response.posts?.find(p => p.visibility === 'mine' && p.student_name);
       if (first?.student_name) {
-        const guest = { id:guestId(first.student_name), token:resultToken,
+        guest = { id:guestId(first.student_name), token:resultToken,
           name:first.student_name, className:first.student_class || '',
           role:'hs', guest:true, joined:[], codes:[code] };
-        if (await restoreGuest(guest, code)) {
-          history.replaceState(null, '', location.pathname + location.search);
-          return;
-        }
+        recovered = true;
       }
-    } catch(e) {
-      // Liên kết cá nhân không hợp lệ hoặc đã hết quyền: chỉ mở lớp ở chế độ công khai.
     }
+    if (guest && await restoreGuest(guest, code)) {
+      if (recovered) {
+        try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+      }
+      return;
+    }
+  } catch (e) {
+    showJoinError(body, code, e);
+    return;
   }
-  const g = readGuest();
-  if (g) { try { if (await restoreGuest(g, code)) return; } catch (e) { /* keep identity for retry */ } }
-  await showJoin(code);
+  await showJoin(code, body);
 }
 function studentResultTokenFromInput(raw, board) {
   const value = String(raw || '').trim();
@@ -3965,7 +4007,7 @@ function studentResultTokenFromInput(raw, board) {
   if (value.includes('ketqua=') || /^https?:\/\//i.test(value)) {
     try {
       const url = new URL(value);
-      if (url.origin !== location.origin || url.searchParams.get('lop') !== board.code) return '';
+      if (![location.origin, PUBLIC_SITE, GITHUB_PAGES].includes(url.origin) || studentLinkCode(url.pathname, url.search) !== board.code) return '';
       token = new URLSearchParams(url.hash.slice(1)).get('ketqua') || '';
     } catch (e) {
       token = new URLSearchParams(value.replace(/^#/, '')).get('ketqua') || '';
@@ -4038,15 +4080,17 @@ function applyStudentFeed(result, guest, board) {
   if(boardChanged)S.boards.set(board.id,nextBoard);
   return changed||renewed||boardChanged;
 }
-async function addGuestBoard(g, code) {
+async function addGuestBoard(g, code, stillActive = () => true) {
   if (code === DEMO.code) return DEMO;
   const r = await api('student_board', { code });
   const b = pubToBoard(r.board);
+  if (!stillActive()) return null;
+  const feed = await api('student_feed', { code: b.code, token: g.token });
+  if (!stillActive()) return null;
   S.boards.set(b.id, b);
   CAP.aiReady = !!r.ai;
   if (!g.joined.includes(b.id)) g.joined.push(b.id);
   if (!g.codes.includes(b.code)) g.codes.push(b.code);
-  const feed = await api('student_feed', { code: b.code, token: g.token });
   applyStudentFeed(feed, g, b);
   return b;
 }
@@ -4059,56 +4103,82 @@ function enterGuest(g, boardId) {
 }
 async function restoreGuest(g, preferredCode = '') {
   const guest = { ...g, role: 'hs', guest: true, joined: [], codes: [] };
-  const codes = [...new Set([...g.codes, ...(preferredCode ? [preferredCode] : [])])];
-  for (const c of codes) { try { await addGuestBoard(guest, c); } catch (x) { /* lớp đã bị xóa hoặc tạm dừng */ } }
-  const target = preferredCode ? [...S.boards.values()].find((b) => b.code === preferredCode && guest.joined.includes(b.id)) : null;
-  // Không dẫn học sinh quay về trang chủ khi em mở mã QR của một lớp cụ thể.
-  if (preferredCode && !target) return false;
+  const codes = [...new Set(g.codes)];
+  if (preferredCode) {
+    const board = await addGuestBoard(guest, preferredCode);
+    if (board.demo) return false;
+    const others = codes.filter(code => code !== preferredCode);
+    guest.codes.push(...others);
+    enterGuest(guest, board.id);
+    if (others.length) restoreOtherGuestBoards(guest, others);
+    return true;
+  }
+  for (const code of codes) { try { await addGuestBoard(guest, code); } catch (e) { /* lớp đã bị xóa hoặc tạm dừng */ } }
   if (!guest.joined.length) return false;
-  enterGuest(guest, target?.id || null);
+  enterGuest(guest, null);
   return true;
 }
+async function restoreOtherGuestBoards(guest, codes) {
+  const stillActive = () => S.guest === guest;
+  for (const code of codes) {
+    if (!stillActive()) return;
+    try { await addGuestBoard(guest, code, stillActive); } catch (e) { /* lớp đã bị xóa hoặc tạm dừng */ }
+  }
+  if (stillActive()) { renderSide(); if (S.view.name === 'home') renderSoon(); }
+}
 /* ---------- học sinh vào lớp bằng đường link thầy cô chia sẻ ---------- */
-const LINK_CODE = (new URLSearchParams(location.search).get('lop') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
-const shareLink = (b) => location.origin + location.pathname.replace(/index\.html$/, '') + '?lop=' + b.code;
-function joinState(icon, title, text) {
-  return `<div class="join-state">${ic(icon)}<h2>${esc(title)}</h2><p>${text}</p><p class="meta">Giáo viên? <a class="link" href="${esc(location.origin + location.pathname)}">Đăng nhập Tường học tập AI</a></p></div>`;
+const PUBLIC_SITE = 'https://tuonghoctap.vercel.app';
+const GITHUB_PAGES = 'https://thiebithocsovn.github.io';
+const LINK_CODE = studentLinkCode(location.pathname, location.search);
+const shareLink = (b) => location.origin === GITHUB_PAGES
+  ? GITHUB_PAGES + '/tuongai/?lop=' + encodeURIComponent(b.code)
+  : PUBLIC_SITE + '/nop-bai/' + encodeURIComponent(b.code);
+function joinState(icon, title, text, retry = false) {
+  const home = new URL('./', document.baseURI).href;
+  return `<div class="join-state">${ic(icon)}<h2>${esc(title)}</h2><p>${esc(text)}</p>
+    ${retry ? '<button type="button" class="btn btn-brand" id="join-retry">Thử lại</button><p class="meta">Nếu mở trong Zalo hoặc Messenger, hãy mở đường link bằng Chrome hoặc Safari.</p>' : ''}
+    <p class="meta">Giáo viên? <a class="link" href="${esc(home)}">Đăng nhập Tường học tập AI</a></p></div>`;
+}
+function showJoinProgress() {
+  const join = $('#join');
+  $('#auth').hidden = true; $('#app').hidden = true; join.hidden = false;
+  join.removeAttribute('data-student-startup');
+  $('#join-code-form').hidden = true;
+  const body = $('#join-body');
+  body.innerHTML = '<div class="join-state"><span class="spin" aria-hidden="true"></span><p>Đang mở bảng lớp…</p></div>';
+  return body;
+}
+function showJoinError(body, code, error) {
+  $('#app').hidden = true;
+  $('#join').hidden = false;
+  const closed = error?.code === 'not_shared', missing = error?.code === 'not_found';
+  const retry = !closed && !missing;
+  const title = closed ? 'Lớp chưa mở chia sẻ' : missing ? 'Không tìm thấy lớp' : 'Chưa tải được lớp';
+  body.innerHTML = joinState(closed ? 'lock' : 'x', title, error?.message || 'Em hãy kiểm tra mạng rồi thử lại.', retry);
+  $('#join-code-form').hidden = retry;
+  if (retry) $('#join-retry', body).onclick = () => openStudentLink(code);
 }
 
 /* Đường link chia sẻ mở thẳng bảng, không cần điền họ tên trước. */
-async function showJoin(code) {
-  $('#auth').hidden = true; $('#app').hidden = true; $('#join').hidden = false;
-  const body = $('#join-body');
-  body.innerHTML = '<div class="join-state"><span class="spin"></span><p>Đang mở bảng lớp…</p></div>';
-  await ready;
-  let board;
+async function showJoin(code, body = showJoinProgress()) {
   try {
-    if (code === DEMO.code) board = DEMO;
-    else {
-      const info = await api('student_board', { code });
-      board = pubToBoard(info.board);
+    const info = code === DEMO.code ? null : await api('student_board', { code });
+    const board = info ? pubToBoard(info.board) : DEMO;
+    const guest = {
+      id: 'preview_' + board.id, name: 'Khách xem lớp', className: '',
+      role: 'hs', guest: true, preview: true, token: '',
+      joined: [board.id], codes: [board.code],
+    };
+    if (info) {
+      const feed = await api('student_feed', { code });
+      S.boards.set(board.id, board);
       CAP.aiReady = !!info.ai;
+      applyStudentFeed(feed, guest, board);
     }
+    enterGuest(guest, board.id);
   } catch (e) {
-    body.innerHTML = e?.code === 'not_shared'
-      ? joinState('lock', 'Lớp chưa mở chia sẻ', esc(e.message))
-      : e?.code === 'network'
-        ? joinState('x', 'Chưa kết nối được', esc(e.message) + ' <button class="link" data-act="join-retry">Thử lại</button>')
-        : joinState('x', 'Không mở được lớp', esc(e?.message || 'Đường link không đúng.') + ' Em hãy xin thầy cô đường link mới.');
-    $('[data-act="join-retry"]', body)?.addEventListener('click', () => showJoin(code));
-    return;
+    showJoinError(body, code, e);
   }
-  S.boards.set(board.id, board);
-  const guest = {
-    id: 'preview_' + board.id, name: 'Khách xem lớp', className: '',
-    role: 'hs', guest: true, preview: true, token: '',
-    joined: [board.id], codes: [board.code],
-  };
-  if (!board.demo) {
-    try { applyStudentFeed(await api('student_feed', { code }), guest, board); }
-    catch (e) { body.innerHTML = joinState('x', 'Chưa tải được bài trong lớp', esc(e.message || 'Hãy thử mở lại đường link.')); return; }
-  }
-  enterGuest(guest, board.id);
 }
 
 /* ---------- chia sẻ bảng cho học sinh (giáo viên) ---------- */
@@ -4133,6 +4203,7 @@ function shareForm(b) {
       <label class="switch-row"><input type="checkbox" id="sh-on" ${on ? 'checked' : ''} ${b.demo ? 'disabled' : ''}><span><b>Cho học sinh nộp bài qua đường link</b><small>Tắt đi thì đường link ngừng hoạt động ngay. Bài đã nộp vẫn được giữ.</small></span></label>
       <div id="sh-box" class="form" ${on ? '' : 'hidden'}>
         <div class="share-row"><input id="sh-url" readonly value="${esc(link)}" aria-label="Đường link cho học sinh"><button type="button" class="btn btn-navy" id="sh-copy">${ic('copy')}Sao chép</button></div>
+        <p class="meta">Mã lớp <b>${esc(b.code)}</b>. Học sinh có thể nhập mã tại trang chủ nếu đường link không mở được.</p>
         <div class="share-check"><button type="button" class="btn btn-sm btn-ghost" id="sh-test">${ic('check', 'ic-sm')}Kiểm tra đường link lớp</button><a href="${esc(link)}" class="btn btn-sm btn-ghost" target="_blank" rel="noopener noreferrer">Mở thử trang học sinh</a></div>
         <p class="meta" id="sh-test-result" role="status" aria-live="polite"></p>
         <div class="qr" id="sh-qr" role="img" aria-label="Mã QR mở đường link"><span class="spin"></span></div>
@@ -4354,7 +4425,7 @@ async function logout() {
   S.profile = null; S.meId = null; S.boards = new Map(); S.posts = new Map(); S.members = new Map(); S.memberList = null; SIGNED.clear();
   closeAllModals();
   $('#app').hidden = true;
-  if (wasGuest && LINK_CODE) { showJoin(LINK_CODE, '', ''); toast('Em đã thoát. Bạn khác có thể vào lớp trên máy này.'); return; }
+  if (wasGuest && LINK_CODE) { showJoin(LINK_CODE); toast('Em đã thoát. Bạn khác có thể vào lớp trên máy này.'); return; }
   $('#join').hidden = true; $('#auth').hidden = false;
   setTab('login');
   toast(wasGuest ? 'Em đã thoát lớp. Bạn khác có thể vào lớp trên máy này.' : 'Bạn đã đăng xuất.');
@@ -7888,8 +7959,8 @@ async function answerImage(blob) {
 const answerReaders = {
   image: answerImage,
   docx: async buffer => {
-    await loadPreviewLibrary('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js');
-    await loadPreviewLibrary('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+    await loadExternalScript('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js');
+    await loadExternalScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
     return TuongAiAnswers.readDocx(buffer, window.mammoth, (data, mime) => answerImage(dataURLtoBlob('data:' + mime + ';base64,' + data)),
       data => TuongAiAnswers.readWordMath(data, window.JSZip, xml => new DOMParser().parseFromString(xml, 'application/xml')));
   },
@@ -9244,7 +9315,7 @@ init();
   const isGithub=window.location.origin==='https://thiebithocsovn.github.io'
     && (window.location.pathname==='/tuongai/'||window.location.pathname==='/tuongai/index.html');
   const isVercel=window.location.origin==='https://tuonghoctap.vercel.app'
-    && (window.location.pathname==='/'||window.location.pathname==='/index.html');
+    && (window.location.pathname==='/'||window.location.pathname==='/index.html'||/^\/nop-bai(?:\/|$)/.test(window.location.pathname));
   const isOfficial=isGithub||isVercel;
   const platforms=[...ui.querySelectorAll('[data-install-os]')];
   let deferred=null,selected='',assets={};

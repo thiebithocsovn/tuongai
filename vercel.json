@@ -1,5 +1,9 @@
 {
   "version": 2,
+  "rewrites": [
+    { "source": "/nop-bai", "destination": "/index.html" },
+    { "source": "/nop-bai/:code", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/",
