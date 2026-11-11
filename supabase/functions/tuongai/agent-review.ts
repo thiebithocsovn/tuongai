@@ -10,9 +10,39 @@ export class AgentReviewError extends Error {
 }
 
 type JobKind = "analysis" | "practice";
-export const pendingReviewJob = (kind: JobKind) => ({ kind, status: "pending" });
+export const pendingReviewJob = (kind: JobKind, v2 = false) => ({ kind, status: "pending", ...(v2 ? { v2: true } : {}) });
 export const reviewText = (value: unknown, max: number) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
+
+export function v2EligibleBoard(board: any) {
+  return !!board && board.auto_grade === true && !board.archived && !board.trashed &&
+    board.assignment?.agentReviewV2 === true;
+}
+
+const hasReviewWork = (post: any) =>
+  !!(String(post.body || "").trim() || post.images?.length || post.attachments?.length);
+
+export function reviewJobForBoard(post: any, board: any) {
+  const assist = post.teacher?.assist;
+  const v2 = v2EligibleBoard(board);
+  const job = assist?.agentReview;
+  if (job) return job.v2 && !v2 ? null : job;
+  // A board can be opted in after its first submission. Queue only untouched work.
+  if (v2 && post.by === "hs" && !post.ai && !post.ai_at && !post.teacher?.approvedAt &&
+      post.teacher?.score == null && !assist?.a && hasReviewWork(post))
+    return pendingReviewJob("analysis", true);
+  return null;
+}
+
+export function reviewMaxScore(board: any) {
+  const max = Number(board.assignment?.maxScore);
+  return Number.isFinite(max) && max > 0 ? max : 10;
+}
+
+export function reviewScoreSuggestion(value: unknown, max: number) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= max
+    ? Math.min(max, Math.round(value * 4) / 4) : null;
+}
 
 export function confirmedPracticeInputs(review: any) {
   if (review?.review?.status !== "approved") return [];
@@ -25,12 +55,13 @@ export function confirmedPracticeInputs(review: any) {
 }
 
 export function claimableReviewJob(post: any, board: any, retry: boolean, at = Date.now()): JobKind | null {
-  const { agentReview: job, a } = post.teacher?.assist || {};
+  const a = post.teacher?.assist?.a;
+  const job = reviewJobForBoard(post, board);
   if (post.by !== "hs" || !job || board.trashed || board.archived) return null;
   if (job.status !== "pending" && !(retry && job.status === "failed") &&
       !(job.status === "running" && job.until <= at)) return null;
-  if (job.kind === "analysis" && board.auto_grade && !a &&
-      (String(post.body || "").trim() || post.images?.length || post.attachments?.length)) return "analysis";
+  if (job.kind === "analysis" && board.auto_grade && !a && !post.teacher?.approvedAt &&
+      post.teacher?.score == null && hasReviewWork(post)) return "analysis";
   if (job.kind === "practice" && post.teacher?.approvedAt && !a?.practice &&
       confirmedPracticeInputs(a).length) return "practice";
   return null;
@@ -102,18 +133,26 @@ export function reviewAudit(assist: any, event: string, kind: string, actor: str
     }],
   };
 }
-export function reviewDashboardItem(post: any, boardName: string) {
+export function reviewDashboardItem(post: any, board: any) {
   const assist = post.teacher?.assist || {};
-  const job = assist.agentReview || {};
+  const job = reviewJobForBoard(post, board) || {};
   const audit = Array.isArray(assist.agentAudit) ? assist.agentAudit : [];
-  const errors = assist.a?.analysis?.errors || [];
+  const analysis = assist.a?.analysis;
+  const errors = Array.isArray(analysis?.errors) ? analysis.errors : [];
+  const maxScore = reviewMaxScore(board);
+  const suggestedScore = analysis?.maxScore === maxScore
+    ? reviewScoreSuggestion(analysis.suggestedScore, maxScore)
+    : analysis?.maxScore == null ? reviewScoreSuggestion(post.ai?.diem, maxScore) : null;
   return {
-    id: post.id, boardId: post.board_id, boardName, name: post.student_name,
+    id: post.id, boardId: post.board_id, boardName: board.name, name: post.student_name,
     createdAt: post.created_at, kind: job.kind || "", status: job.status || "",
     attempts: Number(job.attempts || 0), lastCode: job.lastCode || "",
     reviewStatus: assist.a?.review?.status || "",
     practiceStatus: assist.a?.practice?.status || "",
+    published: !!post.teacher?.approvedAt && Number.isFinite(post.teacher?.score),
+    suggestedScore, maxScore,
     confirmedErrors: errors.filter((e: any) => e.decision === "confirmed").length,
+    pendingErrors: errors.filter((e: any) => e.decision === "pending").length,
     audit: audit.slice(-12),
   };
 }

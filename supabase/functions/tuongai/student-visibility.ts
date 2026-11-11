@@ -27,6 +27,7 @@ export function studentPost(p: any, mine = true, ownerName = "", classroomSettin
   const showFeedback = classroomSettings?.showFeedback !== false;
   const showSimilar = classroomSettings?.showSimilar !== false;
   const approved = !!p.teacher?.approvedAt;
+  const privateReview = p.teacher?.notePrivate === true;
   const teacherPost = isTeacherAnnouncement(p, ownerName);
   const graded = !!(p.ai || p.ai_at || approved || typeof p.teacher?.score === "number");
   const teacher: any = {
@@ -37,7 +38,11 @@ export function studentPost(p: any, mine = true, ownerName = "", classroomSettin
   if (approved) {
     teacher.approvedAt = p.teacher.approvedAt;
     if (showFeedback) {
-      teacher.note = typeof p.teacher.note === "string" ? p.teacher.note : "";
+      if (mine || !privateReview) {
+        teacher.note = typeof p.teacher.note === "string" ? p.teacher.note : "";
+      } else {
+        teacher.notePrivate = true;
+      }
       teacher.comments = (Array.isArray(p.teacher.comments) ? p.teacher.comments : []).map((c: any) => ({
       id: c.id, name: c.name, text: c.text, at: c.at,
       }));
@@ -52,9 +57,9 @@ export function studentPost(p: any, mine = true, ownerName = "", classroomSettin
       const previewable = /\.(pdf|docx|xlsx?|txt|csv|mp4|mov|webm|mp3|m4a|wav)$/i.test(a.name || "");
       return { name: a.name, type: a.type, size: a.size, path: mine || teacherPost || previewable ? a.path : "", viewOnly: !mine && !teacherPost };
     }),
-    ai: mine && approved ? (showFeedback ? p.ai : null) : null,
+    ai: mine && approved && showFeedback && !privateReview ? p.ai : null,
     similar_questions: studentSimilarQuestions(p, showSimilar),
-    ai_at: mine && approved ? p.ai_at : null,
+    ai_at: mine && approved && !privateReview ? p.ai_at : null,
     teacher, created_at: p.created_at,
     visibility: mine ? "mine" : "class", graded,
     editable: mine && p.by === "hs" && !graded,

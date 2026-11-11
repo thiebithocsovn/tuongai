@@ -10,6 +10,7 @@ import * as references from '../supabase/functions/tuongai/answer-reference.ts';
 import * as schoolManager from '../supabase/functions/tuongai/school-manager.ts';
 
 const server = fs.readFileSync(new URL('../supabase/functions/tuongai/index.ts', import.meta.url), 'utf8');
+const agentSource = fs.readFileSync(new URL('../supabase/functions/tuongai/agent-review.ts', import.meta.url), 'utf8');
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const asJson = (value) => JSON.parse(JSON.stringify(value));
 const analysis = {
@@ -23,10 +24,15 @@ const exercise = { errorId: 'e1', question: 'Khai triển (x+4)²', hint: 'Viế
 const token = 'student-device-token-0001';
 const board = { id: 'board-1', owner: 'teacher-1', code: 'AGTEST', shared: true, trashed: false, auto_grade: true, assignment: { maxScore: 10 }, columns: [] };
 
-function setup() {
+function setup({ v2 = false, serverAI = false } = {}) {
+  const activeBoard = structuredClone(board);
+  activeBoard.assignment.agentReviewV2 = v2;
   const posts = [];
   const profiles = ['teacher-1', 'teacher-2'].map((id) => ({ id, full_name: id, role: 'teacher', status: 'active' }));
-  const rows = { posts, profiles, boards: [board], app_config: [], practice_submissions: [], school_manager_boards: [], school_manager_schools: [] };
+  const due = [], tasks = [], prompts = [];
+  const cronToken = 'worker-test-token-'.repeat(3);
+  const rows = { posts, profiles, boards: [activeBoard], app_config: [], practice_submissions: [], school_manager_boards: [], school_manager_schools: [] };
+  if (serverAI) rows.app_config.push({ key: 'gemini_key', value: 'fixture-key' }, { key: 'agent_review_cron_token', value: cronToken });
   let handler;
   const db = {
     auth: { getUser: async (id) => ({ data: { user: profiles.find((p) => p.id === id) } }) },
@@ -38,17 +44,19 @@ function setup() {
         return structuredClone(rows[table].filter((r) => filters.every((f) => f(r))));
       };
       return {
-        select() { return this; }, order() { return this; }, range() { return this; },
+        select() { return this; }, order() { return this; }, range() { return this; }, limit() { return this; },
         eq(key, value) { filters.push((r) => r[key] === value); return this; },
         not(key) { assert.equal(key, 'teacher->>approvedAt'); filters.push((r) => !!r.teacher?.approvedAt); return this; },
-        in() { return this; }, insert(row) { input = row; return this; },
+        in(key, values) { filters.push((r) => values.includes(r[key])); return this; }, insert(row) { input = row; return this; },
         async single() { const data = result(); return { data: input ? data : data[0] }; },
         async maybeSingle() { return { data: result()[0] || null }; },
         then(resolve) { resolve({ data: result() }); },
       };
     },
     async rpc(name, args) {
-      assert.equal(name, 'update_post_teacher_if_unchanged');
+      if (name === 'agent_review_v2_due_posts') return { data: due.map(post_id => ({ post_id })) };
+      assert.ok(['update_post_teacher_if_unchanged', 'update_agent_review_v2_if_unchanged'].includes(name));
+      if (name === 'update_agent_review_v2_if_unchanged' && !agent.v2EligibleBoard(activeBoard)) return { data: false };
       const p = posts.find((row) => row.id === args.p_id && row.owner === args.p_owner && row.board_id === args.p_board);
       if (!p || JSON.stringify(p.teacher ?? null) !== JSON.stringify(args.p_expected_teacher) ||
           JSON.stringify([p.body, p.images, p.attachments]) !== JSON.stringify(args.p_expected_work)) return { data: false };
@@ -60,17 +68,27 @@ function setup() {
   vm.runInNewContext(compiled, {
     ...agent, ...autoGrade, ...references, ...visibility, ...schoolManager, publicPost: visibility.studentPost, crypto, Request, Response, TextEncoder,
     createClient: () => db, Deno: { env: { get: () => '' }, serve: (fn) => { handler = fn; } },
+    ...(serverAI ? {
+      EdgeRuntime: { waitUntil: (task) => tasks.push(task) },
+      fetch: async (url, init) => {
+        assert.match(url, /^https:\/\/generativelanguage\.googleapis\.com\//);
+        prompts.push(JSON.parse(init.body).contents[0].parts.at(-1).text);
+        const result = { ...analysis, suggestedScore: 0, scoreReason: 'Thiếu tích đôi trong câu duy nhất.' };
+        return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(result) }] } }] });
+      },
+    } : {}),
   });
-  const call = async (action, input, user) => {
+  const call = async (action, input, user, headers = {}) => {
     const response = await handler(new Request('https://example.test/functions/v1/tuongai', {
-      method: 'POST', headers: user ? { authorization: 'Bearer ' + user } : {},
+      method: 'POST', headers: user ? { ...headers, authorization: 'Bearer ' + user } : headers,
       body: JSON.stringify({ action, ...input }),
     }));
     return { status: response.status, body: await response.json() };
   };
   const submit = () => call('student_submit', { code: board.code, name: 'Học sinh thử', token, text: '(a+b)² = a²+b²' });
   const review = (id, operation, input = {}, user = board.owner) => call('agent_review', { post_id: id, operation, ...input }, user);
-  return { submit, review, call, posts };
+  const tick = () => call('agent_review_tick', {}, '', { 'x-agent-review-tick': cronToken });
+  return { submit, review, call, tick, posts, activeBoard, due, tasks, prompts };
 }
 
 test('AgentReview runs from student submission to private analysis, teacher approval and assigned practice', async () => {
@@ -133,6 +151,71 @@ test('V2 queues attachment-only submissions without approving a grade', () => {
   };
   assert.equal(agent.claimableReviewJob(p, board, false), 'analysis');
   assert.equal(p.teacher.approvedAt, undefined);
+});
+test('V2 automatically drafts a score, causes and feedback, then publishes the teacher decision privately', async () => {
+  const { submit, review, call, posts, tasks, prompts } = setup({ v2: true, serverAI: true });
+  const sent = await submit();
+  assert.equal(sent.status, 200);
+  const id = sent.body.post.id;
+  assert.equal(sent.body.post.teacher.score, undefined);
+  assert.equal(sent.body.post.teacher.note, undefined);
+  await Promise.all(tasks.splice(0));
+  const draft = posts[0].teacher.assist.a;
+  assert.equal(draft.analysis.suggestedScore, 0);
+  assert.equal(draft.analysis.scoreReason, 'Thiếu tích đôi trong câu duy nhất.');
+  assert.equal(draft.review.score, null);
+  assert.equal(draft.review.feedback, analysis.feedback);
+  assert.equal(draft.analysis.errors[0].hypothesis, analysis.errors[0].hypothesis);
+  assert.equal(draft.analysis.errors[0].teacherCause, '');
+  assert.match(prompts[0], /suggestedScore từ 0 đến 10 điểm/);
+  const overview = await call('agent_review_queue', { operation: 'overview' }, board.owner);
+  assert.equal(overview.body.items[0].suggestedScore, 0);
+  assert.equal(overview.body.items[0].pendingErrors, 2);
+  const ownResult = () => call('student_mine', { code: board.code, token });
+  const before = (await ownResult()).body.posts[0];
+  assert.equal(before.teacher.score, undefined);
+  assert.equal(before.teacher.note, undefined);
+  assert.equal(before.teacher.assist, undefined);
+  const approval = { draft_id: draft.id, score: 8.25, feedback: 'Em hãy bổ sung tích đôi khi khai triển.' };
+  assert.equal((await review(id, 'approve', approval)).status, 400);
+  const decisions = [
+    { id: 'e1', decision: 'confirmed', teacherCause: 'Chưa áp dụng tính phân phối', verificationEvidence: 'Em đã giải thích cách khai triển.' },
+    { id: 'e2', decision: 'insufficient' },
+  ];
+  const approved = await review(id, 'approve', { ...approval, decisions });
+  assert.equal(approved.status, 200);
+  assert.equal(approved.body.teacher.assist.a.analysis.errors[0].teacherCause, decisions[0].teacherCause);
+  const pupil = (await ownResult()).body.posts[0];
+  assert.equal(pupil.teacher.score, approval.score);
+  assert.equal(pupil.teacher.note, approval.feedback);
+  assert.equal(pupil.teacher.assist, undefined);
+  const peer = (await call('student_feed', { code: board.code, token: 'another-student-token' })).body.posts[0];
+  assert.equal(peer.teacher.score, undefined);
+  assert.equal(peer.teacher.note, undefined);
+  await Promise.all(tasks);
+});
+
+test('V2 starts untouched work after a board is opted in, and never claims a paused or published submission', async () => {
+  const { posts, activeBoard, due, tick, review, prompts } = setup({ serverAI: true });
+  posts.push({
+    id: 'old-ungraded', board_id: board.id, owner: board.owner, by: 'hs',
+    body: '2x = 4 ⇒ x = 1', images: [], attachments: [], teacher: null,
+  });
+  due.push(posts[0].id);
+  assert.equal((await tick()).body.processed, 0);
+  assert.equal((await review(posts[0].id, 'run_analysis')).body.started, false);
+  activeBoard.assignment.agentReviewV2 = true;
+  assert.equal((await review(posts[0].id, 'claim')).body.job, null);
+  assert.equal((await tick()).body.processed, 1);
+  assert.equal(posts[0].teacher.assist.a.review.status, 'draft');
+  assert.equal(posts[0].teacher.assist.agentReview.v2, true);
+  assert.equal(prompts.length, 1);
+  assert.equal((await tick()).body.processed, 0);
+  const pending = { by: 'hs', body: 'Bài đang chờ', teacher: { assist: { agentReview: agent.pendingReviewJob('analysis', true) } } };
+  assert.equal(agent.claimableReviewJob(pending, activeBoard, false), 'analysis');
+  assert.equal(agent.claimableReviewJob({ ...pending, teacher: { ...pending.teacher, approvedAt: 1 } }, activeBoard, false), null);
+  activeBoard.assignment.agentReviewV2 = false;
+  assert.equal(agent.claimableReviewJob(pending, activeBoard, false), null);
 });
 test('V2 schedules only an authenticated server worker and reads source documents', () => {
   assert.match(server, /agent_review_cron_token/);
@@ -202,7 +285,7 @@ test('V2 teacher dashboard only reveals operational metadata', () => {
       agentAudit: [{ at: 1, event: 'completed', kind: 'analysis', actor: 'server', code: '' }],
       a: { review: { status: 'draft' }, analysis: { errors: [{ decision: 'pending' }] } },
     } } };
-  const item = agent.reviewDashboardItem(post, 'Bảng thử');
+  const item = agent.reviewDashboardItem(post, { ...board, name: 'Bảng thử' });
   assert.equal(item.status, 'ready');
   assert.equal(item.reviewStatus, 'draft');
   assert.equal(item.audit.length, 1);
@@ -212,8 +295,10 @@ test('V2 teacher dashboard only reveals operational metadata', () => {
 test('V2 dashboard renders an empty queue and opens each listed submission', async () => {
   const refresh = {}, start = {}, message = {};
   let buttons = [];
+  let rendered = '';
   const out = {
     set innerHTML(markup) {
+      rendered = markup;
       buttons = [...markup.matchAll(/data-open-agent-post="([^"]+)"/g)].map(([, id]) => ({
         dataset: { openAgentPost: id },
       }));
@@ -227,7 +312,7 @@ test('V2 dashboard renders an empty queue and opens each listed submission', asy
   const selectors = html.match(/^const \$\$? = .*$/gm).join('\n');
   const dashboard = html.slice(html.indexOf('function openAgentReviewDashboard()'), html.indexOf('async function schoolManagerFeatureAllowed'));
   const open = vm.runInNewContext(selectors + '\n' + dashboard + '\nopenAgentReviewDashboard', {
-    isGV: () => true, S: {}, esc: String, aiMsg: (error) => error.message,
+    isGV: () => true, S: {}, esc: String, fmt: String, aiMsg: (error) => error.message, setInterval() {},
     openModal: () => ({ el: { querySelector: (selector) => elements[selector] }, close() {} }),
     api: async (action, { operation }) => {
       assert.equal(action, 'agent_review_queue');
@@ -235,7 +320,7 @@ test('V2 dashboard renders an empty queue and opens each listed submission', asy
       return { items, counts: { pending: items.length }, aiReady: true };
     },
     getPost: (id) => items.find((item) => item.id === id),
-    openDetail: (id, edit) => opened.push([id, edit]),
+    openDetail: (id, edit, focus) => opened.push([id, edit, focus]),
   });
 
   open();
@@ -243,16 +328,18 @@ test('V2 dashboard renders an empty queue and opens each listed submission', asy
   assert.match(message.textContent, /^Chưa có bài AgentReview V2/);
   assert.equal(start.disabled, true);
 
-  items = [{ id: 'p1', status: 'pending' }, { id: 'p2', status: 'pending' }];
+  items = [{ id: 'p1', status: 'pending' }, { id: 'p2', status: 'ready', reviewStatus: 'draft', suggestedScore: 0, maxScore: 10 }];
   await refresh.onclick();
-  assert.match(message.textContent, /2 bài V2 chờ phân tích/);
+  assert.match(message.textContent, /tự xử lý 2 bài đang chờ/);
+  assert.match(rendered, /Điểm đề xuất 0 \/ 10/);
+  assert.match(rendered, /Duyệt bản nháp/);
   assert.equal(start.disabled, false);
   for (const button of buttons) button.onclick();
-  assert.deepEqual(opened, [['p1', false], ['p2', false]]);
+  assert.deepEqual(opened, [['p1', false, 'agent-review'], ['p2', false, 'agent-review']]);
 });
 
 test('V2 opt-in boundary and teacher-scoped queue are present in backend', () => {
-  assert.match(server, /board\.assignment\?\.agentReviewV2 === true/);
+  assert.match(agentSource, /board\.assignment\?\.agentReviewV2 === true/);
   assert.match(server, /\.eq\("owner", owner\)\.eq\("by", "hs"\)/);
   assert.match(server, /case "agent_review_queue": return await handleAgentReviewQueue\(body, needActive\(me\)\)/);
   assert.match(server, /case "assign":/);
