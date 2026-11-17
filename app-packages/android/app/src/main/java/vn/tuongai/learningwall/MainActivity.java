@@ -25,6 +25,8 @@ public class MainActivity extends Activity {
     super.onCreate(state);
     web=new WebView(this);setContentView(web);
     WebSettings settings=web.getSettings();
+    settings.setUseWideViewPort(true);
+    settings.setLoadWithOverviewMode(false);
     settings.setJavaScriptEnabled(true);settings.setDomStorageEnabled(true);
     settings.setAllowFileAccess(false);settings.setAllowContentAccess(true);
     settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);

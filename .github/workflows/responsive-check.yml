@@ -4,11 +4,23 @@ on:
   push:
     branches: [main]
     paths:
+      - 'index.html'
+      - 'device-layout.js'
+      - 'responsive-layout.css'
       - 'tests/**'
       - '.github/workflows/responsive-check.yml'
 permissions:
   contents: read
 jobs:
+  device-layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify automatic device layout and rotation
+        run: node --test tests/device-layout.test.cjs
   preview:
     runs-on: ubuntu-latest
     steps:

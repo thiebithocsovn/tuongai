@@ -1,0 +1,81 @@
+/* This file loads after the existing themes so device layout wins consistently. */
+html{ -webkit-text-size-adjust:100%;text-size-adjust:100% }
+#app,.main,.view,.pd,.pd-side,.pd-media,.as,.as-sec,.as-similar{min-width:0}
+.modal-h,.modal-f{flex-shrink:0}
+.modal-b,.pd{overscroll-behavior:contain}
+
+:root[data-layout="compact"] body{font-size:15px}
+:root[data-layout="compact"] #app{max-width:100%;overflow-x:clip}
+:root[data-layout="compact"] .app:not(.board-open){flex-direction:column}
+:root[data-layout="compact"] .app:not(.board-open) .side{position:relative;width:100%;height:auto;padding:12px 14px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;border-right:0;border-bottom:1px solid var(--line)}
+:root[data-layout="compact"] .app:not(.board-open) .side-head{grid-column:1}
+:root[data-layout="compact"] .app:not(.board-open) .nav{grid-column:1/-1;display:flex;overflow-x:auto;gap:7px;padding-bottom:4px}
+:root[data-layout="compact"] .app:not(.board-open) .nav button{flex:none;white-space:nowrap;min-height:42px}
+:root[data-layout="compact"] .app:not(.board-open) .side-foot{display:none}
+:root[data-layout="compact"] .app .main{width:100%;min-width:0}
+:root[data-layout="compact"] .app .topbar{padding:10px 14px;gap:8px;flex-wrap:wrap;height:auto;min-height:56px}
+:root[data-layout="compact"] .app .view>*{max-width:calc(100% - 24px);margin-inline:auto}
+:root[data-layout="compact"] .app .view>.btop,:root[data-layout="compact"] .app .view>.full{width:100%;max-width:100%;margin-inline:0}
+:root[data-layout="compact"] #app #grid.grid:not(.list){grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px}
+:root[data-layout="compact"] .app .hero,:root[data-layout="compact"] .app .hline{flex-wrap:wrap;gap:12px}
+:root[data-layout="compact"] .app .hero h1{font-size:24px;overflow-wrap:anywhere}
+:root[data-layout="compact"] .app.board-open .btop{padding:10px 12px;gap:8px;flex-wrap:wrap;min-height:58px}
+:root[data-layout="compact"] .app.board-open .btop-nav{flex:1 1 100%;min-width:0}
+:root[data-layout="compact"] .app.board-open .btop-title{font-size:18px;line-height:1.35;min-width:0}
+:root[data-layout="compact"] .app.board-open .btop-ctl{display:flex;flex-wrap:wrap;gap:7px;max-width:100%;padding-left:0}
+:root[data-layout="compact"] .app.board-open .btool>.row{display:flex;flex-wrap:wrap;gap:7px;max-width:100%;width:100%;overflow:visible}
+:root[data-layout="compact"] .app.board-open .btool>.search{width:100%;min-width:0;flex:1 1 100%}
+:root[data-layout="compact"] .app.board-open .btool>.row>*{flex:1 1 auto;min-width:0}
+:root[data-layout="compact"] .app.board-open .btool .btn{white-space:normal;min-height:44px;padding:9px 11px;font-size:14px}
+:root[data-layout="compact"] .app.board-open .btool>.row>.bdirs{display:flex;flex:1 1 100%;order:-1}
+:root[data-layout="compact"] .app.board-open .bdirs .btn{flex:1}
+:root[data-layout="compact"] .app.board-open .cols-wrap{max-width:100%;overflow-x:auto;scroll-snap-type:x proximity;scroll-padding-inline:12px}
+:root[data-layout="compact"] .app.board-open .cols{padding-inline:12px;gap:12px}
+:root[data-layout="compact"] .app.board-open .col{width:calc(100vw - 40px);min-width:calc(100vw - 40px);max-width:400px;scroll-snap-align:start}
+:root[data-layout="compact"] .app.board-open .cols.dir-v{width:100%;min-width:0}
+:root[data-layout="compact"] .app.board-open .cols.dir-v .col{width:100%;min-width:0;max-width:none}
+:root[data-layout="compact"] .app.board-open .pcard{font-size:15px;padding:13px}
+:root[data-layout="compact"] .app.board-open .board-structure-actions{flex-wrap:wrap;gap:8px}
+:root[data-layout="compact"] .app.board-open .board-structure-btn{min-height:44px;font-size:14px}
+
+/* Forms and dialogs use the phone width instead of shrinking a desktop dialog. */
+:root[data-layout="compact"] .modal-back{padding:0;place-items:stretch;max-width:100%;height:var(--device-height,100dvh)}
+:root[data-layout="compact"] .modal,:root[data-layout="compact"] .modal.wide{width:100%;max-width:100%;max-height:100%;border-radius:0;align-self:stretch}
+:root[data-layout="compact"] .modal-h{padding:12px 14px;min-height:54px;gap:8px}
+:root[data-layout="compact"] .modal-h h2{font-size:18px;line-height:1.35;flex:1}
+:root[data-layout="compact"] .modal-h .icon-btn{min-width:44px;min-height:44px}
+:root[data-layout="compact"] .modal-b{padding:14px;min-height:0;overflow-y:auto;overflow-x:hidden}
+:root[data-layout="compact"] .modal-f{padding:10px 12px max(12px,env(safe-area-inset-bottom,0px));gap:8px}
+:root[data-layout="compact"] .modal-f .btn{flex:1 1 135px;min-height:44px;white-space:normal}
+:root[data-layout="compact"] .modal input:not([type=checkbox]):not([type=radio]),:root[data-layout="compact"] .modal select,:root[data-layout="compact"] .modal textarea{font-size:16px;max-width:100%;box-sizing:border-box}
+:root[data-layout="compact"] .modal .fld{min-width:0}
+:root[data-layout="compact"] .modal .cols-edit{max-width:100%}
+:root[data-layout="compact"] .modal.wide.pd-review-modal{width:100%;height:100%;max-height:100%}
+:root[data-layout="compact"] .pd-review-modal .pd{display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;min-height:0}
+:root[data-layout="compact"] .pd-review-modal .pd-media{width:100%;flex:none;padding:10px;overflow:visible;max-height:none}
+:root[data-layout="compact"] .pd-review-modal .pd-media img{display:block;width:100%;max-height:36dvh;object-fit:contain;background:#fff;border-radius:10px}
+:root[data-layout="compact"] .pd-review-modal .pd-side{width:100%;flex:none;overflow:visible;padding:14px 12px 24px;gap:14px}
+:root[data-layout="compact"] .pd-review-modal .as{padding:13px 11px;font-size:14px;gap:14px}
+:root[data-layout="compact"] .pd-review-modal .as h3{font-size:17px}
+:root[data-layout="compact"] .pd-review-modal .as .as-steps{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+:root[data-layout="compact"] .pd-review-modal .as .as-steps button{font-size:13px;min-height:48px;white-space:normal;padding:9px 6px}
+:root[data-layout="compact"] .pd-review-modal .as .as-grid,:root[data-layout="compact"] .as-similar-selects{grid-template-columns:minmax(0,1fr);gap:10px}
+:root[data-layout="compact"] .as-similar{padding:12px;gap:13px}
+:root[data-layout="compact"] .as-similar-modes{grid-template-columns:minmax(0,1fr)}
+:root[data-layout="compact"] .as-similar-modes button{min-height:50px;padding:10px 12px;font-size:14px}
+:root[data-layout="compact"] .as-similar-modes button strong{font-size:14px}
+:root[data-layout="compact"] .as-similar-modes button small{font-size:12px}
+:root[data-layout="compact"] .as-similar-ex{padding:12px}
+:root[data-layout="compact"] .as-row .btn{flex:1 1 100%;min-height:44px;white-space:normal}
+:root[data-layout="compact"] .as-chat,:root[data-layout="compact"] .as-ctx{padding:12px}
+:root[data-layout="compact"] .as-lbl{font-size:14px}
+:root[data-layout="compact"] .formula-preview{padding:10px;font-size:16px;line-height:1.8;overflow-x:auto}
+:root[data-layout="compact"] .formula-field-title{font-size:14px}
+:root[data-layout="compact"] .as-help,:root[data-layout="compact"] .as-similar-head p{font-size:13px;line-height:1.6}
+:root[data-layout="compact"] .tbl-wrap,:root[data-layout="compact"] .mtable-wrap,:root[data-layout="compact"] .as-tbl{max-width:100%;overflow-x:auto}
+:root[data-layout="compact"] #arv2-data{max-width:100%;overflow-x:auto}
+:root[data-layout="compact"] #arv2-data table{min-width:600px}
+:root[data-layout="compact"] #arv2-parallel,:root[data-layout="compact"] #arv2-message{font-size:14px;overflow-wrap:anywhere}
+:root[data-layout="medium"] .pd-review-modal .pd{grid-template-columns:minmax(0,1fr);overflow-y:auto}
+:root[data-layout="medium"] .pd-review-modal .pd-media,:root[data-layout="medium"] .pd-review-modal .pd-side{overflow:visible}
+:root[data-layout="medium"] .pd-review-modal .pd-media img{max-height:45dvh;object-fit:contain}

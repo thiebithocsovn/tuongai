@@ -89,6 +89,8 @@ public class MainActivity extends Activity {
         web.setLayoutParams(new ViewGroup.LayoutParams(-1,-1));
         setContentView(web);
         WebSettings settings = web.getSettings();
+        settings.setUseWideViewPort(true);
+        settings.setLoadWithOverviewMode(false);
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setAllowFileAccess(false);

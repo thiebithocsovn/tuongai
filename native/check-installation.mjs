@@ -14,7 +14,7 @@ const win = JSON.parse(read('native/windows/package.json'));
 const winMain = read('native/windows/main.cjs');
 
 assert.match(html, /<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">/);
-assert.match(html, /<link rel="manifest" href="\.\/manifest\.webmanifest">/);
+assert.match(html, /<link rel="manifest" href="\.\/manifest\.webmanifest"(?:\s[^>]*)?>/);
 for (const marker of ['id="auth"','id="f-login"','id="f-reg"','id="install-panel"','id="install-native"','id="install-main"','id="install-download-state"']) {
   assert.ok(html.includes(marker), 'Missing UI: ' + marker);
 }
@@ -24,7 +24,7 @@ for (const target of ['android','ios','windows','mac']) {
 for (const bp of [760,480,355]) {
   assert.ok(html.includes('@media(max-width:' + bp + 'px)'), 'Missing responsive viewport ' + bp);
 }
-assert.ok(html.includes('https://thiebithocsovn.github.io/tuongai/'));
+assert.match(html, /<link rel="canonical" href="https:\/\/(?:tuonghoctap\.vercel\.app\/|thiebithocsovn\.github\.io\/tuongai\/)">/);
 assert.equal(manifest.start_url, '/tuongai/');
 assert.equal(manifest.scope, '/tuongai/');
 assert.equal(manifest.display, 'standalone');
@@ -39,6 +39,10 @@ assert.match(android, /android:usesCleartextTraffic="false"/);
 assert.match(android, /androidx\.core\.content\.FileProvider/);
 assert.match(java, /https:\/\/thiebithocsovn\.github\.io\/tuongai\//);
 assert.match(java, /onShowFileChooser/);
+for (const activity of [java, read('app-packages/android/app/src/main/java/vn/tuongai/learningwall/MainActivity.java')]) {
+  assert.match(activity, /setUseWideViewPort\(true\)/);
+  assert.match(activity, /setLoadWithOverviewMode\(false\)/);
+}
 assert.equal(win.build.win.target[0].target, 'nsis');
 assert.match(winMain, /nodeIntegration: false/);
 assert.match(winMain, /sandbox: true/);
