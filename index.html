@@ -9058,13 +9058,16 @@ function openAgentReviewDashboard() {
     onClose: () => clearInterval(timer),
     body: '<div class="modal-b"><p class="meta">AI tự đề xuất điểm, nhận xét và nguyên nhân sai ở các bảng đã bật AgentReview V2. Giáo viên kiểm tra và duyệt để gửi kết quả cho học sinh.</p>' +
       '<div class="as-row"><button class="btn btn-brand" id="arv2-refresh">Làm mới trạng thái</button>' +
-      '<button class="btn btn-ghost" id="arv2-start" disabled>Chạy hàng chờ ngay</button></div>' +
+      '<button class="btn btn-ghost" id="arv2-start" disabled>Chạy hàng chờ ngay</button>' +
+      '<button class="btn btn-ghost" id="arv2-retry" disabled>Chạy lại bài lỗi</button></div>' +
+      '<p id="arv2-parallel" class="meta" role="status"></p>' +
       '<p id="arv2-message" class="meta" role="status">Đang tải dữ liệu…</p>' +
       '<div id="arv2-data"></div></div>',
   });
   const el = m.el;
   const out = $('#arv2-data', el), message = $('#arv2-message', el);
-  const start = $('#arv2-start', el), refresh = $('#arv2-refresh', el);
+  const start = $('#arv2-start', el), refresh = $('#arv2-refresh', el), retry = $('#arv2-retry', el);
+  const parallelState = $('#arv2-parallel', el);
   let pending = false;
   async function load() {
     if (pending) return;
@@ -9072,12 +9075,18 @@ function openAgentReviewDashboard() {
     try {
       const data = await api('agent_review_queue', { operation: 'overview' });
       const counts = data.counts || {}, items = Array.isArray(data.items) ? data.items : [];
+      const ps = data.parallel || {};
+      parallelState.textContent = Number(ps.pausedUntil || 0) > Date.now()
+        ? 'Gemini đang quá hạn mức. Tự tiếp tục sau ' + Math.max(1, Math.ceil((ps.pausedUntil-Date.now())/1000)) + ' giây.'
+        : 'Xử lý song song: ' + Number(ps.active || 0) + '/' + Number(ps.parallelism || 3) + ' luồng đang làm việc.';
       const number = (key) => Number(counts[key] || 0);
       const label = { pending: 'Chờ xử lý', running: 'Đang xử lý', ready: 'Đã xử lý', failed: 'Cần xử lý lỗi' };
       const counters = Object.keys(label).map((key) =>
         '<span class="as-chip">' + label[key] + ': <strong>' + number(key) + '</strong></span>').join(' ');
       const rows = items.map((item) => {
-        const status = item.published ? 'Đã công bố điểm' : item.reviewStatus === 'draft' ? 'Chờ giáo viên duyệt' : label[item.status] || item.status;
+        const stopped = item.status === 'failed' && Number(item.cycleAttempts ?? item.attempts) >= 3;
+        const status = item.published ? 'Đã công bố điểm' : item.reviewStatus === 'draft' ? 'Chờ giáo viên duyệt' : stopped ? 'Đã dừng thử lại · cần chạy lại' : label[item.status] || item.status;
+        const failure = item.lastCode === 'rate_limited' ? 'Gemini quá hạn mức / đang bận' : item.lastCode ? 'Lỗi: ' + item.lastCode : '';
         const proposal = !item.published && Number.isFinite(item.suggestedScore)
           ? '<small style="display:block">Điểm đề xuất ' + fmt(item.suggestedScore) + ' / ' + fmt(item.maxScore) + '</small>' : '';
         const review = item.reviewStatus === 'draft' ? (item.pendingErrors ? item.pendingErrors + ' lỗi cần kiểm chứng' : 'Có bản nháp')
@@ -9088,7 +9097,7 @@ function openAgentReviewDashboard() {
           (entry.code ? ' (' + esc(entry.code) + ')' : '') + '</li>').join('');
         return '<tr><td><strong>' + esc(item.name || 'Học sinh') + '</strong><small style="display:block">' +
           esc(item.boardName || '') + '</small></td><td>' + esc(status) + proposal +
-          '<small style="display:block">Lần chạy: ' + Number(item.attempts || 0) + '</small></td>' +
+          '<small style="display:block">Lần chạy: ' + Number(item.attempts || 0) + (item.reused ? ' · Tận dụng kết quả đã lưu' : '') + '</small>' + (failure ? '<small>' + esc(failure) + '</small>' : '') + '</td>' +
           '<td>' + esc(review) + '</td>' +
           '<td><details><summary>Nhật ký</summary><ol>' + (audit || '<li>Chưa có</li>') +
           '</ol></details></td><td><button class="btn btn-sm" data-open-agent-post="' +
@@ -9106,9 +9115,11 @@ function openAgentReviewDashboard() {
       });
       const waiting = number('pending');
       start.disabled = !data.aiReady || !waiting;
+      retry.disabled = !data.aiReady || !number('failed');
       message.textContent = !data.aiReady ?
         'Máy chủ chưa có khóa Gemini chung để tự chấm nháp.' :
         !items.length ? 'Chưa có bài AgentReview V2 trong các bảng đã bật của tài khoản này.' :
+        !waiting && number('failed') ? 'Có bài lỗi đã dừng. Bấm Chạy lại bài lỗi để đưa lại vào hàng chờ; bản nháp đã có được giữ nguyên.' :
         !waiting ? 'Hàng chờ tự cập nhật. Mở bản nháp để xem điểm và nhận xét đề xuất.' :
         'Máy chủ sẽ tự xử lý ' + waiting + ' bài đang chờ, kể cả khi giáo viên đóng trang.';
     } catch (e) {
@@ -9126,8 +9137,17 @@ function openAgentReviewDashboard() {
       message.textContent = 'Không khởi động được AgentReview V2: ' + aiMsg(e);
     } finally { refresh.disabled = false; }
   };
+  retry.onclick = async () => {
+    retry.disabled = true;
+    message.textContent = 'Đang đưa bài lỗi vào hàng chờ xử lý song song…';
+    try {
+      const result = await api('agent_review_queue', { operation: 'retry_failed' });
+      message.textContent = 'Đã đưa lại ' + Number(result.requeued || 0) + ' bài vào hàng chờ.';
+      void load();
+    } catch (e) { message.textContent = 'Chưa chạy lại được: ' + aiMsg(e); retry.disabled = false; }
+  };
   void load();
-  timer = setInterval(load, 15000);
+  timer = setInterval(load, 5000);
 }
 
 async function schoolManagerFeatureAllowed(board,feature) {

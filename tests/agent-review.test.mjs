@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { stripTypeScriptTypes } from 'node:module';
+import * as parallel from '../supabase/functions/tuongai/review-parallel.ts';
 import * as agent from '../supabase/functions/tuongai/agent-review.ts';
 import * as autoGrade from '../supabase/functions/tuongai/auto-grade-retry.ts';
 import * as visibility from '../supabase/functions/tuongai/student-visibility.ts';
@@ -24,27 +25,30 @@ const exercise = { errorId: 'e1', question: 'Khai triển (x+4)²', hint: 'Viế
 const token = 'student-device-token-0001';
 const board = { id: 'board-1', owner: 'teacher-1', code: 'AGTEST', shared: true, trashed: false, auto_grade: true, assignment: { maxScore: 10 }, columns: [] };
 
-function setup({ v2 = false, serverAI = false } = {}) {
+function setup({ v2 = false, serverAI = false, onModelCall } = {}) {
   const activeBoard = structuredClone(board);
   activeBoard.assignment.agentReviewV2 = v2;
   const posts = [];
   const profiles = ['teacher-1', 'teacher-2'].map((id) => ({ id, full_name: id, role: 'teacher', status: 'active' }));
   const due = [], tasks = [], prompts = [];
   const cronToken = 'worker-test-token-'.repeat(3);
-  const rows = { posts, profiles, boards: [activeBoard], app_config: [], practice_submissions: [], school_manager_boards: [], school_manager_schools: [] };
+  const rows = { posts, profiles, boards: [activeBoard], app_config: [], practice_submissions: [], school_manager_boards: [], school_manager_schools: [], agent_review_parallel_control: [{id:true}] };
   if (serverAI) rows.app_config.push({ key: 'gemini_key', value: 'fixture-key' }, { key: 'agent_review_cron_token', value: cronToken });
-  let handler;
+  let handler, paused = false;
+  const slots = new Set();
   const db = {
     auth: { getUser: async (id) => ({ data: { user: profiles.find((p) => p.id === id) } }) },
     from(table) {
       const filters = [];
-      let input;
+      let input, patch;
       const result = () => {
         if (input) { rows[table].push({ ...input, created_at: new Date().toISOString() }); return structuredClone(rows[table].at(-1)); }
-        return structuredClone(rows[table].filter((r) => filters.every((f) => f(r))));
+        const selected = rows[table].filter((r) => filters.every((f) => f(r)));
+        if (patch) selected.forEach(row => Object.assign(row, patch));
+        return structuredClone(selected);
       };
       return {
-        select() { return this; }, order() { return this; }, range() { return this; }, limit() { return this; },
+        update(value) { patch = value; return this; }, select() { return this; }, order() { return this; }, range() { return this; }, limit() { return this; },
         eq(key, value) { filters.push((r) => r[key] === value); return this; },
         not(key) { assert.equal(key, 'teacher->>approvedAt'); filters.push((r) => !!r.teacher?.approvedAt); return this; },
         in(key, values) { filters.push((r) => values.includes(r[key])); return this; }, insert(row) { input = row; return this; },
@@ -54,6 +58,10 @@ function setup({ v2 = false, serverAI = false } = {}) {
       };
     },
     async rpc(name, args) {
+      if (name === 'claim_agent_review_slot') { if (paused || slots.size >= 3) return {data:0}; slots.add(args.p_token); return {data:1}; }
+      if (name === 'release_agent_review_slot') { slots.delete(args.p_token); return {data:null}; }
+      if (name === 'pause_agent_review_parallel') { paused=true; return {data:null}; }
+      if (name === 'agent_review_parallel_state') return {data:{parallelism:3,active:0,pausedUntil:0}};
       if (name === 'agent_review_v2_due_posts') return { data: due.map(post_id => ({ post_id })) };
       assert.ok(['update_post_teacher_if_unchanged', 'update_agent_review_v2_if_unchanged'].includes(name));
       if (name === 'update_agent_review_v2_if_unchanged' && !agent.v2EligibleBoard(activeBoard)) return { data: false };
@@ -66,13 +74,14 @@ function setup({ v2 = false, serverAI = false } = {}) {
   };
   const compiled = stripTypeScriptTypes(server.replace(/^import [\s\S]*?;\n/gm, ''), { mode: 'transform' });
   vm.runInNewContext(compiled, {
-    ...agent, ...autoGrade, ...references, ...visibility, ...schoolManager, publicPost: visibility.studentPost, crypto, Request, Response, TextEncoder,
+    ...parallel, ...agent, ...autoGrade, ...references, ...visibility, ...schoolManager, publicPost: visibility.studentPost, crypto, Request, Response, TextEncoder, AbortSignal,
     createClient: () => db, Deno: { env: { get: () => '' }, serve: (fn) => { handler = fn; } },
     ...(serverAI ? {
       EdgeRuntime: { waitUntil: (task) => tasks.push(task) },
       fetch: async (url, init) => {
         assert.match(url, /^https:\/\/generativelanguage\.googleapis\.com\//);
         prompts.push(JSON.parse(init.body).contents[0].parts.at(-1).text);
+        if (onModelCall) return await onModelCall();
         const result = { ...analysis, suggestedScore: 0, scoreReason: 'Thiếu tích đôi trong câu duy nhất.' };
         return Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(result) }] } }] });
       },
@@ -87,7 +96,12 @@ function setup({ v2 = false, serverAI = false } = {}) {
   };
   const submit = () => call('student_submit', { code: board.code, name: 'Học sinh thử', token, text: '(a+b)² = a²+b²' });
   const review = (id, operation, input = {}, user = board.owner) => call('agent_review', { post_id: id, operation, ...input }, user);
-  const tick = () => call('agent_review_tick', {}, '', { 'x-agent-review-tick': cronToken });
+  const tick = async () => {
+    const result = await call('agent_review_tick', {}, '', { 'x-agent-review-tick': cronToken });
+    await Promise.all(tasks);
+    result.body.processed = rows.agent_review_parallel_control[0].last_processed || 0;
+    return result;
+  };
   return { submit, review, call, tick, posts, activeBoard, due, tasks, prompts };
 }
 
@@ -221,7 +235,7 @@ test('V2 schedules only an authenticated server worker and reads source document
   assert.match(server, /agent_review_cron_token/);
   assert.match(server, /x-agent-review-tick/);
   assert.match(server, /agent_review_v2_due_posts/);
-  assert.match(server, /processed >= 2/);
+  assert.match(server, /reviewPool\(posts, REVIEW_PARALLELISM/);
   assert.match(server, /readOfficeText/);
   assert.match(server, /application\/pdf/);
   assert.match(server, /!v2EligibleBoard\(b\)/);
@@ -306,7 +320,7 @@ test('V2 dashboard renders an empty queue and opens each listed submission', asy
     querySelector: () => buttons[0] ?? null,
     querySelectorAll: () => buttons,
   };
-  const elements = { '#arv2-refresh': refresh, '#arv2-start': start, '#arv2-message': message, '#arv2-data': out };
+  const elements = { '#arv2-retry': {}, '#arv2-parallel': {}, '#arv2-refresh': refresh, '#arv2-start': start, '#arv2-message': message, '#arv2-data': out };
   const opened = [];
   let items = [];
   const selectors = html.match(/^const \$\$? = .*$/gm).join('\n');
@@ -345,4 +359,52 @@ test('V2 opt-in boundary and teacher-scoped queue are present in backend', () =>
   assert.match(server, /case "assign":/);
   assert.match(html, /id="bf-agent-v2"/);
   assert.match(html, /Trung tâm AgentReview V2/);
+});
+
+test('server queue overlaps three model requests and completes a bounded six-job batch', async()=>{
+  let active=0,peak=0;
+  const app=setup({v2:true,serverAI:true,onModelCall:async()=>{
+    active++;peak=Math.max(peak,active);
+    await new Promise(resolve=>setTimeout(resolve,12));
+    active--;
+    return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({...analysis,suggestedScore:6})}]}}]});
+  }});
+  for(let n=0;n<6;n++) {
+    app.posts.push({id:'pool-'+n,owner:board.owner,board_id:board.id,by:'hs',body:'x^2',images:[],attachments:[],teacher:{assist:{agentReview:agent.pendingReviewJob('analysis',true)}}});
+    app.due.push('pool-'+n);
+  }
+  const result=await app.tick();
+  assert.equal(peak,3);
+  assert.equal(app.prompts.length,6);
+  assert.equal(result.body.processed,6);
+  assert.ok(app.posts.every(post=>post.teacher.assist.a.review.status==='draft' && !post.teacher.approvedAt));
+});
+
+test('saved AI grades become attributed drafts without another model call or changing the grade',async()=>{
+  const app=setup({v2:true,serverAI:true});
+  const ai={diem:7,diem_toi_da:10,nhan_xet:'Em cần kiểm tra dấu.',loi_sai:[]};
+  app.posts.push({id:'cached',owner:board.owner,board_id:board.id,by:'hs',body:'Bài đã chấm',images:[],attachments:[],ai,ai_at:'2026-11-10T01:00:00Z',teacher:{assist:{agentReview:{kind:'analysis',status:'failed',attempts:3,v2:true}}}});
+  app.due.push('cached');
+  await app.tick();
+  assert.equal(app.prompts.length,0);
+  assert.deepEqual(app.posts[0].ai,ai);
+  assert.equal(app.posts[0].teacher.assist.a.source.kind,'saved_ai');
+  assert.equal(app.posts[0].teacher.assist.a.review.status,'draft');
+  assert.equal(app.posts[0].teacher.assist.agentReview.status,'ready');
+  assert.equal(app.posts[0].teacher.approvedAt,undefined);
+});
+
+test('429 cooldown stops subsequent waves while retaining unclaimed pending work',async()=>{
+  const app=setup({v2:true,serverAI:true,onModelCall:async()=>{
+    await new Promise(setImmediate);
+    return Response.json({error:{message:'Quota exceeded'}},{status:429});
+  }});
+  for(let n=0;n<8;n++) {
+    app.posts.push({id:'quota-'+n,owner:board.owner,board_id:board.id,by:'hs',body:'x^2',images:[],attachments:[],teacher:{assist:{agentReview:agent.pendingReviewJob('analysis',true)}}});
+    app.due.push('quota-'+n);
+  }
+  await app.tick();
+  assert.ok(app.prompts.length<=3);
+  assert.equal(app.posts.filter(post=>post.teacher.assist.agentReview.status==='pending').length,5);
+  assert.ok(app.posts.every(post=>!post.teacher.approvedAt && !post.teacher.assist.a));
 });

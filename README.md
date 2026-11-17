@@ -66,6 +66,16 @@ Mở trên web: https://thiebithocsovn.github.io/tuongai/
 - Xu hướng điểm chỉ là so sánh mô tả; nếu đề khác độ khó thì không thể tự quy kết mức tăng điểm là tác động của phần mềm.
 - Kiểm thử bằng `node --test tests/progress-tracker.test.mjs tests/agent-review.test.mjs`.
 
+## Hàng chờ AI xử lý song song
+
+- Máy chủ dùng tối đa **3 luồng gọi AI đồng thời trên toàn hệ thống**, kể cả nhiều tab và nhiều lần gọi lịch nền. Khóa từng bài và khóa luồng có thời hạn để phục hồi khi kết nối bị ngắt.
+- Một đợt nhận tối đa 6 công việc cần gọi mô hình; tạm ngừng nhận việc mới sau 45 giây để giữ trong thời gian chạy của Edge Function. Mỗi lần gọi AI giới hạn 65 giây.
+- Khi gặp Gemini 429/503, tạm dừng nhận cuộc gọi mới 60 giây; công việc vẫn giữ trong hàng chờ. Mỗi chu kỳ thử lại tối đa 3 lần. Số lần chạy tổng cộng được giữ lại.
+- Kết quả AI đã lưu và cùng thang điểm có thể được dùng để dựng bản nháp riêng, có nhãn nguồn và thời điểm kết quả cũ; không gọi lại AI và không thay `ai`, `ai_at`, bài làm, điểm hoặc quyền duyệt của giáo viên.
+- Giáo viên mở **menu tài khoản → Trung tâm AgentReview V2** để xem luồng đang chạy/thời gian chờ và bấm **Chạy lại bài lỗi** cho bài của mình. Trạng thái tự làm mới mỗi 5 giây.
+- Triển khai migration `20261117223014_agent_review_parallel_queue.sql` trước khi cập nhật Edge Function; các RPC điều phối chỉ cho `service_role`, trình duyệt không được gọi trực tiếp.
+- Kiểm tra: `node --test tests/review-parallel.test.mjs tests/agent-review.test.mjs`.
+
 ## AgentReview V2 – Đọc tệp và hàng chờ không cần giáo viên trực tuyến
 
 - **Tệp đọc tự động:** DOCX (văn bản), XLSX (bảng tính), PDF (gửi cho Gemini đọc trực tiếp), TXT, CSV, JPG/PNG/WebP. Tệp nằm trong kho riêng tư, không chuyển đổi qua dịch vụ công cộng.

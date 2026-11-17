@@ -6,6 +6,7 @@ on:
       - 'index.html'
       - 'supabase/functions/tuongai/**'
       - 'tests/agent-review.test.mjs'
+      - 'tests/review-parallel.test.mjs'
       - '.github/workflows/agentreview-v2.yml'
   pull_request:
     branches: [main]
@@ -30,4 +31,4 @@ jobs:
             console.log('Inline scripts checked:', scripts.length);
           "
       - name: Run AgentReview integration and V2 tests
-        run: node --test tests/agent-review.test.mjs
+        run: node --test tests/agent-review.test.mjs tests/review-parallel.test.mjs

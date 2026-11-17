@@ -15,6 +15,7 @@ import {
 } from "./agent-review.ts";
 import { handleSchoolManager, schoolFeatureEnabled } from "./school-manager.ts";
 import { readOfficeText, AttachmentReadError } from "./attachment-reader.ts";
+import { REVIEW_PARALLELISM, REVIEW_MODEL_BATCH, REVIEW_REQUEST_MS, reviewPool, reviewCycleAttempts, reviewRetryDue, savedGradeAnalysis } from "./review-parallel.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -132,12 +133,12 @@ function cleanAI(r: any, max: number) {
     canh_bao: s(r.canh_bao).slice(0, 400),
   };
 }
-async function callGemini(prompt: string, images: { mime: string; data: string }[], keyOverride?: string, modelOverride?: string) {
+async function callGemini(prompt: string, images: { mime: string; data: string }[], keyOverride?: string, modelOverride?: string, signal?: AbortSignal) {
   const key = keyOverride || (await config("gemini_key"));
   if (!key) throw new Fail("no_ai", "Quản trị chưa bật AI chấm bài.", 409);
   const model = modelOverride || (await config("gemini_model")) || "gemini-flash-latest";
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-    method: "POST",
+    method: "POST", signal,
     headers: { "content-type": "application/json", "x-goog-api-key": key },
     body: JSON.stringify({
       contents: [{ role: "user", parts: [...images.map((i) => ({ inline_data: { mime_type: i.mime, data: i.data } })), { text: prompt }] }],
@@ -518,6 +519,7 @@ async function claimReviewJob(post: any, board: any, retry = false, expectedKind
     ...pendingReviewJob(kind, v2), status: "running", lease, until: Date.now() + 180_000,
     draftId: previous?.a?.id || "",
     attempts: Number(previous?.agentReview?.attempts || 0) + 1,
+    cycleAttempts: reviewCycleAttempts(previous?.agentReview) + 1,
   } }, "claimed", kind, "server");
   const teacher = await writeReviewTeacher(post, { ...post.teacher, assist }, v2);
   return { kind, lease, post: { ...post, teacher } };
@@ -550,10 +552,10 @@ async function finishReviewJob(post: any, board: any, lease: string, raw: any, m
     ...assist, ...(a ? { a } : {}),
     agentReview: {
       ...pendingReviewJob(job.kind, job.v2), status: failed ? "failed" : "ready",
-      attempts: Number(job.attempts || 1), updatedAt: at,
+      attempts: Number(job.attempts || 1), cycleAttempts: reviewCycleAttempts(job), updatedAt: at,
       ...(failed ? { lastCode: failureCode || "worker_error",
         retryAt: ["rate_limited", "upstream_error", "worker_error", "empty_completion", "invalid_json"].includes(failureCode || "worker_error")
-          ? at + Math.min(300_000, 30_000 * (2 ** Math.max(0, Number(job.attempts || 1) - 1))) : 0,
+          ? at + Math.min(300_000, 30_000 * (2 ** Math.max(0, reviewCycleAttempts(job) - 1))) : 0,
       } : {}),
     },
   }, failed ? "failed" : "completed", job.kind, "server", failureCode, at) }, job.v2 === true);
@@ -566,24 +568,60 @@ Chỉ trả về MỘT đối tượng JSON đúng mẫu:
 {"instructions": "Hướng dẫn học sinh", "exercises": [{"errorId": "${errors[0].id}", "difficulty": "foundation", "question": "Đề luyện tập mới", "hint": "Gợi ý", "expectedAnswer": "Đáp án mẫu riêng cho giáo viên", "successCriteria": "Tiêu chí xác nhận khắc phục lỗi"}]}
 difficulty là foundation, application hoặc transfer. Mỗi lỗi 1–3 bài, tối đa 18 bài.`;
 }
+async function reviewCapacity<T>(work: () => Promise<T>): Promise<T | null> {
+  const token = crypto.randomUUID();
+  const { data: slot, error } = await db.rpc("claim_agent_review_slot", { p_token: token });
+  if (error) throw new Fail("server", "Chưa lấy được luồng xử lý AI.", 503);
+  if (!slot) return null;
+  try { return await work(); }
+  finally { await db.rpc("release_agent_review_slot", { p_token: token }); }
+}
+async function reviewModel(prompt: string, images: {mime: string; data: string}[]) {
+  try { return await callGemini(prompt, images, undefined, undefined, AbortSignal.timeout(REVIEW_REQUEST_MS)); }
+  catch (error) {
+    if (error instanceof Fail && error.code === "rate_limited")
+      await db.rpc("pause_agent_review_parallel", { p_seconds: 60 });
+    throw error;
+  }
+}
+async function reuseSavedReview(post: any, board: any) {
+  const raw = savedGradeAnalysis(post, board);
+  if (!raw) return false;
+  const job = reviewJobForBoard(post, board);
+  if (!job || job.kind !== "analysis" || job.status === "running") return false;
+  const at = Date.now(), model = (await config("gemini_model")) || "gemini-flash-latest";
+  const analysis = { ...cleanAnalysis(raw), maxScore: reviewMaxScore(board),
+    suggestedScore: raw.suggestedScore, scoreReason: raw.scoreReason };
+  const draft = { ...makeReviewDraft(analysis, reviewContext(post, board), model, at, crypto.randomUUID()),
+    source: { kind: "saved_ai", aiAt: post.ai_at } };
+  await writeReviewTeacher(post, { ...post.teacher, assist: reviewAudit({ ...post.teacher?.assist,
+    a: draft, agentReview: { ...job, status: "ready", updatedAt: at, reused: true },
+  }, "reused_saved_ai", "analysis", "server", "", at) }, true);
+  return true;
+}
 async function generateServerReviewPractice(post: any, board: any, retry = false) {
+  return await reviewCapacity(async () => {
   const claimed = await claimReviewJob(post, board, retry, "practice");
   if (!claimed) return;
   try {
     const a = claimed.post.teacher.assist.a;
     const { subject, grade, task } = a.ctx || {};
-    const raw = await callGemini(practicePrompt(assistCtx({ subject, grade, task }), confirmedPracticeInputs(a)), []);
+    const raw = await reviewModel(practicePrompt(assistCtx({ subject, grade, task }), confirmedPracticeInputs(a)), []);
     await finishReviewJob(claimed.post, board, claimed.lease, raw, (await config("gemini_model")) || "gemini-flash-latest");
   } catch (e) {
     if (e instanceof Fail && e.code === "stale_review") return;
     await finishReviewJob(claimed.post, board, claimed.lease, null, "", true,
       e instanceof Fail ? e.code : "worker_error");
   }
+  return true;
+  });
 }
 
 
 async function generateServerReviewAnalysis(post: any, board: any, retry = false) {
-  if (!v2EligibleBoard(board)) return;
+  if (!v2EligibleBoard(board)) return false;
+  if (await reuseSavedReview(post, board)) return true;
+  return await reviewCapacity(async () => {
   const claimed = await claimReviewJob(post, board, retry, "analysis");
   if (!claimed) return;
   try {
@@ -606,7 +644,7 @@ async function generateServerReviewAnalysis(post: any, board: any, retry = false
       '"feedback":"Nhận xét nháp", "errors":[{"title":"Lỗi", "skill":"Kỹ năng", ' +
       '"evidence":"Bằng chứng trong bài", "hypothesis":"Giả thuyết, chưa xác nhận", ' +
       '"confidence":"low", "verificationQuestion":"Câu hỏi kiểm chứng", "remediation":"Hướng sửa"}]}';
-    const raw = await callGemini(prompt, [...documents.media, ...reference.images]);
+    const raw = await reviewModel(prompt, [...documents.media, ...reference.images]);
     await finishReviewJob(claimed.post, board, claimed.lease, raw,
       (await config("gemini_model")) || "gemini-flash-latest");
   } catch (e) {
@@ -616,6 +654,8 @@ async function generateServerReviewAnalysis(post: any, board: any, retry = false
         e instanceof Fail ? e.code : "worker_error");
     } catch { /* A newer teacher action or lease may supersede this job. */ }
   }
+  return true;
+  });
 }
 async function v2QueueRows(owner: string) {
   const { data: boards, error: boardError } = await db.from("boards")
@@ -634,52 +674,52 @@ async function v2QueueRows(owner: string) {
   return { posts: (posts || []).filter((p: any) => !!reviewJobForBoard(p, boardMap.get(p.board_id))),
     boards: boardMap };
 }
-async function runServerReviewQueue(owner: string) {
-  if (!await config("gemini_key")) return;
-  const { posts, boards } = await v2QueueRows(owner);
-  let completed = 0;
-  for (const post of posts.slice().reverse()) {
+async function runReviewBatch(posts: any[], boards: Map<string, any>) {
+  let modelJobs = 0, processed = 0;
+  const deadline = Date.now() + 45_000;
+  const results = await reviewPool(posts, REVIEW_PARALLELISM, async (post) => {
+    if (Date.now() > deadline) return;
     const board = boards.get(post.board_id);
-    const kind = board && claimableReviewJob(post, board, false);
-    if (!kind) continue;
-    try {
-      if (kind === "analysis") await generateServerReviewAnalysis(post, board);
-      else await generateServerReviewPractice(post, board);
-    } catch (e) {
-      if (!(e instanceof Fail) || e.code !== "stale_review") throw e;
-      continue;
-    }
-    if (++completed >= 2) break; // Bound Edge Function CPU, cost, and concurrency.
-  }
+    if (!board || !v2EligibleBoard(board)) return;
+    const job = reviewJobForBoard(post, board);
+    if (!job) return;
+    const reusable = savedGradeAnalysis(post, board);
+    const retry = reviewRetryDue(job);
+    if (!reusable && (!claimableReviewJob(post, board, retry) || modelJobs >= REVIEW_MODEL_BATCH)) return;
+    if (!reusable) modelJobs++;
+    const done = job.kind === "analysis"
+      ? await generateServerReviewAnalysis(post, board, retry)
+      : await generateServerReviewPractice(post, board, retry);
+    if (done) processed++;
+  });
+  for (const result of results) if (result.status === "rejected")
+    console.warn("agent_review_parallel_job", gradeFailure(result.reason).code);
+  await db.from("agent_review_parallel_control").update({ last_tick_at: new Date().toISOString(), last_processed: processed }).eq("id", true);
+  return { processed, parallelism: REVIEW_PARALLELISM };
+}
+async function runServerReviewQueue(owner: string) {
+  const { posts, boards } = await v2QueueRows(owner);
+  return await runReviewBatch(posts.slice().reverse(), boards);
 }
 
-/** Periodic server-side recovery independent of browser sessions. */
+/** Periodic recovery shares the same database slots as interactive requests. */
 async function runGlobalReviewTick() {
-  if (!await config("gemini_key")) return { processed: 0, reason: "no_ai" };
-  const { data: due, error } = await db.rpc("agent_review_v2_due_posts", { p_limit: 12 });
+  const { data: due, error } = await db.rpc("agent_review_v2_due_posts", { p_limit: 30 });
   if (error) throw new Fail("server", "Chưa đọc được hàng chờ V2.", 500);
-  let processed = 0;
+  const posts: any[] = [], boards = new Map<string, any>();
   for (const item of due || []) {
-    if (processed >= 2) break;
     const { data: post } = await db.from("posts").select("*").eq("id", item.post_id).maybeSingle();
     if (!post || post.by !== "hs") continue;
-    const { data: board } = await db.from("boards").select("*").eq("id", post.board_id).maybeSingle();
-    if (!v2EligibleBoard(board) || !await schoolFeatureEnabled(db, board.id, "agentReview")) continue;
-    const job = reviewJobForBoard(post, board);
-    if (!job) continue;
-    const retry = job.status === "failed" && job.attempts < 3 && job.retryAt > 0 && job.retryAt <= Date.now();
-    const kind = claimableReviewJob(post, board, retry);
-    if (!kind) continue;
-    try {
-      if (kind === "analysis") await generateServerReviewAnalysis(post, board, retry);
-      else await generateServerReviewPractice(post, board, retry);
-    } catch (e) {
-      if (!(e instanceof Fail) || e.code !== "stale_review") throw e;
-      continue;
+    let board = boards.get(post.board_id);
+    if (!board) {
+      const response = await db.from("boards").select("*").eq("id", post.board_id).maybeSingle();
+      board = response.data;
+      if (!v2EligibleBoard(board) || !await schoolFeatureEnabled(db, board.id, "agentReview")) continue;
+      boards.set(board.id, board);
     }
-    processed++;
+    posts.push(post);
   }
-  return { processed };
+  return await runReviewBatch(posts, boards);
 }
 
 async function handleAgentReviewQueue(body: any, u: Profile) {
@@ -691,9 +731,16 @@ async function handleAgentReviewQueue(body: any, u: Profile) {
     const items = posts.map((p: any) => reviewDashboardItem(p, boards.get(p.board_id)));
     const counts: Record<string, number> = { pending: 0, running: 0, ready: 0, failed: 0 };
     for (const item of items) counts[item.status] = (counts[item.status] || 0) + 1;
-    return { items, counts, aiReady: !!(await config("gemini_key")) };
+    const { data: parallel } = await db.rpc("agent_review_parallel_state");
+    return { items, counts, aiReady: !!(await config("gemini_key")), parallel };
   }
-  if (operation === "start") {
+  if (operation === "start" || operation === "retry_failed") {
+    let requeued = 0;
+    if (operation === "retry_failed") {
+      const { data, error } = await db.rpc("requeue_agent_review_failed", { p_owner: u.id });
+      if (error) throw new Fail("server", "Chưa đưa lại được các bài lỗi vào hàng chờ.", 500);
+      requeued = Number(data || 0);
+    }
     if (!await config("gemini_key"))
       throw new Fail("no_ai", "Chưa cài Gemini chung. Có thể dùng AI trên trình duyệt giáo viên.", 409);
     const runtime = (globalThis as typeof globalThis & {
@@ -704,7 +751,7 @@ async function handleAgentReviewQueue(body: any, u: Profile) {
     runtime.waitUntil(runServerReviewQueue(u.id).catch((e) => {
       console.error("AgentReview V2 worker failed", e instanceof Error ? e.name : "unknown");
     }));
-    return { started: true };
+    return { started: true, requeued, parallelism: REVIEW_PARALLELISM };
   }
   throw new Fail("bad_action", "Tác vụ AgentReview V2 không hợp lệ.");
 }
@@ -837,6 +884,11 @@ async function handle(req: Request) {
     const token = await config("agent_review_cron_token");
     if (!token || token.length < 40 || req.headers.get("x-agent-review-tick") !== token)
       throw new Fail("forbidden", "Không có quyền chạy lịch AgentReview.", 403);
+    const runtime = (globalThis as typeof globalThis & { EdgeRuntime?: { waitUntil(task: Promise<unknown>): void } }).EdgeRuntime;
+    if (runtime?.waitUntil) {
+      runtime.waitUntil(runGlobalReviewTick().catch(error => console.error("agent_review_tick_failed", gradeFailure(error).code)));
+      return { started: true, parallelism: REVIEW_PARALLELISM };
+    }
     return await runGlobalReviewTick();
   }
   const me = await caller(req);

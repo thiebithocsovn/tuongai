@@ -146,7 +146,8 @@ export function reviewDashboardItem(post: any, board: any) {
   return {
     id: post.id, boardId: post.board_id, boardName: board.name, name: post.student_name,
     createdAt: post.created_at, kind: job.kind || "", status: job.status || "",
-    attempts: Number(job.attempts || 0), lastCode: job.lastCode || "",
+    attempts: Number(job.attempts || 0), cycleAttempts: Number(job.cycleAttempts ?? job.attempts ?? 0),
+    reused: job.reused === true, retryAt: Number(job.retryAt || 0), lastCode: job.lastCode || "",
     reviewStatus: assist.a?.review?.status || "",
     practiceStatus: assist.a?.practice?.status || "",
     published: !!post.teacher?.approvedAt && Number.isFinite(post.teacher?.score),
