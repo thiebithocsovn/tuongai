@@ -21,7 +21,7 @@ function renderStudent(p,{peer=false,boardSettings={}}={}) {
  const ctx={S,detail,document:{activeElement:null},console,getPost:()=>p,getBoard:()=>board,isGV:()=>false,isAdmin:()=>false,
    isTeacherAnnouncement:()=>false,peerPost:()=>peer,detailKey:()=> 'test-key',similarStudentName:()=>'',bindStudentSimilar:()=>{},
    $:(sel)=>sel==='#pd-side'?side:null,$$:()=>[],
-   ic:()=>'',esc:encode,vnTime:()=> '22/10/2026',fmt:v=>String(v),timeAgo:()=> 'vừa xong',
+   ic:()=>'',esc:encode,science:encode,vnTime:()=> '22/10/2026',fmt:v=>String(v),timeAgo:()=> 'vừa xong',
    drawMedia:()=>{},studentPracticeHtml:()=>'',studentPracticeSubmit:()=>{},
    finalScore:()=>peer?null:Number(p.teacher.score||0),studentCanEdit:()=>false,
    aiOn:()=>false,aiComment:()=>'',CAP:{},tmeta:()=>p.teacher};

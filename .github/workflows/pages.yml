@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -37,6 +38,20 @@ jobs:
         if: steps.kind.outputs.type == 'workflow'
         with:
           path: .
+      - name: Chờ GitHub nhận gói website
+        if: steps.kind.outputs.type == 'workflow'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 12); do
+            if [ "$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100" --jq 'any(.artifacts[]; .name == "github-pages" and .expired == false)')" = "true" ]; then
+              exit 0
+            fi
+            echo "Gói website chưa sẵn sàng, chờ GitHub đồng bộ (lần $attempt/12)."
+            sleep 5
+          done
+          echo "Không tìm thấy gói github-pages đã tải lên." >&2
+          exit 1
       - id: deployment
         if: steps.kind.outputs.type == 'workflow'
         uses: actions/deploy-pages@v4
