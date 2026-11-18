@@ -88,7 +88,17 @@ export async function queueApprovalEmail(db: any, profile: {id:string,email:stri
     console.error("approval_email_queue_failed", error.code || "db");
     return { status:"failed", reason:"queue_failed" };
   }
-  return await deliverApprovalEmail(db, profile.id);
+  try {
+    return await deliverApprovalEmail(db, profile.id);
+  } catch (error) {
+    console.error("approval_email_delivery_failed", error instanceof Error ? error.name : "unknown");
+    await db.from("approval_email_notifications").update({
+      status:"failed", last_error:"Không thể liên hệ dịch vụ email.",
+      updated_at:new Date().toISOString()
+    }).eq("profile_id",profile.id).in("status",["pending","sending","not_configured"]);
+    // Approval itself remains successful even if sending mail fails.
+    return {status:"failed"};
+  }
 }
 export async function deliverApprovalEmail(db: any, id: string) {
   const table = "approval_email_notifications";
