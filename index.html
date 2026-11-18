@@ -9056,7 +9056,7 @@ function memberRow(m, i) {
     <td class="c-unit" data-l="Đơn vị công tác">${m.school ? esc(m.school) : '<span class="nil">Chưa ghi</span>'}</td>
     <td class="c-st" data-l="Trạng thái"><span class="chip ${cls}"><i></i>${STATUS_LABEL[st] || st}</span><small>Đăng ký ${fmtDay(m.created_at)}</small>${mailNote ? `<small>${esc(mailNote)}</small>` : ""}</td>
     <td class="c-act"><div class="macts">
-      ${st === 'pending' ? b('mb-approve', 'check', 'Duyệt', 'btn-brand') : ''}${st === 'locked' ? b('mb-approve', 'unlock', 'Mở khóa', 'btn-brand') : ''}${!self && st === 'active' ? b('mb-lock', 'lock', 'Khóa') : ''}${st === 'active' && ['failed','not_configured','pending'].includes(m.approval_email_status) ? b('mb-email-retry','send','Gửi lại email') : ''}
+      ${st === 'pending' ? b('mb-approve', 'check', 'Duyệt', 'btn-brand') : ''}${st === 'locked' ? b('mb-approve', 'unlock', 'Mở khóa', 'btn-brand') : ''}${!self && st === 'active' ? b('mb-lock', 'lock', 'Khóa') : ''}${st === 'active' && ['failed','not_configured','pending'].includes(m.approval_email_status) ? b('mb-email-retry','send', S.mailConfigured ? 'Gửi lại email' : 'Kết nối Gmail') : ''}
       ${b('mb-edit', 'pencil', 'Sửa')}
       ${!self ? b('mb-delete', 'trash', 'Xóa', 'btn-danger') : ''}
       <button class="icon-btn mb-more" data-act="mb-more" data-id="${m.id}" aria-label="Thêm thao tác cho ${esc(name)}" title="Thêm thao tác">${ic('dots')}</button>
@@ -9100,9 +9100,20 @@ async function memberAct(act, id) {
       toast((m?.status === 'locked' ? 'Đã mở khóa tài khoản ' : 'Đã kích hoạt tài khoản ') + who + '.' + note);
     }
     else if (act === 'mb-email-retry') {
+      // Chưa có nhà cung cấp: mở ngay hướng dẫn Gmail thay vì báo thiếu khóa Resend.
+      if (!S.mailConfigured) {
+        toast('Chưa kết nối dịch vụ gửi thư. Vui lòng cấu hình Gmail một lần.');
+        openApprovalMailSetup();
+        return;
+      }
       const result = await api('admin_email_retry', { id });
+      if (result.email_notification === 'not_configured') {
+        toast('Dịch vụ email chưa được cấu hình. Hãy kết nối Gmail rồi gửi lại.');
+        openApprovalMailSetup();
+        return;
+      }
       toast(result.email_notification === 'sent' ? 'Nhà cung cấp đã tiếp nhận email chúc mừng gửi tới ' + who + '.'
-        : result.email_notification === 'not_configured' ? 'Chưa cấu hình RESEND_API_KEY và APPROVAL_EMAIL_FROM.'
+        : result.email_notification === 'processing' ? 'Yêu cầu gửi email đang được xử lý.'
         : 'Email chưa gửi thành công, hãy kiểm tra dịch vụ gửi thư và thử lại.');
     }
     else if (act === 'mb-lock') {
