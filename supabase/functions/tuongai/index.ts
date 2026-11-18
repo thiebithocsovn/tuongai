@@ -4,7 +4,7 @@
 // - AI chấm bài bằng một khóa Gemini chung do quản trị đặt (lưu trong app_config).
 // - Quản trị: danh sách thành viên, duyệt, khóa, đặt lại mật khẩu, tạo, xóa.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { approvalMailConfigured, queueApprovalEmail, deliverApprovalEmail } from "./approval-email.ts";
+import { approvalMailConfigured, queueApprovalEmail, deliverApprovalEmail, googleMailSettings, resendMailConfigured, sendGoogleApprovalMail } from "./approval-email.ts";
 import { AUTO_GRADE_RETRY_MS, gradeFailure } from "./auto-grade-retry.ts";
 import { encodeBase64, decodeBase64 } from "jsr:@std/encoding@1/base64";
 import { studentPost as publicPost, ownsStudentPost, visibleToStudent, isTeacherAnnouncement, studentSimilarQuestions } from "./student-visibility.ts";
@@ -1387,7 +1387,7 @@ confidence là low, medium hoặc high. Không tìm thấy lỗi có căn cứ t
           approval_email_status: notificationById.get(p.id) || null,
         })),
         auto_approve: (await config("auto_approve")) === "1",
-        approval_email_ready: approvalMailConfigured(),
+        approval_email_ready: await approvalMailConfigured(db),
       };
     }
     case "admin_update": {
@@ -1423,6 +1423,52 @@ confidence là low, medium hoặc high. Không tìm thấy lỗi có căn cứ t
       }
       const notification = approved ? await queueApprovalEmail(db, approved) : {status:"not_required"};
       return {ok:true, email_notification:notification.status};
+    }
+
+    case "admin_mail_status": {
+      needAdmin(me);
+      const settings = await googleMailSettings(db);
+      return {
+        configured:settings.configured,
+        url:settings.url,
+        token_created:settings.tokenCreated,
+        resend_fallback:resendMailConfigured(),
+      };
+    }
+    case "admin_mail_generate_token": {
+      needAdmin(me);
+      const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+      await setConfig("approval_mail_google_token", token);
+      // Return this token only once, to the authorized administrator.
+      return {ok:true, token};
+    }
+    case "admin_mail_save": {
+      needAdmin(me);
+      const url = str(body.url, 500);
+      if (url && !/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url))
+        throw new Fail("invalid_google_url", "Địa chỉ Google Apps Script không đúng. Hãy dán URL Web App kết thúc bằng /exec.", 400);
+      if (url) await setConfig("approval_mail_google_url", url);
+      else {
+        const {error} = await db.from("app_config").delete().eq("key", "approval_mail_google_url");
+        if (error) throw new Fail("server", error.message, 500);
+      }
+      const settings = await googleMailSettings(db);
+      return {ok:true,configured:settings.configured, url:settings.url};
+    }
+    case "admin_mail_test": {
+      const admin = needAdmin(me);
+      if (!emailOk(admin.email)) throw new Fail("invalid_email","Email quản trị không hợp lệ.",400);
+      try {
+        const result = await sendGoogleApprovalMail(db, {
+          id:"test-" + crypto.randomUUID(),
+          email:admin.email,
+          name:admin.full_name || "",
+        });
+        return {ok:true, status:"sent", provider_message_id:result.id, recipient:admin.email};
+      } catch (error) {
+        throw new Fail("mail_test_failed",
+          error instanceof Error ? error.message : "Gmail chưa thể gửi email kiểm tra.", 502);
+      }
     }
     case "admin_email_retry": {
       needAdmin(me);
