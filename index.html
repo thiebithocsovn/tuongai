@@ -8881,6 +8881,7 @@ async function refreshMembers(loud) {
   try {
     const r = await api('admin_list');
     S.memberList = r.members || [];
+    S.mailConfigured = !!r.approval_email_ready;
     S.memberList.forEach((m) => S.members.set(m.id, m));
   } catch (e) { if (loud) toast(aiMsg(e)); }
   updateNavCounts();
@@ -8940,7 +8941,7 @@ function drawMembers() {
   const all = S.memberList;
   if (!all) { el.innerHTML = '<div class="empty"><span class="spin"></span><p>Đang tải danh sách thành viên…</p></div>'; return; }
   const c = { pending: 0, active: 0, locked: 0 }; all.forEach((m) => { c[m.status] = (c[m.status] || 0) + 1; });
-  $('#mb-sum').innerHTML = `<span class="sum"><i style="background:var(--warn)"></i>Chờ duyệt <b>${c.pending}</b></span><span class="sum"><i style="background:var(--ok)"></i>Đang hoạt động <b>${c.active}</b></span><span class="sum"><i style="background:var(--muted)"></i>Đã khóa <b>${c.locked}</b></span><span class="sum">Tổng <b>${all.length}</b></span>`;
+  $('#mb-sum').innerHTML = `<span class="sum"><i style="background:var(--warn)"></i>Chờ duyệt <b>${c.pending}</b></span><span class="sum"><i style="background:var(--ok)"></i>Đang hoạt động <b>${c.active}</b></span><span class="sum"><i style="background:var(--muted)"></i>Đã khóa <b>${c.locked}</b></span><span class="sum">Tổng <b>${all.length}</b></span><span class="sum">${S.mailConfigured ? "✉ Email thông báo: đã cấu hình" : "⚠ Email thông báo: chưa cấu hình dịch vụ gửi thư"}</span>`;
   const ids = new Set(all.map((m) => m.id));
   [...S.memberSel].forEach((id) => { if (!ids.has(id) || id === S.meId) S.memberSel.delete(id); });
   const q = S.memberQ.trim();
@@ -8965,6 +8966,7 @@ function memberRow(m, i) {
   const self = m.id === S.meId, st = m.status, sel = S.memberSel.has(m.id);
   const cls = st === 'active' ? 'chip-ok' : st === 'pending' ? 'chip-warn' : 'chip-info';
   const name = m.full_name || '(chưa có tên)';
+  const mailNote = {sent: '✉ Đã gửi yêu cầu email', failed: '⚠ Email gửi lỗi', not_configured: '⚠ Email chờ cấu hình', pending: '✉ Email chờ gửi', sending: '✉ Đang gửi email'}[m.approval_email_status];
   const sub = [m.role === 'admin' ? 'Quản trị hệ thống' : 'Giáo viên', m.subject || '', (m.boards || 0) + ' bảng · ' + (m.posts || 0) + ' bài'].filter(Boolean).join(' · ');
   const b = (act, icon, label, kind = 'btn-ghost') => `<button class="btn btn-sm ${kind}" data-act="${act}" data-id="${m.id}" title="${label}">${ic(icon, 'ic-sm')}<span class="t">${label}</span></button>`;
   return `<tr data-id="${m.id}" class="${sel ? 'sel' : ''}${st === 'locked' ? ' is-locked' : ''}">
@@ -8973,9 +8975,9 @@ function memberRow(m, i) {
     <td class="c-name" data-l="Họ và tên"><div class="mname">${avatar({ id: m.id, name: m.full_name || m.email })}<div><b>${esc(name)}${self ? ' <em>(bạn)</em>' : ''}</b><span>${esc(sub)}</span></div></div></td>
     <td class="c-mail" data-l="Email đăng ký">${esc(m.email).replace('@', '<wbr>@')}</td>
     <td class="c-unit" data-l="Đơn vị công tác">${m.school ? esc(m.school) : '<span class="nil">Chưa ghi</span>'}</td>
-    <td class="c-st" data-l="Trạng thái"><span class="chip ${cls}"><i></i>${STATUS_LABEL[st] || st}</span><small>Đăng ký ${fmtDay(m.created_at)}</small></td>
+    <td class="c-st" data-l="Trạng thái"><span class="chip ${cls}"><i></i>${STATUS_LABEL[st] || st}</span><small>Đăng ký ${fmtDay(m.created_at)}</small>${mailNote ? `<small>${esc(mailNote)}</small>` : ""}</td>
     <td class="c-act"><div class="macts">
-      ${st === 'pending' ? b('mb-approve', 'check', 'Duyệt', 'btn-brand') : ''}${st === 'locked' ? b('mb-approve', 'unlock', 'Mở khóa', 'btn-brand') : ''}${!self && st === 'active' ? b('mb-lock', 'lock', 'Khóa') : ''}
+      ${st === 'pending' ? b('mb-approve', 'check', 'Duyệt', 'btn-brand') : ''}${st === 'locked' ? b('mb-approve', 'unlock', 'Mở khóa', 'btn-brand') : ''}${!self && st === 'active' ? b('mb-lock', 'lock', 'Khóa') : ''}${st === 'active' && ['failed','not_configured','pending'].includes(m.approval_email_status) ? b('mb-email-retry','send','Gửi lại email') : ''}
       ${b('mb-edit', 'pencil', 'Sửa')}
       ${!self ? b('mb-delete', 'trash', 'Xóa', 'btn-danger') : ''}
       <button class="icon-btn mb-more" data-act="mb-more" data-id="${m.id}" aria-label="Thêm thao tác cho ${esc(name)}" title="Thêm thao tác">${ic('dots')}</button>
@@ -9009,7 +9011,21 @@ async function memberAct(act, id) {
   const m = memberOf(id);
   const who = m ? (m.full_name || m.email) : 'thành viên';
   try {
-    if (act === 'mb-approve') { await api('admin_update', { id, status: 'active' }); toast((m?.status === 'locked' ? 'Đã mở khóa tài khoản ' : 'Đã kích hoạt tài khoản ') + who + '.'); }
+    if (act === 'mb-approve') {
+      const result = await api('admin_update', { id, status: 'active' });
+      const status = result.email_notification;
+      const note = status === 'sent' ? ' Email chúc mừng đã được nhà cung cấp tiếp nhận.'
+        : status === 'not_configured' ? ' Email chưa gửi: cần cấu hình dịch vụ gửi thư.'
+        : status === 'failed' ? ' Email gửi lỗi; có thể bấm Gửi lại email.'
+        : status === 'processing' ? ' Email đang xử lý.' : '';
+      toast((m?.status === 'locked' ? 'Đã mở khóa tài khoản ' : 'Đã kích hoạt tài khoản ') + who + '.' + note);
+    }
+    else if (act === 'mb-email-retry') {
+      const result = await api('admin_email_retry', { id });
+      toast(result.email_notification === 'sent' ? 'Nhà cung cấp đã tiếp nhận email chúc mừng gửi tới ' + who + '.'
+        : result.email_notification === 'not_configured' ? 'Chưa cấu hình RESEND_API_KEY và APPROVAL_EMAIL_FROM.'
+        : 'Email chưa gửi thành công, hãy kiểm tra dịch vụ gửi thư và thử lại.');
+    }
     else if (act === 'mb-lock') {
       if (!(await confirmBox('Khóa tài khoản?', '<b>' + esc(who) + '</b> sẽ không đăng nhập được, học sinh cũng không vào được các lớp của họ. Dữ liệu vẫn được giữ, có thể mở khóa lại.', 'Khóa tài khoản', true))) return;
       await api('admin_update', { id, status: 'locked' }); toast('Đã khóa tài khoản ' + who + '.');
@@ -9042,17 +9058,24 @@ async function memberBulk(v) {
   }
   $$('#mb-bulk button').forEach((x) => (x.disabled = true));
   toast('Đang xử lý ' + todo.length + ' tài khoản…');
-  let ok = 0, lastErr = '';
+  let ok = 0, lastErr = '', mailSent = 0, mailPending = 0;
   for (const m of todo) {
     try {
       if (v === 'delete') { await api('admin_delete', { id: m.id }); dropMemberLocal(m.id); }
-      else await api('admin_update', { id: m.id, status: v });
+      else {
+        const result = await api('admin_update', { id: m.id, status: v });
+        if (v === 'active' && m.status === 'pending') {
+          if (result.email_notification === 'sent') mailSent++;
+          else if (['not_configured', 'failed', 'processing'].includes(result.email_notification)) mailPending++;
+        }
+      }
       ok++;
     } catch (e) { lastErr = aiMsg(e); }
   }
   S.memberSel.clear();
   const verb = v === 'delete' ? 'Đã xóa ' : v === 'locked' ? 'Đã khóa ' : 'Đã kích hoạt ';
-  toast(ok === todo.length ? verb + ok + ' tài khoản.' : verb + ok + '/' + todo.length + ' tài khoản. ' + lastErr);
+  const mailInfo = v === 'active' && (mailSent || mailPending) ? ' Email: ' + mailSent + ' đã tiếp nhận, ' + mailPending + ' chờ xử lý.' : '';
+  toast((ok === todo.length ? verb + ok + ' tài khoản.' : verb + ok + '/' + todo.length + ' tài khoản. ' + lastErr) + mailInfo);
   refreshMembers(true);
 }
 function editMemberForm(mb) {
@@ -9312,7 +9335,7 @@ document.addEventListener('click', async (e) => {
     case 'clear-owner': S.view = { name: 'home', tab: 'mine', q: '', owner: null }; homeKey = ''; render(); break;
     case 'mb-filter': S.memberFilter = t.dataset.v; drawMembers(); break;
     case 'mb-create': createMemberForm(); break;
-    case 'mb-approve': case 'mb-lock': case 'mb-role': case 'mb-delete': case 'mb-view': case 'mb-reset': case 'mb-edit': case 'mb-copy': $$('.menu').forEach((x) => x.remove()); memberAct(act, id); break;
+    case 'mb-approve': case 'mb-email-retry': case 'mb-lock': case 'mb-role': case 'mb-delete': case 'mb-view': case 'mb-reset': case 'mb-edit': case 'mb-copy': $$('.menu').forEach((x) => x.remove()); memberAct(act, id); break;
     case 'mb-more': { const mm = memberOf(id); if (mm) memberMenu(t, mm); break; }
     case 'mb-sort': { const k = t.dataset.k; S.memberSort = !k ? { k: '', dir: 1 } : S.memberSort.k === k ? { k, dir: -S.memberSort.dir } : { k, dir: 1 }; drawMembers(); break; }
     case 'mb-bulk': memberBulk(t.dataset.v); break;
