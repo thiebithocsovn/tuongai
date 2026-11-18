@@ -2729,6 +2729,19 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 </style>
 <link rel="stylesheet" href="./responsive-layout.css?v=20261118b">
 
+<style id="virtual-common-group-removal">
+/* Bài không phân nhóm vẫn hiển thị sau khi giáo viên xóa khung Bài chung. */
+.app.board-open .col-ungrouped{padding-top:0}
+.app.board-open .col-ungrouped .col-post-viewport{margin-top:0}
+.app.board-open .col-restore-common{
+  font-size:12.5px;border-color:rgba(53,99,72,.35);
+  color:#37634b;background:rgba(255,255,255,.45);
+  min-height:40px
+}
+@media(max-width:900px){
+  .app.board-open .cols.dir-h>.col-ungrouped{width:calc(100vw - 54px);min-width:calc(100vw - 54px);max-width:340px}
+}
+</style>
 <style id="board-header-compact-owner">
 /* Đưa tên người quản lý và thống kê vào ngay sau tên lớp; không tốn thêm một hàng. */
 .app.board-open .bhead2.board-intro-empty{display:none}
@@ -5648,11 +5661,17 @@ function renderPosts(b, ps, gv, q) {
   const ids = new Set(cols.map((c) => c.id));
   const loose = ps.filter((p) => !ids.has(p.columnId));
   const groups = [];
-  if (loose.length || !cols.length) groups.push({ id: '', name: 'Bài chung', items: loose, own: false });
+  // Bài chung là nhóm ảo của bài chưa gán cột. Giáo viên có thể bỏ khung nhóm
+  // mà KHÔNG xóa hoặc di chuyển bất kỳ bài nộp nào.
+  const hideCommon = b.assignment?.hideCommonGroup === true;
+  if (!hideCommon && (loose.length || !cols.length)) groups.push({ id: '', name: 'Bài chung', items: loose, own: false });
+  const ungroupedHtml = hideCommon && loose.length
+    ? `<section class="col col-ungrouped" aria-label="Bài chưa phân nhóm"><div class="col-post-viewport" data-overflow="0"><div class="col-post-scroll" role="region" tabindex="0" aria-label="Bài làm chưa phân nhóm"><div class="col-post-content">${cards(loose)}</div></div><div class="col-post-rail" aria-hidden="true"><div class="col-post-thumb"></div></div></div></section>`
+    : '';
   cols.forEach((c) => groups.push({ id: c.id, name: c.name, items: ps.filter((p) => p.columnId === c.id), own: true }));
   const action = gv ? 'publish-class' : 'submit';
   const actionLabel = gv ? 'Đăng bài' : 'Nộp bài';
-  return `<div class="cols-wrap"><div class="cols${dir}">${groups.map((g) => {
+  return `<div class="cols-wrap"><div class="cols${dir}">${ungroupedHtml}${groups.map((g) => {
     const target = `data-act="${action}" data-id="${esc(b.id)}" data-col="${esc(g.id)}"`;
     const label = esc(actionLabel + ' vào ' + g.name);
     return `<section class="col" data-col-id="${g.own ? esc(g.id) : ''}" aria-label="${esc(g.name)}">
@@ -5661,7 +5680,9 @@ function renderPosts(b, ps, gv, q) {
         <h2${g.own ? ` tabindex="0" title="Giữ chuột trái để kéo cột, hoặc nhấn Alt và phím mũi tên" aria-label="Di chuyển cột ${esc(g.name)} bằng chuột hoặc Alt và mũi tên"` : ''}>${esc(g.name)}</h2>
         <span>${g.items.length}</span>
         <button type="button" class="icon-btn col-submit-btn" ${target} aria-label="${label}" title="${label}">${ic('plus')}</button>
-        ${manage && g.own ? `<button class="icon-btn" data-act="col-rename" data-id="${esc(b.id)}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${esc(b.id)}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>` : ''}
+        ${manage ? (g.own
+          ? `<button class="icon-btn" data-act="col-rename" data-id="${esc(b.id)}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${esc(b.id)}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>`
+          : `<button type="button" class="icon-btn" style="color:var(--pen)" data-act="common-hide" data-id="${esc(b.id)}" aria-label="Xóa nhóm Bài chung, giữ nguyên bài đăng" title="Xóa khung Bài chung, giữ nguyên bài">${ic('trash')}</button>`) : ''}
       </div>
       <button type="button" class="col-addpost" ${target} aria-label="${label}" title="${label}">${ic('plus')}</button>
       <div class="col-post-viewport" data-overflow="0">
@@ -5669,7 +5690,7 @@ function renderPosts(b, ps, gv, q) {
         <div class="col-post-rail" aria-hidden="true"><div class="col-post-thumb"></div></div>
       </div>
     </section>`;
-  }).join('')}${manage ? `<div class="col-add-actions"><button class="col-add" data-act="add-col" data-id="${b.id}">${ic('plus')}Thêm cột</button><button class="col-add col-add-row" data-act="add-row" data-id="${b.id}">${ic('plus')}Thêm hàng</button></div>` : ''}</div></div>`;
+  }).join('')}${manage ? `<div class="col-add-actions"><button class="col-add" data-act="add-col" data-id="${b.id}">${ic('plus')}Thêm cột</button><button class="col-add col-add-row" data-act="add-row" data-id="${b.id}">${ic('plus')}Thêm hàng</button>${hideCommon ? `<button type="button" class="col-add col-restore-common" data-act="common-restore" data-id="${esc(b.id)}">${ic('restore')}Khôi phục Bài chung</button>` : ''}</div>` : ''}</div></div>`;
 }
 function imgSrc(r) {
   if (!r) return '';
@@ -5759,7 +5780,7 @@ function movePostForm(p) {
   const b = getBoard(p.boardId);
   if (!canManage(b) || S.guest || !(b.columns || []).length) return;
   const vertical = boardDir(b) === 'v', word = vertical ? 'hàng' : 'cột';
-  const positions = [{ id: '', name: 'Bài chung' }, ...b.columns];
+  const positions = [{ id: '', name: b.assignment?.hideCommonGroup ? 'Không phân nhóm' : 'Bài chung' }, ...b.columns];
   const source = positions.find(c => c.id === p.columnId) || positions[0];
   const m = openModal({
     title: 'Di chuyển bài học sinh', cls: 'post-move-form',
@@ -5940,7 +5961,7 @@ function loadXLSX() {
 const slug = (s) => String(s || 'bang').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '').slice(0, 60) || 'bang';
 function exportRows(b) {
   const max = b.assignment?.maxScore || 10;
-  const colName = (id) => (b.columns || []).find((c) => c.id === id)?.name || 'Bài chung';
+  const colName = (id) => (b.columns || []).find((c) => c.id === id)?.name || (b.assignment?.hideCommonGroup ? 'Không phân nhóm' : 'Bài chung');
   return sortPosts(boardPostList(b), 'name', false).map((p, k) => {
     const tm = tmeta(p);
     return {
@@ -6283,7 +6304,7 @@ function submitForm(b, asTeacher, colId, publishToClass = false) {
     body: `<form class="modal-b" id="sf" novalidate>
       ${publishToClass ? `<p class="info-box">Bài giáo viên đăng sẽ hiển thị ngay cho học sinh khi lớp đã bật chia sẻ; không cần duyệt. Bài học sinh nộp vẫn cần duyệt trước khi chia sẻ với bạn khác.</p>${!b.shared ? `<p class="warnline">Lớp này chưa bật chia sẻ. Sau khi đăng, bấm Chia sẻ để cho học sinh mở lớp bằng liên kết.</p>` : ""}` : ''}
       ${publishToClass ? `<p class="sf-submission-info">${ic('users', 'ic-sm')} Người đăng: <strong>${esc(me?.name || ownerLabel(b) || 'Giáo viên')}</strong> · Bài được chia sẻ với cả lớp.</p>` : asTeacher ? `<label class="fld"><span>Họ tên học sinh</span><input id="sf-name" list="sf-names" autocomplete="off" placeholder="Gõ hoặc chọn tên học sinh"><datalist id="sf-names">${[...names].map((n) => `<option value="${esc(n)}"></option>`).join('')}</datalist></label>` : `<p class="sf-submission-info">${ic('book','ic-sm')} ${selectedColumn ? 'Nộp vào ' + esc(selectedColumn.name) + '. ' : ''}${b.assignment?.title ? 'Bài: ' + esc(b.assignment.title) + '. ' : ''}Chụp ảnh hoặc gõ bài, rồi điền tên để gửi cho thầy cô.</p>`}
-      ${asTeacher && b.layout !== 'tuong' && cols.length ? `<label class="fld"><span>Cột</span><select id="sf-col">${cols.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}<option value="">Bài chung</option></select></label>` : ''}
+      ${asTeacher && b.layout !== 'tuong' && cols.length ? `<label class="fld"><span>Cột</span><select id="sf-col">${cols.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}<option value="">${b.assignment?.hideCommonGroup ? 'Không phân nhóm' : 'Bài chung'}</option></select></label>` : ''}
       <div class="fld"><span>${publishToClass ? "Ảnh bài tập / tài liệu" : "Ảnh bài làm"} <em>(tối đa ${maxShots} trang)</em></span>
         <div class="shots" id="sf-shots"></div>
       </div>
@@ -9313,13 +9334,32 @@ document.addEventListener('click', async (e) => {
     case 'add-col': if (b && canManage(b)) colForm(b, null, 'column'); break;
     case 'add-row': if (b && canManage(b)) colForm(b, null, 'row'); break;
     case 'col-rename': if (b) colForm(b, t.dataset.col); break;
+    case 'common-hide': {
+      if (!b || !canManage(b) || b.assignment?.hideCommonGroup) break;
+      const count = postsOf(b.id).filter(p => !(b.columns || []).some(c => c.id === p.columnId)).length;
+      const message = 'Xóa khung “Bài chung” khỏi lớp này?'
+        + (count ? '<br><br><b>' + count + ' bài đăng</b> vẫn được giữ nguyên và hiển thị trực tiếp dưới dạng bài chưa phân nhóm.' : '<br><br>Không có bài đăng nào bị xóa.')
+        + '<br><br>Thầy cô có thể khôi phục nhóm khi cần.';
+      if (!(await confirmBox('Xóa nhóm Bài chung?', message, 'Xóa nhóm', true))) break;
+      if (await saveBoard({ ...b, assignment: { ...(b.assignment || {}), hideCommonGroup: true } })) {
+        toast('Đã bỏ nhóm Bài chung. Tất cả bài đăng vẫn được giữ nguyên.');
+      }
+      break;
+    }
+    case 'common-restore': {
+      if (!b || !canManage(b) || !b.assignment?.hideCommonGroup) break;
+      if (await saveBoard({ ...b, assignment: { ...(b.assignment || {}), hideCommonGroup: false } })) {
+        toast('Đã khôi phục nhóm Bài chung.');
+      }
+      break;
+    }
     case 'col-del': {
       const col = b && (b.columns || []).find((c) => c.id === t.dataset.col);
       if (!col) break;
-      if (!(await confirmBox('Xóa cột?', 'Xóa cột “' + esc(col.name) + '”? Các bài trong cột chuyển sang Bài chung và không bị mất.', 'Xóa cột', true))) break;
+      if (!(await confirmBox('Xóa cột?', 'Xóa cột “' + esc(col.name) + '”? Các bài trong cột chuyển sang ' + (b.assignment?.hideCommonGroup ? 'mục chưa phân nhóm' : 'Bài chung') + ' và không bị mất.', 'Xóa cột', true))) break;
       for (const p of postsOf(b.id).filter((x) => x.columnId === col.id)) await savePost({ ...p, columnId: '' }, ['column_id']);
       await saveBoard({ ...getBoard(b.id), columns: (getBoard(b.id).columns || []).filter((c) => c.id !== col.id) });
-      toast('Đã xóa cột “' + col.name + '”. Các bài đã chuyển sang Bài chung.');
+      toast('Đã xóa cột “' + col.name + '”. Các bài được giữ lại ' + (b.assignment?.hideCommonGroup ? 'ở mục chưa phân nhóm.' : 'trong Bài chung.'));
       break;
     }
     case 'board-menu': if (b) boardMenu(t, b); break;
