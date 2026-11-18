@@ -79,3 +79,68 @@ html{ -webkit-text-size-adjust:100%;text-size-adjust:100% }
 :root[data-layout="medium"] .pd-review-modal .pd{grid-template-columns:minmax(0,1fr);overflow-y:auto}
 :root[data-layout="medium"] .pd-review-modal .pd-media,:root[data-layout="medium"] .pd-review-modal .pd-side{overflow:visible}
 :root[data-layout="medium"] .pd-review-modal .pd-media img{max-height:45dvh;object-fit:contain}
+
+/* Classroom tools wrap within named groups; no action is hidden in a horizontal strip. */
+:root .app.board-open .btool.board-toolbar{display:block;min-width:0;padding:16px;margin-top:6px;margin-bottom:20px;background:rgba(255,255,255,.94);border:1px solid #dbe5dd;border-radius:16px;box-shadow:0 4px 18px rgba(39,67,47,.045);overflow:visible}
+:root .board-toolbar-main{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;min-width:0}
+:root .app.board-open .board-toolbar .search{flex:1 1 280px;min-width:0;max-width:560px;width:auto;min-height:44px;margin:0;padding:0 13px;border:1px solid #d9e3dc;border-radius:10px;box-shadow:none;background:#f7faf8}
+:root .app.board-open .board-toolbar .search input{font-size:14px;line-height:1.5;min-width:0;width:100%}
+:root .board-toolbar-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px;min-width:0;max-width:100%}
+:root .app.board-open .btool.board-toolbar .btn{min-height:44px;padding:10px 13px;border-radius:10px;font-size:14px;line-height:1.4;gap:7px;white-space:normal;max-width:100%;justify-content:center}
+:root .app.board-open .board-toolbar .btn-brand{background:#823d51;border-color:#823d51;color:#fff;box-shadow:0 3px 8px #823d5118}
+:root .app.board-open .board-toolbar .btn-brand:hover{background:#713247;border-color:#713247}
+:root .app.board-open .board-toolbar .btn-soft{background:#fff;border:1px solid #dce5df;color:#284238;box-shadow:none}
+:root .app.board-open .board-toolbar .btn-soft:hover{background:#f2f7f4;border-color:#a9bfb1}
+:root .app.board-open .board-toolbar .board-toolbar-review.has-pending{background:#fff8ed;border-color:#efd8b1;color:#805819}
+:root .app.board-open .board-toolbar .bcnt{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 6px;margin:0;border-radius:8px;background:#823d51;color:#fff;font-size:12px}
+:root .board-toolbar-options{min-width:0;margin-top:14px;border-top:1px solid #e5ece7}
+:root .board-toolbar-options>summary{display:flex;align-items:center;gap:8px;min-height:42px;padding-top:12px;color:#425e50;cursor:pointer;list-style:none;font-size:13px;font-weight:700;user-select:none}
+:root .board-toolbar-options>summary::-webkit-details-marker{display:none}
+:root .board-toolbar-options>summary::after{content:"";width:7px;height:7px;margin:0 3px 4px auto;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);flex:none}
+:root .board-toolbar-options[open]>summary::after{transform:rotate(225deg);margin-bottom:0}
+:root .board-toolbar-options>summary>.ic{width:17px;height:17px}
+:root .board-toolbar-options>summary small{margin-left:auto;font-size:12px;font-weight:400;color:#708177}
+:root .board-toolbar-options>summary small+*{margin-left:0}
+:root .board-toolbar-options>summary:focus-visible{outline:2px solid #823d51;outline-offset:4px;border-radius:6px}
+:root .board-toolbar-options-body{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px 24px;padding-top:12px;min-width:0}
+:root .board-toolbar-settings{display:flex;flex:1 1 620px;flex-wrap:wrap;align-items:flex-end;gap:10px;min-width:0;max-width:100%}
+:root .board-toolbar-field{display:flex;flex-direction:column;gap:6px;min-width:0;margin:0}
+:root .board-toolbar-field>span,:root .board-toolbar-label{font-size:11px;font-weight:750;color:#64776b;line-height:1.4;letter-spacing:.025em}
+:root .app.board-open .btool.board-toolbar select{min-height:44px;max-width:100%;min-width:125px;width:100%;padding:9px 30px 9px 11px;font-family:inherit;font-size:14px;line-height:1.4;border:1px solid #dce5df;background:#fff;border-radius:10px;color:#284238}
+:root .app.board-open .board-toolbar .bdirs{display:flex;flex:0 1 auto;gap:3px;padding:3px;min-width:0;max-width:100%;border:1px solid #dce5df;border-radius:11px;background:#f3f7f4;order:0}
+:root .app.board-open .btool.board-toolbar .bdirs .btn{flex:0 1 auto;min-height:36px;padding:7px 10px;border:1px solid transparent;border-radius:8px;background:transparent;font-size:13px;box-shadow:none;white-space:nowrap}
+:root .app.board-open .board-toolbar .bdirs .btn[aria-pressed="true"]{background:#fff;border-color:#d7c2ca;color:#823d51;box-shadow:0 1px 3px #273c2d0d}
+:root .board-toolbar-insights{display:flex;flex:0 1 auto;flex-direction:column;gap:6px;min-width:0;max-width:100%}
+:root .board-toolbar-insight-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+:root .app.board-open .btool.board-toolbar .board-toolbar-insight-actions .btn{font-size:13px;background:#f6f8fb;color:#405676;border-color:#e1e6ee}
+:root .app.board-open .btool.board-toolbar .board-structure-actions{display:flex;flex:1 1 100%;flex-wrap:wrap;align-items:center;gap:10px;margin:0;padding-top:14px;border-top:1px solid #e5ece7;min-width:0}
+:root .app.board-open .board-toolbar .board-structure-btn{min-height:40px;padding:8px 12px;font-size:13px;border-radius:9px;border:1px dashed #b3c8ba;background:#fafcfb;box-shadow:none}
+:root .board-toolbar .board-structure-hint{flex:1 1 240px;font-size:12px;color:#718276}
+
+:root[data-layout="compact"] .app.board-open .btool.board-toolbar{padding:12px;border-radius:13px;margin-bottom:16px}
+:root[data-layout="compact"] .board-toolbar-main{flex-direction:column;align-items:stretch;gap:10px}
+:root[data-layout="compact"] .app.board-open .board-toolbar .search{flex:auto;width:100%;max-width:none}
+:root[data-layout="compact"] .board-toolbar-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:8px}
+:root[data-layout="compact"] .board-toolbar-actions>[data-act="publish-class"],:root[data-layout="compact"] .board-toolbar-actions>.btn:only-child{grid-column:1/-1}
+:root[data-layout="compact"] .app.board-open .btool.board-toolbar .board-toolbar-actions .btn{padding:10px 7px;font-size:13px}
+:root[data-layout="compact"] .board-toolbar-options>summary small{display:none}
+:root[data-layout="compact"] .board-toolbar-options-body{gap:16px}
+:root[data-layout="compact"] .board-toolbar-settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));flex-basis:100%;gap:10px}
+:root[data-layout="compact"] .board-toolbar-direction,:root[data-layout="compact"] .board-toolbar-background{grid-column:1/-1}
+:root[data-layout="compact"] .app.board-open .btool.board-toolbar select{min-width:0;font-size:16px;padding:9px 6px}
+:root[data-layout="compact"] .app.board-open .board-toolbar .bdirs{width:100%;flex-wrap:nowrap}
+:root[data-layout="compact"] .app.board-open .btool.board-toolbar .bdirs .btn{flex:1;white-space:normal;padding:7px 4px}
+:root[data-layout="compact"] .board-toolbar-insights{flex-basis:100%;width:100%}
+:root[data-layout="compact"] .board-toolbar-insight-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+:root[data-layout="compact"] .board-toolbar-insight-actions>[data-act="progress"]{grid-column:1/-1}
+:root[data-layout="compact"] .board-toolbar .board-structure-actions>.board-toolbar-label{flex:1 1 100%}
+:root[data-layout="compact"] .board-toolbar .board-structure-hint{flex-basis:100%}
+
+@media(min-width:600px){
+  :root[data-layout="compact"] .board-toolbar-actions{display:flex;justify-content:flex-start}
+  :root[data-layout="compact"] .board-toolbar-background{grid-column:auto}
+  :root[data-layout="compact"] .board-toolbar-direction{grid-column:auto}
+  :root[data-layout="compact"] .board-toolbar-insight-actions{display:flex}
+  :root[data-layout="compact"] .board-toolbar .board-structure-actions>.board-toolbar-label{flex:0 1 auto}
+  :root[data-layout="compact"] .board-toolbar .board-structure-hint{flex:1 1 240px}
+}

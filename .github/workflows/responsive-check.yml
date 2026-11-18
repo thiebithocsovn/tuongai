@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '22'
       - name: Verify automatic device layout and rotation
-        run: node --test tests/device-layout.test.cjs
+        run: node --test tests/device-layout.test.cjs tests/board-toolbar.test.mjs
   preview:
     runs-on: ubuntu-24.04
     steps:
