@@ -8874,6 +8874,85 @@ function boardTransferForm(board) {
   };
 }
 
+/* Gmail approval email setup, available only to system administrators. */
+async function openApprovalMailSetup() {
+  if (!isAdmin()) return;
+  const m = openModal({
+    title:'Kết nối Gmail gửi email tự động',
+    wide:true,
+    body:'<div class="modal-b" id="gmail-approval-setup" style="display:grid;gap:13px">' +
+      '<p class="info-box">Sau khi quản trị duyệt tài khoản giáo viên, máy chủ sẽ gửi email chúc mừng qua Gmail. Bạn chỉ cần kết nối tài khoản Gmail một lần; không cần mua tên miền hay dùng Resend.</p>' +
+      '<p><strong>Bước 1.</strong> Mở <a class="link" target="_blank" rel="noopener noreferrer" href="https://script.google.com/">Google Apps Script</a>, tạo dự án mới, rồi sao chép toàn bộ mã <a class="link" target="_blank" rel="noopener noreferrer" href="https://github.com/thiebithocsovn/tuongai/blob/main/integrations/google-apps-script/Code.gs">Code.gs đã chuẩn bị</a> vào dự án.</p>' +
+      '<div><strong>Bước 2.</strong> Tạo mã kết nối bí mật trong phần mềm. Trong Apps Script vào Project Settings → Script properties, thêm <code>TUONGAI_MAIL_TOKEN</code> và dán mã đó vào giá trị thuộc tính. <button class="btn btn-ghost btn-sm" type="button" id="gmail-make-token">Tạo mã kết nối</button></div>' +
+      '<div id="gmail-secret-box" hidden><label class="fld"><span>Mã kết nối — chỉ hiển thị một lần, không chia sẻ công khai</span><textarea id="gmail-secret" readonly rows="3" spellcheck="false"></textarea></label><button class="btn btn-ghost btn-sm" type="button" id="gmail-copy">Sao chép mã</button></div>' +
+      '<p><strong>Bước 3.</strong> Trong Apps Script chọn Deploy → New deployment → Web app; Execute as: Me; Who has access: Anyone. Google yêu cầu cấp quyền gửi thư cho tài khoản của bạn. Sau khi triển khai, sao chép địa chỉ kết thúc bằng <code>/exec</code>.</p>' +
+      '<label class="fld"><span>Địa chỉ Google Apps Script Web App (/exec)</span><input id="gmail-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/.../exec"></label>' +
+      '<div class="row-gap"><button class="btn btn-brand" type="button" id="gmail-save">Lưu kết nối</button><button class="btn btn-ghost" type="button" id="gmail-test">Gửi email kiểm tra</button></div>' +
+      '<p id="gmail-status" class="info-box" role="status">Đang đọc cấu hình…</p>' +
+      '<p class="meta">Sau khi kiểm tra thành công, nút Duyệt sẽ tự động gửi thư tới địa chỉ giáo viên đăng ký. Giáo viên đã được duyệt trước đó có thể bấm Gửi lại email. Không đăng khóa bí mật lên GitHub.</p>' +
+      '</div>',
+    foot:'<button class="btn btn-ghost" type="button" data-close>Đóng</button>',
+  });
+  const el=m.el;
+  const status=$('#gmail-status',el),url=$('#gmail-url',el),secretBox=$('#gmail-secret-box',el);
+  const output=(message) => { status.textContent=message; };
+  const action=async (button, callback) => {
+    button.disabled=true;
+    try{ await callback(); }
+    catch(error){ output(error?.message||'Chưa thực hiện được. Hãy thử lại.'); }
+    finally{ button.disabled=false; }
+  };
+  const refresh=async () => {
+    const r=await api('admin_mail_status');
+    url.value=r.url||'';
+    $('#gmail-test',el).disabled=!r.configured;
+    output(r.configured
+      ? 'Đã lưu kết nối Google Apps Script. Hãy gửi email kiểm tra để xác minh Gmail đã được cấp quyền.'
+      : (r.token_created ? 'Đã tạo mã kết nối. Cần lưu URL Web App và kiểm tra gửi thư.' : 'Chưa kết nối Gmail. Bắt đầu từ bước 1–2.'));
+  };
+  $('#gmail-make-token',el).onclick=async () => {
+    const btn=$('#gmail-make-token',el);
+    await action(btn,async()=>{
+      const r=await api('admin_mail_generate_token');
+      const box=$('#gmail-secret',el);
+      box.value=r.token;
+      secretBox.hidden=false;
+      output('Đã tạo mã mới. Hãy dán mã này vào Script properties trước khi thử gửi. Mã cũ sẽ hết hiệu lực.');
+      $('#gmail-test',el).disabled=true;
+    });
+  };
+  $('#gmail-copy',el).onclick=async()=>{
+    const field=$('#gmail-secret',el);
+    try{
+      await navigator.clipboard.writeText(field.value);
+      output('Đã sao chép mã kết nối. Hãy dán vào TUONGAI_MAIL_TOKEN trong Apps Script.');
+    }catch(error){
+      field.focus();field.select();
+      output('Hãy sao chép phần mã đang được chọn.');
+    }
+  };
+  $('#gmail-save',el).onclick=async()=>{
+    const btn=$('#gmail-save',el);
+    await action(btn,async()=>{
+      const r=await api('admin_mail_save',{url:url.value.trim()});
+      output(r.configured
+        ? 'Đã lưu địa chỉ. Bấm Gửi email kiểm tra để xác nhận.'
+        : 'Đã lưu; cần có cả URL Web App và mã kết nối để bắt đầu gửi.');
+      $('#gmail-test',el).disabled=!r.configured;
+      refreshMembers(false);
+    });
+  };
+  $('#gmail-test',el).onclick=async()=>{
+    const btn=$('#gmail-test',el);
+    await action(btn,async()=>{
+      const r=await api('admin_mail_test');
+      output('Gmail đã nhận yêu cầu gửi thư kiểm tra tới '+r.recipient+'. Hãy kiểm tra Hộp thư đến và Spam.');
+      refreshMembers(false);
+    });
+  };
+  try{await refresh();}catch(error){output(error?.message||'Không đọc được cấu hình Gmail.');}
+}
+
 /* ---------- trang Thành viên (chỉ Quản trị hệ thống) ---------- */
 const STATUS_LABEL = { pending: 'Chờ duyệt', active: 'Đang hoạt động', locked: 'Đã khóa' };
 async function refreshMembers(loud) {
@@ -8895,7 +8974,7 @@ function renderMembers() {
       <div class="crumbs"><nav><span>Không gian làm việc</span><span>/</span><span class="cur">Thành viên</span></nav><div class="crumbs-r"><span class="pill">${ic('shield', 'ic-sm')}Chỉ Quản trị</span>${acctChip()}</div></div>
       <section class="hero admin-hero">
         <div><p class="eyebrow">Quản trị hệ thống</p><h1>Thành viên</h1><p class="lede">Thêm, sửa, khóa hoặc xóa tài khoản giáo viên; duyệt người mới đăng ký và đặt lại mật khẩu. Mỗi giáo viên chỉ thấy dữ liệu của mình; Quản trị thấy tất cả.</p></div>
-        <div class="row-gap admin-main-actions"><button type="button" class="btn btn-soft admin-school-entry" data-act="school-manager">${ic('users')}Quản lý trường</button><button class="btn btn-ghost" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button><button class="btn btn-brand" data-act="mb-create">${ic('plus')}Thêm thành viên</button></div>
+        <div class="row-gap admin-main-actions"><button type="button" class="btn btn-soft admin-school-entry" data-act="school-manager">${ic('users')}Quản lý trường</button><button class="btn btn-ghost" data-act="mb-mail-setup">✉ Cấu hình Gmail</button><button class="btn btn-ghost" data-act="ai-settings">${ic('gear')}Cài đặt hệ thống</button><button class="btn btn-brand" data-act="mb-create">${ic('plus')}Thêm thành viên</button></div>
       </section>
       <div class="summary" id="mb-sum"></div>
       <div class="toolbar">
@@ -9334,6 +9413,7 @@ document.addEventListener('click', async (e) => {
     case 'tab': $('.pop')?.remove(); S.view = { name: 'home', tab: t.dataset.tab, q: '', owner: null }; homeKey = ''; closeDrawer(); render(); window.scrollTo(0, 0); if (t.dataset.tab === 'members') refreshMembers(true); break;
     case 'clear-owner': S.view = { name: 'home', tab: 'mine', q: '', owner: null }; homeKey = ''; render(); break;
     case 'mb-filter': S.memberFilter = t.dataset.v; drawMembers(); break;
+    case 'mb-mail-setup': openApprovalMailSetup(); break;
     case 'mb-create': createMemberForm(); break;
     case 'mb-approve': case 'mb-email-retry': case 'mb-lock': case 'mb-role': case 'mb-delete': case 'mb-view': case 'mb-reset': case 'mb-edit': case 'mb-copy': $$('.menu').forEach((x) => x.remove()); memberAct(act, id); break;
     case 'mb-more': { const mm = memberOf(id); if (mm) memberMenu(t, mm); break; }
