@@ -32,10 +32,53 @@ Tường học tập AI – Truy gốc lỗi
   <p style="font-size:12px;line-height:1.6;color:#64748b">Đây là thông báo tự động sau khi quản trị viên duyệt đăng ký. Không cần trả lời email này.</p></div></body></html>`;
   return { subject: title, text, html };
 }
-export function approvalMailConfigured() {
+/* Gmail Web App secrets live in app_config (service_role only), not client JavaScript. */
+export async function googleMailSettings(db: any) {
+  const {data, error} = await db.from("app_config").select("key,value")
+    .in("key", ["approval_mail_google_url", "approval_mail_google_token"]);
+  if (error) throw new Error("Không đọc được cấu hình email.");
+  const entries = new Map((data || []).map((x: any) => [String(x.key), String(x.value || "")]));
+  const url = String(entries.get("approval_mail_google_url") || "");
+  const token = String(entries.get("approval_mail_google_token") || "");
+  const valid = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url) && token.length >= 48;
+  return {url, token, configured:valid, tokenCreated:token.length >= 48};
+}
+export function resendMailConfigured() {
   const key = (Deno.env.get("RESEND_API_KEY") || "").trim();
   const from = (Deno.env.get("APPROVAL_EMAIL_FROM") || "").trim();
   return Boolean(key && from && from.includes("@") && !/[\r\n]/.test(from));
+}
+export async function approvalMailConfigured(db: any) {
+  const google = await googleMailSettings(db);
+  return google.configured || resendMailConfigured();
+}
+export async function sendGoogleApprovalMail(
+  db: any, message: {id:string,email:string,name:string}
+) {
+  const settings = await googleMailSettings(db);
+  if (!settings.configured) throw new Error("Gmail chưa được kết nối.");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 18000);
+  try {
+    const response = await fetch(settings.url, {
+      method:"POST", redirect:"follow", signal:controller.signal,
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({
+        token:settings.token,
+        id:message.id,
+        email:message.email,
+        name:message.name,
+      }),
+    });
+    const output = await response.json().catch(() => null);
+    if (!response.ok || !output || output.ok !== true || typeof output.id !== "string") {
+      const code = typeof output?.error === "string" ? output.error.slice(0,60) : "http_"+response.status;
+      throw new Error("Google Apps Script từ chối gửi: "+code);
+    }
+    return {id:String(output.id).slice(0,200), duplicate:output.duplicate === true};
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 export async function queueApprovalEmail(db: any, profile: {id:string,email:string,full_name?:string}) {
   const {error} = await db.from("approval_email_notifications").upsert({
@@ -53,9 +96,9 @@ export async function deliverApprovalEmail(db: any, id: string) {
   if (error || !row) return {status:"not_found"};
   if (row.status === "sent") return {status:"sent"};
   if (row.status === "sending") return {status:"processing"};
-  if (!approvalMailConfigured()) {
+  if (!(await approvalMailConfigured(db))) {
     await db.from(table).update({
-      status:"not_configured", last_error:"Thiếu RESEND_API_KEY hoặc APPROVAL_EMAIL_FROM.",
+      status:"not_configured", last_error:"Cần kết nối Gmail Google Apps Script hoặc cấu hình một nhà cung cấp email.",
       updated_at:new Date().toISOString()
     }).eq("profile_id", id).neq("status","sent");
     return {status:"not_configured"};
@@ -71,28 +114,38 @@ export async function deliverApprovalEmail(db: any, id: string) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
-    let response: Response;
+    let providerId = "";
     try {
-      response = await fetch("https://api.resend.com/emails",{
-        method:"POST",signal:controller.signal,
-        headers:{
-          "Authorization":"Bearer "+Deno.env.get("RESEND_API_KEY")!.trim(),
-          "Content-Type":"application/json",
-          "Idempotency-Key":"tuongai-approval-"+id,
-        },
-        body:JSON.stringify({
-          from:Deno.env.get("APPROVAL_EMAIL_FROM")!.trim(),
-          to:[claimed.recipient_email],
-          subject:letter.subject,text:letter.text,html:letter.html,
-        }),
-      });
+      const google = await googleMailSettings(db);
+      if (google.configured) {
+        const response = await sendGoogleApprovalMail(db,{
+          id:claimed.profile_id,
+          email:claimed.recipient_email,
+          name:claimed.recipient_name || "",
+        });
+        providerId = response.id;
+      } else {
+        const response = await fetch("https://api.resend.com/emails",{
+          method:"POST", signal:controller.signal,
+          headers:{
+            "Authorization":"Bearer "+Deno.env.get("RESEND_API_KEY")!.trim(),
+            "Content-Type":"application/json",
+            "Idempotency-Key":"tuongai-approval-"+id,
+          },
+          body:JSON.stringify({
+            from:Deno.env.get("APPROVAL_EMAIL_FROM")!.trim(),
+            to:[claimed.recipient_email],
+            subject:letter.subject,text:letter.text,html:letter.html,
+          }),
+        });
+        const outcome = await response.json().catch(() => ({}));
+        if (!response.ok || !outcome?.id)
+          throw new Error("Nhà cung cấp email từ chối yêu cầu (HTTP "+response.status+").");
+        providerId = String(outcome.id);
+      }
     } finally {clearTimeout(timeout);}
-    const outcome = await response.json().catch(() => ({}));
-    if (!response.ok || !outcome?.id) {
-      throw new Error("Nhà cung cấp email từ chối yêu cầu (HTTP "+response.status+").");
-    }
     const {error:saveError} = await db.from(table).update({
-      status:"sent", provider_message_id:String(outcome.id).slice(0,200),
+      status:"sent", provider_message_id:providerId.slice(0,200),
       last_error:null,updated_at:new Date().toISOString(),sent_at:new Date().toISOString()
     }).eq("profile_id", id);
     if (saveError) console.error("approval_email_record_failed",saveError.code||"db");
