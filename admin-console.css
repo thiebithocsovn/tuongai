@@ -1,0 +1,111 @@
+
+/* Tường học tập AI — admin-only board console. No shared teacher selectors. */
+.admin-console{--adm-ink:#14213d;--adm-line:#dce4f0;--adm-soft:#f3f7fc;--adm-blue:#163e77;--adm-muted:#64748b;color:var(--adm-ink);padding-bottom:38px}
+.admin-console .crumbs{margin-bottom:15px}
+.admin-console .adm-header{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:6px 0 20px}
+.admin-console .adm-header h1{font-family:inherit;letter-spacing:-.035em;font-size:clamp(24px,2.4vw,32px);line-height:1.2;font-weight:850;margin:2px 0 8px;color:#12203b}
+.admin-console .adm-header p{font-size:14px;color:#5b6c85;line-height:1.55;margin:0}
+.admin-console .adm-eyebrow{font-size:11px!important;font-weight:800;letter-spacing:.09em;color:#51709b!important}
+.admin-console .adm-header-actions{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.admin-console .adm-header-actions .btn{white-space:nowrap;min-height:38px}
+.admin-console .adm-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:12px 0 22px}
+.admin-console .adm-stat{background:#fff;border:1px solid var(--adm-line);border-radius:14px;padding:16px 17px;display:flex;flex-direction:column;gap:3px;box-shadow:0 2px 5px rgba(16,43,76,.025)}
+.admin-console .adm-stat:nth-child(2){border-top:3px solid #e8a13d}
+.admin-console .adm-stat:nth-child(3){border-top:3px solid #8f7bdd}
+.admin-console .adm-stat:nth-child(4){border-top:3px solid #59a47c}
+.admin-console .adm-stat span{font-weight:700;color:#566985;font-size:12px}
+.admin-console .adm-stat strong{color:#142c52;font-size:clamp(23px,2.4vw,31px);font-variant-numeric:tabular-nums;line-height:1.2}
+.admin-console .adm-stat small{font-size:11px;color:var(--adm-muted)}
+.admin-console .adm-management{border:1px solid var(--adm-line);border-radius:16px;background:#fff;overflow:hidden;box-shadow:0 4px 16px rgba(12,33,68,.035)}
+.admin-console .adm-management-heading{display:flex;align-items:center;justify-content:space-between;padding:17px 19px 10px;gap:12px}
+.admin-console .adm-management-heading h2{font-size:19px;margin:0;color:#162748;line-height:1.2}
+.admin-console .adm-management-heading p{margin:3px 0 0;font-size:12px;color:#70809a}
+.admin-console .adm-count{font-size:13px;font-weight:750;color:#405d88;white-space:nowrap;font-variant-numeric:tabular-nums}
+.admin-console .adm-controls{display:grid;grid-template-columns:minmax(235px,2.1fr) repeat(4,minmax(116px,1fr));gap:9px;padding:10px 19px 12px}
+.admin-console .adm-controls label{min-width:0;position:relative}
+.admin-console .adm-controls select,.admin-console .adm-controls input{display:block;background:#fff;border:1px solid #d6e0ed;border-radius:9px;color:#263c5c;width:100%;height:38px;padding:0 11px;font:inherit;font-size:13px;outline-offset:2px}
+.admin-console .adm-controls select:focus,.admin-console .adm-controls input:focus{border-color:#557eb6;box-shadow:0 0 0 2px #d8e7fc}
+.admin-console .adm-controls .adm-search{display:flex;align-items:center}
+.admin-console .adm-search>span:not(.sr){position:absolute;left:12px;color:#7b8ca5;font-size:22px;line-height:1;pointer-events:none}
+.admin-console .adm-search input{padding-left:34px}
+.admin-console .adm-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:0 19px 13px}
+.admin-console .adm-quick,.admin-console .adm-views{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.admin-console .adm-quick button,.admin-console .adm-views button{border:1px solid transparent;background:#f0f4fa;color:#50617d;border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;font-weight:750;white-space:nowrap;min-height:32px}
+.admin-console .adm-quick button:hover,.admin-console .adm-views button:hover{background:#e7effb;color:#123c75}
+.admin-console .adm-quick button[aria-pressed=true],.admin-console .adm-views button[aria-pressed=true]{background:#163d74;border-color:#163d74;color:#fff}
+.admin-console .adm-views{border-left:1px solid #e2e9f1;padding-left:10px}
+.admin-console .adm-table-scroll{width:100%;overflow:auto;overscroll-behavior-x:contain;border-top:1px solid #edf1f7}
+.admin-console .adm-table{width:100%;min-width:930px;border-collapse:collapse;table-layout:fixed;font-size:12.5px}
+.admin-console .adm-table th{position:sticky;top:0;background:#f6f8fc;color:#556784;font-weight:800;font-size:11px;text-align:left;padding:12px 11px;z-index:1}
+.admin-console .adm-table th:nth-child(1){width:22%}
+.admin-console .adm-table th:nth-child(2){width:16%}
+.admin-console .adm-table th:nth-child(3){width:16%}
+.admin-console .adm-table th:nth-child(4){width:8%}
+.admin-console .adm-table th:nth-child(5){width:9%}
+.admin-console .adm-table th:nth-child(6){width:10%}
+.admin-console .adm-table th:nth-child(7){width:19%}
+.admin-console .adm-table td{border-top:1px solid #e9edf5;padding:11px;vertical-align:middle;color:#233753;word-wrap:break-word}
+.admin-console .adm-table tbody tr:hover{background:#f7faff}
+.admin-console .adm-table tbody tr[draggable=true]{cursor:grab}
+.admin-console .adm-board-name{font-weight:800}
+.admin-console .adm-board-name button,.admin-console .adm-board-card h3 button{border:none;background:transparent;padding:0;text-align:left;color:#193e72;font:inherit;font-weight:800;cursor:pointer;overflow-wrap:anywhere}
+.admin-console .adm-board-name button:hover,.admin-console .adm-board-card h3 button:hover{text-decoration:underline}
+.admin-console .adm-cell-name{display:flex;gap:5px;align-items:center}
+.admin-console .adm-cell-name>span{color:#d89a21}
+.admin-console .adm-board-name small,.admin-console .adm-table td small{display:block;font-size:11px;font-weight:500;color:#8896a9;margin-top:3px}
+.admin-console .adm-num{font-variant-numeric:tabular-nums;font-weight:750}
+.admin-console .adm-muted{color:#7e8da3!important}
+.admin-console .adm-ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.admin-console .adm-tag{display:inline-block;border-radius:50px;padding:3px 9px;background:#f2f5fa;color:#506380;font-size:11px;font-weight:800;white-space:nowrap}
+.admin-console .adm-tag.adm-warning{background:#fff2d6;color:#955f14}
+.admin-console .adm-tag.adm-good{background:#eaf7ef;color:#337d4e}
+.admin-console .adm-actions{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.admin-console .adm-btn{border:1px solid #d8e2ef;background:#f6f9fd;color:#355071;border-radius:7px;font-size:11px;font-weight:750;padding:6px 9px;min-height:29px;line-height:1.1;cursor:pointer}
+.admin-console .adm-btn:hover{background:#eaf1fc;border-color:#bfd1ea}
+.admin-console .adm-btn-primary{background:#193e76;color:white;border-color:#193e76}
+.admin-console .adm-btn-primary:hover{background:#285a9b;color:white}
+.admin-console .adm-pin{font-size:16px;padding:2px 8px}
+.admin-console .adm-pin.active{color:#c58a1a;background:#fff7e3}
+.admin-console .adm-card-grid{padding:14px 18px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;border-top:1px solid #edf1f7}
+.admin-console .adm-board-card{border:1px solid #dce5f2;border-radius:13px;background:#fff;display:flex;flex-direction:column;gap:9px;padding:14px;box-shadow:0 2px 8px rgba(20,48,86,.045);min-width:0}
+.admin-console .adm-card-top,.admin-console .adm-card-bottom{display:flex;justify-content:space-between;align-items:center;gap:9px}
+.admin-console .adm-card-school{font-size:11px;letter-spacing:.01em;color:#59759b;font-weight:750}
+.admin-console .adm-card-star{color:#cc911f}
+.admin-console .adm-board-card h3{font-size:15px;line-height:1.4;margin:0;min-height:36px}
+.admin-console .adm-board-card>p{margin:0;color:#75849a;font-size:12px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.admin-console .adm-card-stats{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;color:#415a7b;margin-top:auto}
+.admin-console .adm-card-bottom{flex-wrap:wrap;border-top:1px solid #edf1f7;padding-top:11px}
+.admin-console .adm-card-bottom small{color:#8494aa;font-size:10px}
+.admin-console .adm-groups{padding:12px 14px 20px;border-top:1px solid #edf1f7;display:grid;gap:10px}
+.admin-console .adm-group{border:1px solid #dfe7f2;border-radius:10px;overflow:hidden;background:white}
+.admin-console .adm-group summary{display:flex;justify-content:space-between;gap:12px;cursor:pointer;padding:12px 15px;background:#f5f8fd;color:#243e64;list-style:revert}
+.admin-console .adm-group summary span{font-size:12px;color:#667e9b}
+.admin-console .adm-note{padding:12px 19px 16px;font-size:11px;color:#8290a5;margin:0;line-height:1.55;border-top:1px solid #eef2f7}
+.admin-console .adm-empty{margin:0;border-top:1px solid #edf1f7;padding:34px;text-align:center;color:#4c6483}
+.admin-console .adm-empty strong{color:#1d3b67;font-size:15px}
+.admin-console .adm-empty p{font-size:13px;margin:5px 0 15px}
+@media (max-width:1350px){
+ .admin-console .adm-controls{grid-template-columns:minmax(230px,1.7fr) repeat(2,minmax(145px,1fr))}
+ .admin-console .adm-controls label:nth-child(5){grid-column:span 2}
+}
+@media (max-width:900px){
+ .admin-console .adm-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .admin-console .adm-header{align-items:flex-start;flex-direction:column}
+ .admin-console .adm-controls{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .admin-console .adm-controls label:first-child{grid-column:span 2}
+ .admin-console .adm-views{border-left:0;padding-left:0}
+ .admin-console .adm-header-actions{flex-wrap:wrap}
+}
+@media (max-width:560px){
+ .admin-console .adm-header h1{font-size:24px}
+ .admin-console .adm-stats{gap:8px}
+ .admin-console .adm-stat{padding:11px}
+ .admin-console .adm-stat strong{font-size:23px}
+ .admin-console .adm-controls{grid-template-columns:minmax(0,1fr);padding:9px 12px}
+ .admin-console .adm-controls label:first-child,.admin-console .adm-controls label:nth-child(5){grid-column:auto}
+ .admin-console .adm-controls select,.admin-console .adm-controls input{height:40px}
+ .admin-console .adm-toolbar{padding:0 12px 12px}
+ .admin-console .adm-management-heading{padding:14px 12px 8px}
+ .admin-console .adm-card-grid{grid-template-columns:1fr;padding:12px}
+ .admin-console .adm-note{padding:10px 12px 13px}
+}

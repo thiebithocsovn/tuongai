@@ -2785,6 +2785,8 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
   .app.board-open .btop-nav .board-owner-compact .bcount{font-size:10.5px}
 }
 </style>
+<link rel="stylesheet" href="./admin-console.css?v=20261118a">
+<script src="./admin-console.js?v=20261118a"></script>
 </head>
 <body>
 <section id="auth" class="auth" aria-label="Đăng nhập Tường học tập AI - Truy gốc lỗi">
@@ -4938,6 +4940,14 @@ const TAB_TITLE = { mine: 'Bảng của tôi', starred: 'Bảng đã đánh dấ
 let homeKey = '';
 function renderHome() {
   const me = ME(); const tab = S.view.tab; const gv = me.role === 'gv';
+  // The school/teacher/student screens retain their existing implementation.
+  if (me.isAdmin && tab === 'mine' && !S.view.owner &&
+      window.TuongAiAdminConsole?.render({
+        S, ME, isAdmin, visibleBoards, status, ownerLabel, boardGrade, acctChip, ic, esc
+      })) {
+    homeKey = '';
+    return;
+  }
   const key = 'home:' + tab + ':' + me.id + ':' + (me.mustChange ? 1 : 0) + ':' + (S.view.owner || '');
   const v = $('#view');
   if (homeKey !== key || !$('#grid')) {
