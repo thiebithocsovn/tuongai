@@ -813,6 +813,58 @@ textarea.inp{min-height:64px;resize:vertical;line-height:1.45}
 .trend{white-space:nowrap}
 .trend .spark{width:70px;height:24px;vertical-align:middle;margin-right:6px}
 .up{color:var(--ok);font-weight:600}.down{color:var(--pen);font-weight:600}.flat{color:var(--muted)}
+
+/* Thư viện bài nộp theo ngày – bố cục 3 vùng, responsive. */
+.modal.progress-modal.submission-browser{width:min(98vw,1660px)!important;max-width:1660px!important;height:calc(100dvh - 24px)!important;max-height:calc(100dvh - 24px)}
+.submission-browser #pg{flex:1 1 auto;min-height:0;overflow:hidden;padding:12px 16px;display:flex;flex-direction:column}
+.pt2-shell{display:flex;flex-direction:column;gap:10px;min-height:0;height:100%;font-size:14px;color:var(--ink)}
+.pt2-tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:8px;flex:0 0 auto}
+.pt2-tabs button{background:transparent;border:0;border-radius:9px;padding:9px 12px;font-weight:700;color:var(--ink-2);cursor:pointer}
+.pt2-tabs button[aria-selected="true"]{background:#eaf1ff;color:#1856bb}
+.pt2-toolbar{display:flex;align-items:end;gap:10px;flex-wrap:wrap;flex:0 0 auto}
+.pt2-toolbar label,.pt2-label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--ink-2)}
+.pt2-toolbar input,.pt2-toolbar select,.pt2-label input,.pt2-label select{min-height:38px;border:1px solid var(--line-2);border-radius:9px;padding:7px 9px;background:#fff;max-width:100%;font-size:14px;color:var(--ink)}
+.pt2-toolbar label:nth-child(2){flex:1;min-width:155px}
+.pt2-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;flex:0 0 auto}
+.pt2-stat{border:1px solid var(--line);background:#f8faff;border-radius:11px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.pt2-stat span{font-size:12px;color:var(--ink-2)}.pt2-stat b{font-size:20px;font-variant-numeric:tabular-nums}
+.pt2-layout{display:grid;grid-template-columns:minmax(208px,22%) minmax(260px,30%) minmax(310px,1fr);gap:10px;min-height:0;flex:1}
+.pt2-panel{border:1px solid var(--line);border-radius:12px;background:#fff;min-width:0;min-height:0;padding:12px;display:flex;flex-direction:column;gap:10px}
+.pt2-panel h3{font-size:15px;font-weight:800;margin:0}
+.pt2-left{overflow:auto}.pt2-quick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.pt2-quick button,.pt2-date-nav button,.pt2-calendar-head button,.pt2-next button,.pt2-latest,.pt2-more{border:1px solid var(--line-2);background:#f7f9fc;border-radius:8px;padding:7px 8px;cursor:pointer;color:var(--ink);font-weight:600}
+.pt2-quick button:hover,.pt2-date-nav button:hover,.pt2-latest:hover,.pt2-post:hover{background:#edf4ff}
+.pt2-calendar-head,.pt2-date-nav{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.pt2-calendar-head strong{font-size:13px}.pt2-calendar-head button{padding:3px 10px;font-size:19px}
+.pt2-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.pt2-weekday{text-align:center;font-size:11px;color:var(--muted);font-weight:700;padding:6px 0}
+.pt2-date{min-height:38px;border:1px solid transparent;border-radius:7px;background:#f7f8fa;position:relative;font-size:13px;padding:3px 1px 8px;cursor:pointer;color:var(--ink)}
+.pt2-date.today{border-color:#5086ed}.pt2-date.selected{background:#2469cf!important;color:#fff}
+.pt2-date small{display:block;font-size:10px;line-height:11px;color:#1e60bf;font-weight:700}
+.pt2-date.selected small{color:#fff}.pt2-hint{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.pt2-section-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.pt2-section-head span{font-size:12px;color:var(--muted)}
+.pt2-middle .pt2-label select{width:100%}.pt2-post-list{overflow:auto;flex:1;min-height:70px;display:flex;flex-direction:column;gap:6px;scrollbar-gutter:stable}
+.pt2-post{display:flex;flex-direction:column;align-items:stretch;gap:5px;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:left;background:#fff;color:var(--ink);cursor:pointer}
+.pt2-post.active{border-color:#3577dd;background:#eff5ff;box-shadow:inset 3px 0 #3577dd}
+.pt2-post-top,.pt2-post-end{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pt2-post-top strong{font-size:14px}.pt2-post-top time,.pt2-post-sub,.pt2-post-end{color:var(--muted);font-size:12px}
+.pt2-post-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pt2-post-end>span{font-weight:700}
+.pt2-chip{display:inline-flex;align-items:center;border-radius:20px;padding:3px 8px;font-style:normal;font-size:11px;font-weight:700;white-space:nowrap}
+.pt2-chip.done{background:#e6f6ed;color:#157345}.pt2-chip.ai{background:#eaf2ff;color:#245ab2}.pt2-chip.pending{background:#fff2df;color:#995b0e}
+.pt2-right{overflow:hidden}.pt2-preview-head{display:flex;justify-content:space-between;align-items:start;gap:8px}.pt2-preview-head h3{font-size:17px}
+.pt2-next{display:flex;gap:5px}.pt2-next button{font-size:21px;padding:2px 11px}.pt2-next button:disabled{opacity:.35;cursor:default}
+.pt2-preview-scroll{overflow:auto;min-height:0;flex:1;display:flex;flex-direction:column;gap:12px}
+.pt2-preview-scroll h4{margin:0;font-size:15px}.pt2-info{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.pt2-image{max-width:100%;max-height:480px;object-fit:contain;align-self:center;border:1px solid var(--line);border-radius:9px;background:#f6f8fa}
+.pt2-text{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:12px;line-height:1.65}
+.pt2-placeholder,.pt2-no-preview,.pt2-empty{background:#f6f8fb;border:1px dashed var(--line-2);border-radius:10px;padding:22px 12px;text-align:center;color:var(--muted);line-height:1.55}
+.pt2-attachments{display:flex;flex-direction:column;gap:7px}.pt2-attachments span{overflow-wrap:anywhere}
+.pt2-preview-footer{border-top:1px solid var(--line);padding-top:10px;flex:0 0 auto}.pt2-preview-footer button{width:100%}
+.pt2-bottom-note{margin:0;flex:0 0 auto;font-size:11px;color:var(--muted)}
+.pt2-more{width:100%}
+@media(max-width:1100px){.pt2-layout{grid-template-columns:minmax(190px,33%) 1fr}.pt2-right{grid-column:1/-1;min-height:340px;max-height:440px}.pt2-left,.pt2-middle{min-height:270px}.submission-browser #pg{overflow:auto}.pt2-layout{flex:none}.pt2-post-list{max-height:330px}.pt2-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.modal.progress-modal.submission-browser{width:100vw!important;height:100dvh!important;max-height:100dvh;border-radius:0}.submission-browser #pg{padding:10px;overflow-y:auto}.pt2-toolbar{display:grid;grid-template-columns:1fr 1fr}.pt2-toolbar label:nth-child(2){grid-column:1/-1;grid-row:2}.pt2-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.pt2-layout{display:flex;flex-direction:column;gap:10px}.pt2-left,.pt2-middle,.pt2-right{min-height:auto;max-height:none;overflow:visible}.pt2-calendar{max-width:440px}.pt2-post-list{max-height:350px;min-height:160px}.pt2-preview-scroll{max-height:none;overflow:visible}.pt2-tabs button{flex:1 1 45%;font-size:12px;padding:7px 5px}}
+
 /* xuất */
 .exp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .exp{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:14px;border:1px solid var(--line-2);border-radius:12px;background:#fff}
@@ -2948,6 +3000,7 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 <script src="./scientific-text.js?v=20261118b"></script>
 <script defer src="./answer-materials.js"></script>
 <script defer src="./file-preview.js"></script>
+<script defer src="./submission-calendar-ui.js?v=20261118c"></script>
 <script defer src="./progress-tracker.js?v=pt-20261110a"></script>
 <script defer src="./progress-tracker-ui.js?v=pt-20261110b"></script>
 <script defer src="./class-report.js?v=cr-20261110a"></script>
@@ -5920,7 +5973,16 @@ function openClassReport(board) {
 }
 /* ---------- tiến bộ học sinh ---------- */
 const norm10 = (p) => { const fs = finalScore(p); if (fs == null) return null; const max = getBoard(p.boardId)?.assignment?.maxScore || 10; return (fs / max) * 10; };
-function progressForm(b) {
+function progressForm(b, legacy = false) {
+  if (!legacy && window.TuongAiSubmissionCalendarUI) {
+    const canUse = (x) => !!x && !x.demo && !x.trashed && canManage(getBoard(x.id));
+    return window.TuongAiSubmissionCalendarUI.open(b, {
+      canUse, openModal, toast, esc, getBoard, getPost, canManage,
+      posts: () => boardPostList(b), allPosts: () => allPosts(),
+      isTeacherAnnouncement, status, finalScore, imgSrc, openDetail,
+      openLegacy: () => progressForm(b, true), openExport: () => exportForm(b),
+    });
+  }
   let scope = 'board';
   const m = openModal({ title: 'Tiến bộ học sinh', wide: true, cls: 'progress-modal', body: `<div class="modal-b" id="pg"></div>`, foot: `<button class="btn btn-ghost" data-close>Đóng</button><button class="btn btn-brand" data-pexp>${ic('download')}Xuất Excel hoặc in PDF</button>` });
   const el = m.el;
