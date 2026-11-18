@@ -47,4 +47,9 @@
   root.addEventListener('orientationchange', schedule, { passive: true });
   root.visualViewport?.addEventListener('resize', schedule, { passive: true });
   root.matchMedia?.('(pointer: coarse)').addEventListener?.('change', schedule);
+  // The landing page uses its own viewport-fit rules; other app screens are unaffected.
+  const landingFitScript = document.createElement('script');
+  landingFitScript.src = './landing-viewport-fit.js?v=20261118b';
+  landingFitScript.async = true;
+  document.head.appendChild(landingFitScript);
 })(typeof window !== 'undefined' ? window : globalThis);
