@@ -4,6 +4,7 @@
 // - AI chấm bài bằng một khóa Gemini chung do quản trị đặt (lưu trong app_config).
 // - Quản trị: danh sách thành viên, duyệt, khóa, đặt lại mật khẩu, tạo, xóa.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { approvalMailConfigured, queueApprovalEmail, deliverApprovalEmail } from "./approval-email.ts";
 import { AUTO_GRADE_RETRY_MS, gradeFailure } from "./auto-grade-retry.ts";
 import { encodeBase64, decodeBase64 } from "jsr:@std/encoding@1/base64";
 import { studentPost as publicPost, ownsStudentPost, visibleToStudent, isTeacherAnnouncement, studentSimilarQuestions } from "./student-visibility.ts";
@@ -1378,7 +1379,16 @@ confidence là low, medium hoặc high. Không tìm thấy lỗi có căn cứ t
         db.rpc("member_stats"),
       ]);
       const st: Record<string, any> = {}; (stats || []).forEach((s: any) => (st[s.owner] = s));
-      return { members: (profs || []).map((p: any) => ({ ...p, boards: Number(st[p.id]?.boards || 0), posts: Number(st[p.id]?.posts || 0) })), auto_approve: (await config("auto_approve")) === "1" };
+      const { data: notifications } = await db.from("approval_email_notifications").select("profile_id,status");
+      const notificationById = new Map((notifications || []).map((n: any) => [n.profile_id, n.status]));
+      return {
+        members: (profs || []).map((p: any) => ({
+          ...p, boards: Number(st[p.id]?.boards || 0), posts: Number(st[p.id]?.posts || 0),
+          approval_email_status: notificationById.get(p.id) || null,
+        })),
+        auto_approve: (await config("auto_approve")) === "1",
+        approval_email_ready: approvalMailConfigured(),
+      };
     }
     case "admin_update": {
       const a = needAdmin(me);
@@ -1388,9 +1398,40 @@ confidence là low, medium hoặc high. Không tìm thấy lỗi có căn cứ t
       if (["admin", "teacher"].includes(body.role)) patch.role = body.role;
       for (const k of ["full_name", "school", "subject"]) if (typeof body[k] === "string") patch[k] = str(body[k], 200);
       if (id === a.id && (patch.status && patch.status !== "active" || patch.role === "teacher")) throw new Fail("self", "Không thể tự khóa hoặc tự bỏ quyền quản trị của chính mình.");
-      const { error } = await db.from("profiles").update(patch).eq("id", id);
-      if (error) throw new Fail("server", error.message, 500);
-      return { ok: true };
+      // Send exactly for first-time approval, not editing an existing user or unlocking a locked account.
+      let approved: any = null;
+      const approving = patch.status === "active";
+      if (approving) {
+        const {data: previous, error: readError} = await db.from("profiles")
+          .select("id,status,role,email,full_name").eq("id",id).maybeSingle();
+        if (readError) throw new Fail("server",readError.message,500);
+        if (!previous) throw new Fail("not_found","Không tìm thấy giáo viên.",404);
+        if (previous.status === "pending" && previous.role === "teacher") {
+          // A conditional update prevents two administrators from sending duplicate approval messages.
+          const {data: changed,error} = await db.from("profiles").update(patch)
+            .eq("id",id).eq("status","pending")
+            .select("id,status,role,email,full_name").maybeSingle();
+          if (error) throw new Fail("server",error.message,500);
+          approved = changed;
+        } else {
+          const {error} = await db.from("profiles").update(patch).eq("id",id);
+          if (error) throw new Fail("server",error.message,500);
+        }
+      } else {
+        const {error} = await db.from("profiles").update(patch).eq("id",id);
+        if (error) throw new Fail("server",error.message,500);
+      }
+      const notification = approved ? await queueApprovalEmail(db, approved) : {status:"not_required"};
+      return {ok:true, email_notification:notification.status};
+    }
+    case "admin_email_retry": {
+      needAdmin(me);
+      const id = str(body.id,60);
+      const {data: profile,error} = await db.from("profiles").select("status").eq("id",id).maybeSingle();
+      if (error || !profile || profile.status !== "active")
+        throw new Fail("not_active","Tài khoản chưa được duyệt hoặc không tồn tại.",400);
+      const notification = await deliverApprovalEmail(db,id);
+      return {ok:true,email_notification:notification.status};
     }
     case "admin_reset": {
       needAdmin(me);
