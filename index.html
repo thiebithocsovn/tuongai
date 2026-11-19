@@ -9684,7 +9684,7 @@ document.addEventListener('click', async (e) => {
       toast('Đã xóa sạch thùng rác.');
       break;
     }
-    case 'publish-class': if (b && canManage(b)) submitForm(b, true, '', true); break;
+    case 'publish-class': if (b && canManage(b)) submitForm(b, true, t.dataset.col ?? '', true); break;
     case 'capture': if (b) submitForm(b, true, t.dataset.col); break;
     case 'submit': if (b) submitForm(b, false, t.dataset.col || ''); break;
     case 'student-restore': if (b && S.guest?.preview) recoverStudentForm(b); break;
