@@ -40,7 +40,10 @@
       panel.querySelectorAll('button').forEach(el=>el.disabled=true);
       try{
         const response=await deps.api('school_manager',{operation,...fields});
-        message=success||'Đã cập nhật SchoolManager.';
+        message=operation==='reconcile_directory'
+          ? 'Đã liên kết '+Number(response.linked||0)+' bảng; còn '+
+            Number(response.skipped||0)+' bảng chưa thể liên kết. Vui lòng kiểm tra danh sách đối chiếu.'
+          :success||'Đã cập nhật SchoolManager.';
         if(operation==='create_school'){selected=response.school?.id||selected;showCreate=false;}
         if(operation==='activate_directory'){
           selected=response.results?.find(item=>item.created)?.schoolId||selected;
@@ -180,7 +183,10 @@
           rule);
       root.TuongAiSchoolDirectoryUI?.bind(panel,state,{
         redraw:()=>draw(),run,
-        manage:id=>{selected=id;showCreate=false;draw();},
+        manage:id=>{
+          selected=id;showCreate=false;draw();
+          panel.querySelector('#sm-school')?.scrollIntoView({block:'start',behavior:'smooth'});
+        },
         confirm:prompt=>root.confirm(prompt),
       });
       const q=(id)=>panel.querySelector(id);
