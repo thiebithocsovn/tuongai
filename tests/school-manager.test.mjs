@@ -108,7 +108,7 @@ test('migration uses deny-by-default RLS and does not reassign study data',()=>{
 });
 test('client only uses verified backend for school operations and scopes report features',()=>{
   new vm.Script(ui);
-  assert.match(html,/school-manager-ui\.js\?v=sm-20261110a/);
+  assert.match(html,/school-manager-ui\.js\?v=sm-20261119a/);
   assert.match(html,/data-act="school-manager"/);
   assert.match(html,/schoolManagerFeatureAllowed\(b,'classReport'\)/);
   assert.match(html,/schoolManagerFeatureAllowed\(b,'progressTracker'\)/);
