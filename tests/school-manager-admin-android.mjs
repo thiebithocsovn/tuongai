@@ -51,7 +51,12 @@ function setupNetwork(page,role){
       let output={};
       if(body.action==='school_manager'&&body.operation==='overview'){
         output={platformAdmin:role==='admin',schools:[],members:[],boards:[],
-          audit:[],availableTeachers:[],availableBoards:[]};
+          audit:[],availableTeachers:[],availableBoards:[],
+          directory:role==='admin'?[{
+            key:'TH&THCS NA RI 1',name:'Trường TH&THCS Na Rì 1',
+            variants:['Trường TH&THCS Na Rì 1'],teacherIds:[],boardIds:[],
+            readyBoardIds:[],reviewBoardIds:[],schoolId:null
+          }]:[]};
       }else if(body.action==='admin_list'){
         output={members:[],auto_approve:false};
       }else if(body.action==='ai_status'){
@@ -82,6 +87,7 @@ async function openManager(page,selector){
   await dialog.waitFor({state:'visible',timeout:10000});
   await dialog.getByText('Trung tâm quản lý trường, giáo viên').waitFor({state:'visible',timeout:10000});
   await dialog.getByRole('button',{name:/Thêm trường mới/}).waitFor({state:'visible',timeout:10000});
+  await dialog.getByText('Danh bạ trường học · Đồng bộ từ dữ liệu hiện có').waitFor({state:'visible',timeout:10000});
   await dialog.getByRole('button',{name:'Đóng'}).first().click();
   await dialog.waitFor({state:'detached',timeout:10000});
 }
@@ -98,8 +104,12 @@ try{
     assert.equal(await home.count(),1,'Admin home CTA missing');
     assert.equal(await home.isVisible(),true,'Admin home CTA invisible');
     assert.equal(await page.locator('#side .admin-school-nav').count(),1);
-    const bounds=await home.boundingBox();
-    assert.ok(bounds.width>100&&bounds.height>=38,
+    let bounds=null;
+    for(let attempt=0;attempt<5&&!bounds;attempt++){
+      await home.waitFor({state:'visible',timeout:5000});
+      bounds=await home.boundingBox();
+    }
+    assert.ok(bounds&&bounds.width>100&&bounds.height>=38,
       'Admin CTA too small on '+name+': '+JSON.stringify(bounds));
     const widthInfo=await page.evaluate(()=>{
       const bad=[...document.querySelectorAll('body *')].filter(e=>{

@@ -4,6 +4,8 @@ on:
     branches: ['fix/schoolmanager-admin-entry-*']
     paths:
       - 'index.html'
+      - 'school-manager-ui.js'
+      - 'school-directory-ui.js'
       - 'tests/school-manager-admin-android.mjs'
       - '.github/workflows/school-manager-admin-android.yml'
   pull_request:
