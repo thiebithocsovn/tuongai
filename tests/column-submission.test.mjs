@@ -87,3 +87,24 @@ test('Submitting from the second column or Bài chung preserves that destination
     assert.equal(teacherAssignment.teacher.postType, 'announcement');
   }
 });
+
+
+test('Publishing a teacher assignment from + keeps the clicked column, including Bài chung', () => {
+  const begin = html.indexOf("case 'publish-class':");
+  const end = html.indexOf("case 'capture':", begin);
+  assert.ok(begin !== -1 && end > begin, 'publish-class action exists');
+  const calls = [];
+  const dispatch = vm.runInNewContext(
+    '(function(t,b) { switch (t.dataset.act) { ' + html.slice(begin, end) + ' } })',
+    {canManage:() => true, submitForm:(...args) => calls.push(args)}
+  );
+  for (const columnId of ['first', 'second', '']) {
+    dispatch({dataset:{act:'publish-class', col:columnId}}, board);
+    const last = calls.at(-1);
+    assert.equal(last[0], board);
+    assert.equal(last[1], true);
+    assert.equal(last[2], columnId, 'must preserve the clicked destination');
+    assert.equal(last[3], true);
+  }
+  assert.equal(calls.length, 3);
+});
