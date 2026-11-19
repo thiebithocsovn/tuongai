@@ -117,3 +117,12 @@ test('client only uses verified backend for school operations and scopes report 
   assert.match(server,/await schoolFeatureEnabled\(db, candidate\.id, "agentReview"\)/);
   assert.doesNotMatch(ui,/\.from\(['"]school_manager/);
 });
+
+test('empty SchoolManager offers first-school setup without automatic tenant assignments',()=>{
+  assert.ok(ui.includes('Bắt đầu quản lý nhiều trường'));
+  assert.ok(ui.includes('sm-unit-suggestion'));
+  assert.ok(ui.includes('showCreate=true'));
+  assert.ok(ui.includes('deriveSchoolCode(name)'));
+  assert.ok(ui.includes('không tự gán người dùng hoặc di chuyển bài làm'));
+  assert.ok(ui.includes('Gợi ý từ đơn vị đã đăng ký'));
+});
