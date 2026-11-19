@@ -14,6 +14,7 @@
     const totalBoards=groups.reduce((n,x)=>n+x.boardIds.length,0);
     const totalTeachers=unique(groups.flatMap(x=>x.teacherIds)).length;
     const review=groups.reduce((n,x)=>n+x.reviewBoardIds.length,0);
+    const unassigned=(state.availableTeachers||[]).filter(t=>!txt(t.school).trim());
     const picked=groups.find(x=>x.key===expandedKey);
     const people=new Map((state.availableTeachers||[]).map(t=>[t.id,t]));
     const boards=new Map((state.availableBoards||[]).map(b=>[b.id,b]));
@@ -28,7 +29,8 @@
       '<div class="row-gap" style="flex-wrap:wrap;align-items:end">'+
       '<label class="fld"><span>Tìm nhanh trường học</span><input type="search" id="sm-directory-search" placeholder="Nhập tên trường…"></label>'+
       (pending.length?'<button type="button" class="btn btn-brand" id="sm-directory-sync-all">Đồng bộ '+pending.length+' trường</button>':'')+
-      '</div><p class="meta">Bảng phù hợp với trường của giáo viên chủ sở hữu sẽ được liên kết; bảng do quản trị tạo hoặc ghi khác tên trường được giữ lại để xác minh. Không thay đổi bài, điểm hay quyền quản trị.</p>'+
+      '</div>'+(unassigned.length?'<p class="meta"><strong>'+esc(number(unassigned.length))+' giáo viên chưa khai báo trường.</strong> Hãy bổ sung đơn vị trong hồ sơ thành viên trước khi gán vào trường.</p>':'')+
+      '<p class="meta">Bảng phù hợp với trường của giáo viên chủ sở hữu sẽ được liên kết; bảng do quản trị tạo hoặc ghi khác tên trường được giữ lại để xác minh. Không thay đổi bài, điểm hay quyền quản trị.</p>'+
       '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Trường / đơn vị</th><th>Giáo viên</th><th>Bảng lớp</th><th>Cần rà soát</th><th>Trạng thái</th><th></th></tr></thead><tbody>';
     html+=groups.map(x=>
       '<tr data-sm-directory-row data-sm-search="'+esc([x.name,...x.variants].join(' ').toLocaleLowerCase('vi'))+'">'+
@@ -54,7 +56,15 @@
             '</td><td>'+esc(b.school||'')+'</td><td>'+
             (linked.has(id)?'Đã liên kết':picked.readyBoardIds.includes(id)?'Đủ điều kiện liên kết':'Cần xác minh')+
             '</td></tr>';
-        }).join('')+'</tbody></table></div></details>';
+        }).join('')+'</tbody></table></div>'+
+        (picked.reviewBoardIds.length&&state.schools.length?
+          '<section class="pg-box"><h4>Phê duyệt liên kết hàng loạt</h4>'+
+          '<p class="meta">Có '+esc(number(picked.reviewBoardIds.length))+' bảng chưa khớp tự động. Chỉ chọn trường đích sau khi xác minh chính xác đơn vị và chủ bảng; các bảng không đủ quyền vẫn được bỏ qua.</p>'+
+          '<div class="row-gap" style="flex-wrap:wrap;align-items:end"><label class="fld"><span>Trường đích đã xác minh</span>'+
+          '<select id="sm-directory-target"><option value="">-- Chọn trường đích --</option>'+
+          state.schools.map(s=>'<option value="'+esc(s.id)+'">'+esc(s.name)+'</option>').join('')+
+          '</select></label><button type="button" class="btn btn-brand" id="sm-directory-reconcile">Duyệt và liên kết</button></div></section>':'')+
+        '</details>';
     }
     return html+'</section>';
   }
@@ -79,6 +89,16 @@
         if(!confirm('Kích hoạt '+group.name+'? Hệ thống chỉ tự gắn giáo viên và bảng lớp khớp chính xác; các bảng có mâu thuẫn được giữ để xác minh.'))return;
         run('activate_directory',{key:group.key},'Đã kích hoạt '+group.name+'. Các trường hợp chưa khớp vẫn chờ rà soát.');
       });
+    });
+    panel.querySelector('#sm-directory-reconcile')?.addEventListener('click',()=>{
+      const target=panel.querySelector('#sm-directory-target')?.value;
+      const group=(state.directory||[]).find(g=>g.key===expandedKey);
+      const school=(state.schools||[]).find(s=>s.id===target);
+      if(!group||!school)return;
+      if(!confirm('Xác nhận chuyển liên kết các bảng chưa khớp của “'+group.name+
+        '” sang “'+school.name+'”? Chỉ các bảng do giáo viên thuộc trường đích hoặc tài khoản quản trị sở hữu mới được gắn. Bài và điểm không thay đổi.'))return;
+      run('reconcile_directory',{key:group.key,school_id:school.id},
+        'Đã ghi nhận kết quả phê duyệt bảng lớp.');
     });
     panel.querySelector('#sm-directory-sync-all')?.addEventListener('click',()=>{
       const pending=(state.directory||[]).filter(g=>!g.schoolId);
