@@ -26,7 +26,7 @@
       try{
         const updated=await deps.api('school_manager',{operation:'overview'});
         state=updated;
-        if(!preserve && state.platformAdmin && !state.schools.length)showCreate=true;
+        if(!preserve && state.platformAdmin && !state.schools.length && !(state.directory||[]).length)showCreate=true;
         if(!preserve||!state.schools.some(s=>s.id===selected))selected=state.schools[0]?.id||'';
         draw();
       }catch(e){
@@ -42,6 +42,10 @@
         const response=await deps.api('school_manager',{operation,...fields});
         message=success||'Đã cập nhật SchoolManager.';
         if(operation==='create_school'){selected=response.school?.id||selected;showCreate=false;}
+        if(operation==='activate_directory'){
+          selected=response.results?.find(item=>item.created)?.schoolId||selected;
+          showCreate=false;
+        }
         await refresh();
       }catch(e){
         message='Không thực hiện được: '+friendly(e);
@@ -55,7 +59,7 @@
         .replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'')
         .slice(0,24).replace(/_+$/g,'');
     }
-    const rule='<p class="meta">Dữ liệu lớp học chỉ được liên kết khi quản trị hệ thống chọn rõ bảng và trường. SchoolManager không tự di chuyển bài, điểm hoặc hồ sơ TN1–TN4.</p>';
+    const rule='<p class="meta">Dữ liệu bài học sinh, điểm và hồ sơ TN1–TN4 không bị sửa đổi. Trường hợp đơn vị hoặc chủ bảng không khớp phải được đối chiếu trước khi liên kết.</p>';
     function draw(){
       if(!state||!panel.isConnected)return;
       const s=state.schools.find(x=>x.id===selected);
@@ -68,13 +72,15 @@
       const teacherUnits=[...new Set((state.availableTeachers||[])
         .map(p=>text(p.school)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
       const availableTeachers=(state.availableTeachers||[]).filter(p=>!memberIds.has(p.id));
-      const availableBoards=(state.availableBoards||[]).filter(b=>memberIds.has(b.owner)&&!boardLinks.has(b.id));
+      const availableBoards=(state.availableBoards||[]).filter(b=>
+        (memberIds.has(b.owner)||(state.platformAdmin&&b.owner===deps.myId()))&&!boardLinks.has(b.id));
       const submitted=boards.reduce((n,b)=>n+Number(b.submissions||0),0);
       const reviewed=boards.reduce((n,b)=>n+Number(b.reviewed||0),0);
       panel.innerHTML=
         '<p class="meta">Trung tâm quản lý trường, giáo viên, bảng lớp và chính sách AI Agent. '+
         'Chỉ hiển thị các trường và thông tin thuộc phạm vi được phân quyền.</p>'+
-        (state.platformAdmin&&!state.schools.length?
+        (root.TuongAiSchoolDirectoryUI?.render(state,esc)||'')+
+        (state.platformAdmin&&!state.schools.length&&!(state.directory||[]).length?
           '<section class="pg-box"><h4>Bắt đầu quản lý nhiều trường</h4>'+
           '<p>Chưa có trường nào được tạo trong SchoolManager. Đây là danh mục riêng với tên đơn vị đang hiển thị trên bảng lớp.</p>'+
           '<p>Hãy tạo trường đầu tiên, thêm giáo viên rồi gắn bảng lớp. '+esc(teacherUnits.length)+
@@ -149,7 +155,7 @@
             '<label class="fld"><span>Chọn bảng lớp của giáo viên đã thuộc trường</span>'+
             '<select id="sm-board-choice"><option value="">Chọn bảng lớp</option>'+
             availableBoards.map(b=>'<option value="'+esc(b.id)+'">'+
-              esc((b.name||'Bảng')+' · '+(profileMap.get(b.owner)?.full_name||'Giáo viên'))+
+              esc((b.name||'Bảng')+' · '+(b.school||'Chưa rõ trường')+' · '+(profileMap.get(b.owner)?.full_name||'Chủ bảng'))+
               '</option>').join('')+'</select></label>'+
             '<button type="button" class="btn btn-brand" id="sm-link-board">Gắn bảng vào trường</button></div>':'')+
           '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Bảng lớp</th><th>Giáo viên</th>'+
@@ -172,6 +178,11 @@
           '<div class="empty"><h3>'+esc(state.platformAdmin?'Chưa khởi tạo trường học':'Chưa được phân quyền trường học')+'</h3>'+
           '<p>'+esc(state.platformAdmin?'Hãy tạo trường đầu tiên bằng biểu mẫu phía trên.':'Vui lòng liên hệ quản trị hệ thống để được thêm vào trường.')+'</p></div>'+
           rule);
+      root.TuongAiSchoolDirectoryUI?.bind(panel,state,{
+        redraw:()=>draw(),run,
+        manage:id=>{selected=id;showCreate=false;draw();},
+        confirm:prompt=>root.confirm(prompt),
+      });
       const q=(id)=>panel.querySelector(id);
       q('#sm-school').onchange=e=>{selected=e.target.value;draw();};
       q('#sm-refresh').onclick=()=>refresh();
@@ -206,6 +217,8 @@
       q('#sm-link-board')?.addEventListener('click',()=>{
         const board_id=q('#sm-board-choice')?.value;
         if(!board_id)return deps.toast('Chọn bảng lớp cần liên kết.');
+        const board=availableBoards.find(b=>b.id===board_id);
+        if(board?.school && !root.confirm('Gắn bảng “'+board.name+'” (đang khai báo “'+board.school+'”) vào “'+s.name+'”? Vui lòng xác minh đúng trường trước khi tiếp tục.'))return;
         run('link_board',{school_id:s.id,board_id},'Đã gắn bảng lớp vào trường.');
       });
       panel.querySelectorAll('[data-sm-role]').forEach(btn=>btn.onclick=()=>{
