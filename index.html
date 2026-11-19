@@ -2782,7 +2782,7 @@ body.dashboard-drag-active #grid .bcard:hover{transform:none!important}
 <link rel="stylesheet" href="./responsive-layout.css?v=20261118b">
 
 <style id="virtual-common-group-removal">
-/* Bài không phân nhóm vẫn hiển thị sau khi giáo viên xóa khung Bài chung. */
+/* Các bài chưa phân nhóm mới vẫn có thể xuất hiện sau khi xóa Bài chung. */
 .app.board-open .col-ungrouped{padding-top:0}
 .app.board-open .col-ungrouped .col-post-viewport{margin-top:0}
 .app.board-open .col-restore-common{
@@ -3819,6 +3819,114 @@ async function removePost(p) {
   if (paths.length) await CAP.sb.storage.from('work').remove(paths);
   const { error } = await CAP.sb.from('posts').delete().eq('id', p.id);
   return dbErr(error);
+}
+
+/* Delete only the posts displayed in the virtual "Bài chung" group.
+   The group is hidden only after each matching database deletion is verified.
+   Never delete a post that has moved to a real column in another session. */
+const commonGroupDeleteBusy = new Set();
+async function deleteCommonGroupAndPosts(board) {
+  if (!board || !canManage(board) || S.guest || commonGroupDeleteBusy.has(board.id)) return false;
+  commonGroupDeleteBusy.add(board.id);
+  let removed = 0, failedFileCleanups = 0;
+  try {
+    const currentBoard = getBoard(board.id);
+    if (!currentBoard || !canManage(currentBoard)) return false;
+    const isDemo = board.id === DEMO_ID;
+    let rows;
+    if (isDemo) {
+      rows = postsOf(board.id).map(p => ({
+        id: p.id, column_id: p.columnId || '',
+        images: [], attachments: [],
+      }));
+    } else {
+      // Read from the server, not only the browser cache (which may be stale).
+      const result = await fetchAllRows(() => CAP.sb.from('posts')
+        .select('id,column_id,images,attachments')
+        .eq('board_id', board.id).order('id', { ascending: true }));
+      if (result.error) { dbErr(result.error); return false; }
+      rows = result.data || [];
+    }
+    const columnIds = new Set((currentBoard.columns || []).map(c => c.id));
+    const targets = rows.filter(p => !columnIds.has(p.column_id || ''));
+    const count = targets.length;
+    const warning = count
+      ? '<b>' + count + ' bài đăng</b> đang ở “Bài chung” sẽ bị xóa vĩnh viễn, kể cả nội dung, điểm, nhận xét và tệp đính kèm. '
+      : 'Nhóm “Bài chung” hiện không có bài đăng.';
+    const confirmed = await confirmBox('Xóa nhóm Bài chung và bài đăng?',
+      warning + '<br><br><b>Các bài trong những cột khác được giữ nguyên.</b>'
+      + '<br><br>Hành động này không thể hoàn tác. Chỉ chọn Xóa nếu thầy cô chắc chắn.',
+      count ? 'Xóa nhóm và ' + count + ' bài' : 'Xóa nhóm', true);
+    if (!confirmed) return false;
+
+    for (const post of targets) {
+      const liveBoard = getBoard(board.id);
+      if (!liveBoard || !canManage(liveBoard)
+          || (liveBoard.columns || []).some(c => c.id === (post.column_id || ''))) {
+        toast('Đã xóa ' + removed + '/' + count + ' bài. Cấu trúc cột đã thay đổi; hãy tải lại lớp rồi kiểm tra.');
+        return false;
+      }
+      if (isDemo) {
+        S.demoPosts.delete(post.id);
+      } else {
+        // Conditional deletion guards against concurrent moves to another column.
+        let request = CAP.sb.from('posts').delete().eq('board_id', board.id).eq('id', post.id);
+        request = post.column_id == null
+          ? request.is('column_id', null)
+          : request.eq('column_id', post.column_id);
+        const { data: deleted, error } = await request.select('id');
+        if (error || !Array.isArray(deleted) || deleted.length !== 1) {
+          toast('Đã xóa ' + removed + '/' + count + ' bài. Không thể xóa bài còn lại hoặc bài đã được chuyển cột. Hãy tải lại rồi thử lại.'
+            + (error?.message ? ' ' + error.message : ''));
+          return false;
+        }
+        S.posts.delete(post.id);
+        // Remove private files only after successful row deletion.
+        const paths = [...(post.images || []), ...(post.attachments || [])]
+          .map(file => file?.path).filter(Boolean);
+        if (paths.length) {
+          try {
+            const { error: fileError } = await CAP.sb.storage.from('work').remove([...new Set(paths)]);
+            if (fileError) failedFileCleanups++;
+          } catch (_) { failedFileCleanups++; }
+        }
+      }
+      removed++;
+      renderSoon();
+    }
+    if (!isDemo) {
+      // A student may have submitted another post while deletion was running.
+      const verification = await fetchAllRows(() => CAP.sb.from('posts')
+        .select('id,column_id').eq('board_id', board.id).order('id', { ascending: true }));
+      if (verification.error) {
+        toast('Đã xóa ' + removed + ' bài nhưng chưa kiểm tra được dữ liệu còn lại. Chưa ẩn Bài chung; hãy tải lại lớp.');
+        return false;
+      }
+      const latestIds = new Set((getBoard(board.id)?.columns || []).map(c => c.id));
+      if ((verification.data || []).some(p => !latestIds.has(p.column_id || ''))) {
+        toast('Đã xóa ' + removed + ' bài nhưng vừa có bài mới/chưa xử lý ở Bài chung. Nhóm vẫn được giữ để tránh sót bài.');
+        return false;
+      }
+    }
+    const latestBoard = getBoard(board.id);
+    const ok = latestBoard && await saveBoard({
+      ...latestBoard,
+      assignment: { ...(latestBoard.assignment || {}), hideCommonGroup: true },
+    });
+    if (!ok) {
+      toast('Đã xóa ' + removed + ' bài nhưng chưa ẩn được Bài chung. Hãy thử xóa nhóm lần nữa.');
+      return false;
+    }
+    toast('Đã xóa nhóm Bài chung và ' + removed + ' bài đăng.');
+    if (failedFileCleanups) toast('Có ' + failedFileCleanups + ' lần dọn tệp đính kèm chưa thành công; cần kiểm tra kho lưu trữ.');
+    return true;
+  } catch (error) {
+    toast('Không thể hoàn tất xóa Bài chung (đã xóa ' + removed + ' bài). '
+      + (error?.message || 'Vui lòng tải lại lớp và thử lại.'));
+    return false;
+  } finally {
+    commonGroupDeleteBusy.delete(board.id);
+  }
 }
 
 /* ================= ảnh trong kho (đường dẫn ký tạm 1 giờ) ================= */
@@ -5723,8 +5831,7 @@ function renderPosts(b, ps, gv, q) {
   const ids = new Set(cols.map((c) => c.id));
   const loose = ps.filter((p) => !ids.has(p.columnId));
   const groups = [];
-  // Bài chung là nhóm ảo của bài chưa gán cột. Giáo viên có thể bỏ khung nhóm
-  // mà KHÔNG xóa hoặc di chuyển bất kỳ bài nộp nào.
+  // Bài chung là nhóm ảo của bài chưa gán cột; thao tác xóa nhóm sẽ xóa cả bài ở đây.
   const hideCommon = b.assignment?.hideCommonGroup === true;
   if (!hideCommon && (loose.length || !cols.length)) groups.push({ id: '', name: 'Bài chung', items: loose, own: false });
   const ungroupedHtml = hideCommon && loose.length
@@ -5744,7 +5851,7 @@ function renderPosts(b, ps, gv, q) {
         <button type="button" class="icon-btn col-submit-btn" ${target} aria-label="${label}" title="${label}">${ic('plus')}</button>
         ${manage ? (g.own
           ? `<button class="icon-btn" data-act="col-rename" data-id="${esc(b.id)}" data-col="${esc(g.id)}" aria-label="Đổi tên ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}">${ic('pencil')}</button><button class="icon-btn" style="color:var(--pen)" data-act="col-del" data-id="${esc(b.id)}" data-col="${esc(g.id)}" aria-label="Xóa ${dir === ' dir-v' ? 'hàng' : 'cột'} ${esc(g.name)}" title="Xóa nhóm">${ic('trash')}</button>`
-          : `<button type="button" class="icon-btn" style="color:var(--pen)" data-act="common-hide" data-id="${esc(b.id)}" aria-label="Xóa nhóm Bài chung, giữ nguyên bài đăng" title="Xóa khung Bài chung, giữ nguyên bài">${ic('trash')}</button>`) : ''}
+          : `<button type="button" class="icon-btn" style="color:var(--pen)" data-act="common-hide" data-id="${esc(b.id)}" aria-label="Xóa nhóm Bài chung và các bài đăng trong nhóm" title="Xóa nhóm Bài chung và bài đăng">${ic('trash')}</button>`) : ''}
       </div>
       <button type="button" class="col-addpost" ${target} aria-label="${label}" title="${label}">${ic('plus')}</button>
       <div class="col-post-viewport" data-overflow="0">
@@ -9513,15 +9620,7 @@ document.addEventListener('click', async (e) => {
     case 'add-row': if (b && canManage(b)) colForm(b, null, 'row'); break;
     case 'col-rename': if (b) colForm(b, t.dataset.col); break;
     case 'common-hide': {
-      if (!b || !canManage(b) || b.assignment?.hideCommonGroup) break;
-      const count = postsOf(b.id).filter(p => !(b.columns || []).some(c => c.id === p.columnId)).length;
-      const message = 'Xóa khung “Bài chung” khỏi lớp này?'
-        + (count ? '<br><br><b>' + count + ' bài đăng</b> vẫn được giữ nguyên và hiển thị trực tiếp dưới dạng bài chưa phân nhóm.' : '<br><br>Không có bài đăng nào bị xóa.')
-        + '<br><br>Thầy cô có thể khôi phục nhóm khi cần.';
-      if (!(await confirmBox('Xóa nhóm Bài chung?', message, 'Xóa nhóm', true))) break;
-      if (await saveBoard({ ...b, assignment: { ...(b.assignment || {}), hideCommonGroup: true } })) {
-        toast('Đã bỏ nhóm Bài chung. Tất cả bài đăng vẫn được giữ nguyên.');
-      }
+      if (b && canManage(b) && !b.assignment?.hideCommonGroup) await deleteCommonGroupAndPosts(b);
       break;
     }
     case 'common-restore': {
