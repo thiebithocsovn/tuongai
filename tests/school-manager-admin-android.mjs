@@ -70,7 +70,7 @@ async function app(page,role){
   await setupNetwork(page,role);
   await page.goto(ROOT,{waitUntil:'domcontentloaded',timeout:30000});
   await page.locator('#app').waitFor({state:'visible',timeout:15000});
-  await page.locator('#view .hero').waitFor({state:'visible',timeout:15000});
+  await page.locator('#view .hero, #view .adm-header').first().waitFor({state:'visible',timeout:15000});
   assert.deepEqual(errors,[],'JavaScript runtime errors '+role+': '+errors.join(';\n'));
   return errors;
 }
@@ -94,7 +94,7 @@ try{
     const page=await browser.newPage({viewport:{width,height},isMobile:false,
       deviceScaleFactor:width<500?2:1});
     const errors=await app(page,'admin');
-    const home=page.locator('#view .admin-school-entry');
+    const home=page.locator('#view .adm-header-actions [data-act="school-manager"], #view .admin-school-entry').first();
     assert.equal(await home.count(),1,'Admin home CTA missing');
     assert.equal(await home.isVisible(),true,'Admin home CTA invisible');
     assert.equal(await page.locator('#side .admin-school-nav').count(),1);
@@ -116,7 +116,7 @@ try{
     });
     assert.ok(widthInfo.scrollWidth<=widthInfo.window+4,
       'Horizontal overflow '+name+' '+JSON.stringify(widthInfo));
-    await openManager(page,'#view .admin-school-entry');
+    await openManager(page,'#view .adm-header-actions [data-act="school-manager"], #view .admin-school-entry');
     console.log('PASS admin home CTA and SchoolManager dialog',name);
     await page.locator('#side [data-tab="members"]').click();
     await page.locator('#mb-list').waitFor();

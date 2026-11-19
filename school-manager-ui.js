@@ -26,6 +26,7 @@
       try{
         const updated=await deps.api('school_manager',{operation:'overview'});
         state=updated;
+        if(!preserve && state.platformAdmin && !state.schools.length)showCreate=true;
         if(!preserve||!state.schools.some(s=>s.id===selected))selected=state.schools[0]?.id||'';
         draw();
       }catch(e){
@@ -40,7 +41,7 @@
       try{
         const response=await deps.api('school_manager',{operation,...fields});
         message=success||'Đã cập nhật SchoolManager.';
-        if(operation==='create_school')selected=response.school?.id||selected;
+        if(operation==='create_school'){selected=response.school?.id||selected;showCreate=false;}
         await refresh();
       }catch(e){
         message='Không thực hiện được: '+friendly(e);
@@ -48,6 +49,12 @@
       }finally{busy=false;}
     }
     const memberTitle=m=>text(m.full_name)||text(m.email)||'Giáo viên';
+    function deriveSchoolCode(value){
+      return text(value).replace(/[đĐ]/g,'D').normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'').toUpperCase()
+        .replace(/[^A-Z0-9]+/g,'_').replace(/^_+|_+$/g,'')
+        .slice(0,24).replace(/_+$/g,'');
+    }
     const rule='<p class="meta">Dữ liệu lớp học chỉ được liên kết khi quản trị hệ thống chọn rõ bảng và trường. SchoolManager không tự di chuyển bài, điểm hoặc hồ sơ TN1–TN4.</p>';
     function draw(){
       if(!state||!panel.isConnected)return;
@@ -58,6 +65,8 @@
       const memberIds=new Set(members.map(m=>m.userId));
       const profileMap=new Map(state.members.map(m=>[m.userId,m]));
       const boardLinks=new Set(state.boards.map(b=>b.boardId));
+      const teacherUnits=[...new Set((state.availableTeachers||[])
+        .map(p=>text(p.school)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
       const availableTeachers=(state.availableTeachers||[]).filter(p=>!memberIds.has(p.id));
       const availableBoards=(state.availableBoards||[]).filter(b=>memberIds.has(b.owner)&&!boardLinks.has(b.id));
       const submitted=boards.reduce((n,b)=>n+Number(b.submissions||0),0);
@@ -65,6 +74,11 @@
       panel.innerHTML=
         '<p class="meta">Trung tâm quản lý trường, giáo viên, bảng lớp và chính sách AI Agent. '+
         'Chỉ hiển thị các trường và thông tin thuộc phạm vi được phân quyền.</p>'+
+        (state.platformAdmin&&!state.schools.length?
+          '<section class="pg-box"><h4>Bắt đầu quản lý nhiều trường</h4>'+
+          '<p>Chưa có trường nào được tạo trong SchoolManager. Đây là danh mục riêng với tên đơn vị đang hiển thị trên bảng lớp.</p>'+
+          '<p>Hãy tạo trường đầu tiên, thêm giáo viên rồi gắn bảng lớp. '+esc(teacherUnits.length)+
+          ' tên đơn vị từ hồ sơ giáo viên có thể chọn để điền nhanh; hệ thống không tự gán người dùng hoặc di chuyển bài làm.</p></section>':'')+
         '<div class="row-gap" style="align-items:end;flex-wrap:wrap">'+
         '<label class="fld"><span>Chọn trường</span><select id="sm-school">'+
         (state.schools.map(x=>'<option value="'+esc(x.id)+'"'+
@@ -75,6 +89,11 @@
         '</div><p class="meta" role="status">'+esc(message)+'</p>'+
         (state.platformAdmin&&showCreate?
           '<section class="pg-box"><h4>Tạo trường học</h4>'+
+          (teacherUnits.length?
+            '<label class="fld"><span>Gợi ý từ đơn vị đã đăng ký</span><select id="sm-unit-suggestion">'+
+            '<option value="">-- Chọn tên trường để điền nhanh --</option>'+
+            teacherUnits.map(unit=>'<option value="'+esc(unit)+'">'+esc(unit)+'</option>').join('')+
+            '</select></label>':'')+
           '<div class="row-gap" style="flex-wrap:wrap">'+
           '<label class="fld"><span>Mã trường</span><input id="sm-code" maxlength="24" placeholder="VD: TRUONG_NARI_1"></label>'+
           '<label class="fld"><span>Tên trường</span><input id="sm-name" maxlength="160" placeholder="Tên trường đầy đủ"></label>'+
@@ -150,13 +169,19 @@
             esc(actionName[x.operation]||x.operation)+'</li>').join('')+
           '</ol></details>':'')+
           rule:
-          '<div class="empty"><h3>Chưa được phân quyền trường học</h3>'+
-          '<p>Quản trị hệ thống hãy tạo trường, thêm giáo viên và liên kết bảng một cách chủ động.</p></div>'+
+          '<div class="empty"><h3>'+esc(state.platformAdmin?'Chưa khởi tạo trường học':'Chưa được phân quyền trường học')+'</h3>'+
+          '<p>'+esc(state.platformAdmin?'Hãy tạo trường đầu tiên bằng biểu mẫu phía trên.':'Vui lòng liên hệ quản trị hệ thống để được thêm vào trường.')+'</p></div>'+
           rule);
       const q=(id)=>panel.querySelector(id);
       q('#sm-school').onchange=e=>{selected=e.target.value;draw();};
       q('#sm-refresh').onclick=()=>refresh();
       q('#sm-show-create')?.addEventListener('click',()=>{showCreate=!showCreate;draw();});
+      q('#sm-unit-suggestion')?.addEventListener('change',e=>{
+        const name=text(e.target.value);
+        if(!name)return;
+        q('#sm-name').value=name;
+        q('#sm-code').value=deriveSchoolCode(name);
+      });
       q('#sm-create')?.addEventListener('click',()=>{
         const code=text(q('#sm-code')?.value),name=text(q('#sm-name')?.value);
         if(code.length<3||name.length<2)return deps.toast('Nhập mã trường và tên trường hợp lệ.');
