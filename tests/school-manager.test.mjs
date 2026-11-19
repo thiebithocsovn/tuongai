@@ -109,7 +109,7 @@ test('migration uses deny-by-default RLS and does not reassign study data',()=>{
 });
 test('client only uses verified backend for school operations and scopes report features',()=>{
   new vm.Script(ui);
-  assert.match(html,/school-manager-ui\.js\?v=sm-20261119b/);
+  assert.match(html,/school-manager-ui\.js\?v=sm-20261119c/);
   assert.match(html,/data-act="school-manager"/);
   assert.match(html,/schoolManagerFeatureAllowed\(b,'classReport'\)/);
   assert.match(html,/schoolManagerFeatureAllowed\(b,'progressTracker'\)/);
@@ -151,10 +151,22 @@ test('directory merges equivalent writing but does not confuse school levels',()
 });
 test('SchoolManager live directory is admin-only and uses verified server actions',()=>{
   new vm.Script(directoryUI);
-  assert.match(html,/school-directory-ui\.js\?v=smd-20261119a/);
+  assert.match(html,/school-directory-ui\.js\?v=smd-20261119b/);
   assert.match(directoryUI,/if\(!state\?\.platformAdmin\)return '';/);
   assert.match(directoryUI,/run\('activate_directory'/);
   assert.doesNotMatch(directoryUI,/\.from\(['"]school_manager/);
   assert.match(schoolFile,/if\(user\.role!=='admin'\)[\s\S]*?Chỉ quản trị toàn hệ thống được đồng bộ danh bạ trường/);
   assert.match(schoolFile,/schoolNameKey\(owner\.school\)===group\.key/);
+});
+
+test('only platform administrator can bulk reconcile an ambiguous group',async()=>{
+  const {db}=stub({membership:{role:'manager'}});
+  await assert.rejects(api.handleSchoolManager(db,manager,{
+    operation:'reconcile_directory',school_id:schoolId,key:'THCS NA RI 1'
+  },Fail),e=>e.code==='forbidden'&&e.status===403);
+  assert.match(schoolFile,/if\(op==='reconcile_directory'\)/);
+  assert.match(schoolFile,/memberIds\.has\(b\.owner\)\|\|b\.owner===user\.id/);
+  assert.match(schoolFile,/ignoreDuplicates:true/);
+  assert.match(directoryUI,/data-sm-directory-reconcile|sm-directory-reconcile/);
+  assert.match(directoryUI,/sm-directory-target/);
 });
