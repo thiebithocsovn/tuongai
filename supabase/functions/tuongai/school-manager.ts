@@ -230,6 +230,43 @@ export async function handleSchoolManager(db,user,body,Fail) {
     }
     return {ok:true,results};
   }
+  if(op==='reconcile_directory') {
+    if(user.role!=='admin')
+      bad(Fail,'forbidden','Chỉ quản trị hệ thống được duyệt liên kết bảng.',403);
+    const schoolId=getUuid(body.school_id),key=asText(body.key);
+    if(!schoolId||!key||schoolNameKey(key)!==key)
+      bad(Fail,'invalid','Vui lòng chọn trường đích và nhóm nguồn hợp lệ.');
+    const school=await getSchool(db,schoolId,Fail);
+    if(school.status!=='active')
+      bad(Fail,'inactive','Trường đích đang tạm khóa.',409);
+    const all=await one(db.from('boards').select('id,owner,school').limit(1000),Fail)||[];
+    const source=all.filter(b=>schoolNameKey(b.school)===key);
+    if(!source.length)bad(Fail,'not_found','Không tìm thấy bảng lớp của nhóm nguồn.',404);
+    const existing=await one(db.from('school_manager_boards')
+      .select('board_id').in('board_id',source.map(b=>b.id)),Fail)||[];
+    const linked=new Set(existing.map(b=>b.board_id));
+    const members=await one(db.from('school_manager_members')
+      .select('user_id').eq('school_id',schoolId).limit(500),Fail)||[];
+    const memberIds=new Set(members.map(m=>m.user_id));
+    const allowed=source.filter(b=>!linked.has(b.id)&&
+      (memberIds.has(b.owner)||b.owner===user.id));
+    if(!allowed.length)return {ok:true,linked:0,skipped:source.length};
+    const {error}=await db.from('school_manager_boards')
+      .upsert(allowed.map(b=>({board_id:b.id,school_id:schoolId,assigned_by:user.id})),
+        {onConflict:'board_id',ignoreDuplicates:true});
+    if(error)bad(Fail,'server','Không ghi được liên kết bảng lớp đã xác nhận.',500);
+    const confirmed=await one(db.from('school_manager_boards')
+      .select('board_id,school_id').in('board_id',allowed.map(b=>b.id)),Fail)||[];
+    const imported=confirmed.filter(b=>b.school_id===schoolId&&!linked.has(b.board_id));
+    if(imported.length){
+      const {error:auditError}=await db.from('school_manager_audit')
+        .insert(imported.map(b=>({
+          school_id:schoolId,actor_id:user.id,operation:'link_board',target_id:b.board_id,
+        })));
+      if(auditError)console.error('SchoolManager reconciliation audit failed');
+    }
+    return {ok:true,linked:imported.length,skipped:source.length-imported.length};
+  }
   if(op==='feature') {
     const boardId=getUuid(body.board_id),feature=asText(body.feature,40);
     if(!boardId||!SCHOOL_FEATURES.includes(feature))
