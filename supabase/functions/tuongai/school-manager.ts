@@ -338,8 +338,8 @@ export async function handleSchoolManager(db,user,body,Fail) {
       .eq('id',boardId).maybeSingle(),Fail);
     if(!board)bad(Fail,'not_found','Bảng không còn tồn tại.',404);
     const ownerMember=await getMembership(db,schoolId,board.owner,Fail);
-    if(!ownerMember)bad(Fail,'owner_missing',
-      'Giáo viên chủ bảng phải được thêm vào trường trước khi liên kết.',409);
+    if(!ownerMember && !(user.role==='admin' && board.owner===user.id))
+      bad(Fail,'owner_missing','Hãy thêm chủ bảng vào trường trước khi liên kết.',409);
     if(school.status!=='active')bad(Fail,'inactive','Trường đang tạm khóa.',409);
     const {error}=await db.from('school_manager_boards')
       .insert({board_id:boardId,school_id:schoolId,assigned_by:user.id});
