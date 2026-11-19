@@ -6,11 +6,12 @@ import vm from 'node:vm';
 const schoolFile=fs.readFileSync(new URL('../supabase/functions/tuongai/school-manager.ts',import.meta.url),'utf8');
 const server=fs.readFileSync(new URL('../supabase/functions/tuongai/index.ts',import.meta.url),'utf8');
 const ui=fs.readFileSync(new URL('../school-manager-ui.js',import.meta.url),'utf8');
+const directoryUI=fs.readFileSync(new URL('../school-directory-ui.js',import.meta.url),'utf8');
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const migration=fs.readFileSync(new URL('../supabase/migrations/20261110111000_school_manager.sql',import.meta.url),'utf8');
 const sandbox={console};
 const plain=schoolFile.replace(/^export /gm,'')+
-  '\nthis.schoolExports={schoolPolicy,mayManageSchool,schoolAdminRole,schoolFeatureEnabled,handleSchoolManager};';
+  '\nthis.schoolExports={schoolPolicy,mayManageSchool,schoolAdminRole,schoolFeatureEnabled,handleSchoolManager,schoolNameKey,schoolDirectory,suggestedSchoolCode};';
 vm.runInNewContext(plain,sandbox);
 const api=sandbox.schoolExports;
 class Fail extends Error {
@@ -108,7 +109,7 @@ test('migration uses deny-by-default RLS and does not reassign study data',()=>{
 });
 test('client only uses verified backend for school operations and scopes report features',()=>{
   new vm.Script(ui);
-  assert.match(html,/school-manager-ui\.js\?v=sm-20261119a/);
+  assert.match(html,/school-manager-ui\.js\?v=sm-20261119b/);
   assert.match(html,/data-act="school-manager"/);
   assert.match(html,/schoolManagerFeatureAllowed\(b,'classReport'\)/);
   assert.match(html,/schoolManagerFeatureAllowed\(b,'progressTracker'\)/);
@@ -125,4 +126,35 @@ test('empty SchoolManager offers first-school setup without automatic tenant ass
   assert.ok(ui.includes('deriveSchoolCode(name)'));
   assert.ok(ui.includes('không tự gán người dùng hoặc di chuyển bài làm'));
   assert.ok(ui.includes('Gợi ý từ đơn vị đã đăng ký'));
+});
+
+test('directory merges equivalent writing but does not confuse school levels',()=>{
+  const schoolRows=[];
+  const p=[
+    {id:teacherId,role:'teacher',status:'active',school:'Trường TH&THCS Na Rì 1'},
+    {id:managerId,role:'teacher',status:'active',school:'TH & THCS NA RÌ 1'}
+  ];
+  const bs=[
+    {id:boardId,owner:teacherId,school:'TH&THCS Na Rì 1',name:'Toán'},
+    {id:schoolId,owner:teacherId,school:'Trường THCS Na Rì 1',name:'Tin'},
+    {id:schoolB,owner:'unknown',school:'Trường THCS Na Rì 1',name:'Bảng quản trị'},
+  ];
+  const groups=JSON.parse(JSON.stringify(api.schoolDirectory(schoolRows,p,bs)));
+  assert.equal(groups.length,2);
+  const combined=groups.find(x=>x.key===api.schoolNameKey('Trường TH&THCS Na Rì 1'));
+  const separate=groups.find(x=>x.key===api.schoolNameKey('Trường THCS Na Rì 1'));
+  assert.equal(combined.teacherIds.length,2);
+  assert.deepEqual(combined.readyBoardIds,[boardId]);
+  assert.equal(separate.reviewBoardIds.length,2);
+  assert.equal(groups.reduce((n,g)=>n+g.boardIds.length,0),3);
+  assert.match(api.suggestedSchoolCode(combined.key),/^SM_[A-Z0-9_]{1,11}_[A-F0-9]{8}$/);
+});
+test('SchoolManager live directory is admin-only and uses verified server actions',()=>{
+  new vm.Script(directoryUI);
+  assert.match(html,/school-directory-ui\.js\?v=smd-20261119a/);
+  assert.match(directoryUI,/if\(!state\?\.platformAdmin\)return '';/);
+  assert.match(directoryUI,/run\('activate_directory'/);
+  assert.doesNotMatch(directoryUI,/\.from\(['"]school_manager/);
+  assert.match(schoolFile,/if\(user\.role!=='admin'\)[\s\S]*?Chỉ quản trị toàn hệ thống được đồng bộ danh bạ trường/);
+  assert.match(schoolFile,/schoolNameKey\(owner\.school\)===group\.key/);
 });
