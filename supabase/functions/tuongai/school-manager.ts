@@ -16,6 +16,59 @@ export function schoolAdminRole(user,memberRole) {
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CODE=/^[A-Z0-9][A-Z0-9_-]{2,23}$/;
 const asText=(x,n=160)=>typeof x==='string'?x.trim().slice(0,n):'';
+/* Conservative identity: remove display-only 'Trường', spacing, case and accents.
+   Do NOT equate THCS and TH&THCS: those names require human verification. */
+export function schoolNameKey(name) {
+  return asText(name).replace(/[đĐ]/g,'D').normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').toUpperCase()
+    .replace(/^\s*TRUONG\s+/,'').replace(/\s*&\s*/g,'&')
+    .replace(/\s*-\s*/g,'-').replace(/\s+/g,' ').trim();
+}
+export function suggestedSchoolCode(key) {
+  let hash=2166136261;
+  for(const char of key)hash=Math.imul(hash^char.charCodeAt(0),16777619);
+  const short=key.replace(/[^A-Z0-9]+/g,'_').replace(/^_+/,'')
+    .slice(0,11).replace(/_+$/,'')||'SCHOOL';
+  return 'SM_'+short+'_'+(hash>>>0).toString(16).toUpperCase().padStart(8,'0');
+}
+export function schoolDirectory(schools,teachers,boards,linkedIds=[]) {
+  const managed=new Map(schools.map(s=>[schoolNameKey(s.name),s.id]));
+  const byId=new Map(teachers.map(t=>[t.id,t]));
+  const links=new Set(linkedIds);
+  const groups=new Map();
+  function ensure(raw) {
+    const key=schoolNameKey(raw);
+    if(!key)return null;
+    if(!groups.has(key))groups.set(key,{
+      key,name:asText(raw),variants:[],teacherIds:[],boardIds:[],
+      readyBoardIds:[],reviewBoardIds:[],schoolId:managed.get(key)||null,
+    });
+    const group=groups.get(key),value=asText(raw);
+    if(value&&!group.variants.includes(value))group.variants.push(value);
+    return group;
+  }
+  for(const teacher of teachers) {
+    if(teacher.role!=='teacher'||teacher.status!=='active')continue;
+    const group=ensure(teacher.school);
+    if(group)group.teacherIds.push(teacher.id);
+  }
+  for(const board of boards) {
+    const group=ensure(board.school);
+    if(!group)continue;
+    group.boardIds.push(board.id);
+    const owner=byId.get(board.owner);
+    if(owner&&owner.role==='teacher'&&owner.status==='active'&&
+      schoolNameKey(owner.school)===group.key&&!links.has(board.id))
+      group.readyBoardIds.push(board.id);
+    else if(!links.has(board.id))group.reviewBoardIds.push(board.id);
+  }
+  const score=name=>(/^trường\s/i.test(name)?1000:0)+
+    (name!==name.toUpperCase()?100:0)+name.length;
+  return [...groups.values()].map(group=>{
+    group.name=group.variants.slice().sort((a,b)=>score(b)-score(a))[0]||group.name;
+    return group;
+  }).sort((a,b)=>b.boardIds.length-a.boardIds.length||a.name.localeCompare(b.name,'vi'));
+}
 const getUuid=x=>typeof x==='string'&&UUID.test(x)?x:null;
 function bad(Fail,code,message,status=400){throw new Fail(code,message,status);}
 async function one(query,Fail) {
@@ -108,7 +161,7 @@ async function schoolOverview(db,user,Fail) {
     .eq('role','teacher').eq('status','active')
     .order('full_name',{ascending:true}).limit(300),Fail)||[]:[];
   const availableBoards=admin?await one(db.from('boards')
-    .select('id,name,owner,subject,grade')
+    .select('id,name,owner,school,subject,grade')
     .order('created_at',{ascending:false}).limit(500),Fail)||[]:[];
   const metrics=managerIds.length?await one(db.rpc('school_manager_board_metrics',{
     p_school_ids:managerIds,
@@ -122,16 +175,61 @@ async function schoolOverview(db,user,Fail) {
   const logs=managerIds.length?await one(db.from('school_manager_audit')
     .select('school_id,operation,recorded_at,actor_id')
     .in('school_id',managerIds).order('recorded_at',{ascending:false}).limit(40),Fail)||[]:[];
+  const directory=admin?schoolDirectory(schools,availableTeachers,availableBoards,
+    mapRows.map(row=>row.board_id)):[];
   return {platformAdmin:admin,
     schools:schools.map(s=>({id:s.id,code:s.code,name:s.name,status:s.status,
       policy:schoolPolicy(s.agent_policy),createdAt:s.created_at})),
-    members,boards,audit:logs,availableTeachers,availableBoards};
+    members,boards,audit:logs,availableTeachers,availableBoards,directory};
 }
 export async function handleSchoolManager(db,user,body,Fail) {
   if(!user||user.status!=='active'||!['admin','teacher'].includes(user.role))
     bad(Fail,'forbidden','Tài khoản không có quyền SchoolManager.',403);
   const op=asText(body.operation,32);
   if(op==='overview')return schoolOverview(db,user,Fail);
+  if(op==='activate_directory') {
+    if(user.role!=='admin')
+      bad(Fail,'forbidden','Chỉ quản trị toàn hệ thống được đồng bộ danh bạ trường.',403);
+    const overview=await schoolOverview(db,user,Fail);
+    const selected=asText(body.key,160);
+    const groups=selected?overview.directory.filter(g=>g.key===selected):overview.directory;
+    if(selected&&!groups.length)
+      bad(Fail,'not_found','Không tìm thấy trường trong dữ liệu thực tế.',404);
+    const results=[];
+    const linked=new Set(overview.boards.map(b=>b.boardId));
+    for(const group of groups.slice(0,200)) {
+      if(group.schoolId) {
+        results.push({key:group.key,schoolId:group.schoolId,created:false,teachers:0,boards:0,review:group.reviewBoardIds.length});
+        continue; // Never silently re-add a member previously removed by management.
+      }
+      const code=suggestedSchoolCode(group.key);
+      const {data:school,error:createError}=await db.from('school_manager_schools')
+        .insert({code,name:group.name,created_by:user.id,agent_policy:schoolPolicy({})})
+        .select('id,code,name').single();
+      if(createError||!school)
+        bad(Fail,'server','Không khởi tạo được trường '+group.name+'. Vui lòng tải lại và kiểm tra mã trường.',500);
+      const members=group.teacherIds.map(user_id=>({
+        school_id:school.id,user_id,role:'teacher',assigned_by:user.id,
+      }));
+      if(members.length) {
+        const {error}=await db.from('school_manager_members').insert(members);
+        if(error)bad(Fail,'server','Trường đã tạo nhưng chưa thêm được giáo viên '+group.name+'.',500);
+      }
+      const ready=group.readyBoardIds.filter(id=>!linked.has(id));
+      if(ready.length) {
+        const {error}=await db.from('school_manager_boards')
+          .upsert(ready.map(board_id=>({
+            board_id,school_id:school.id,assigned_by:user.id,
+          })),{onConflict:'board_id',ignoreDuplicates:true});
+        if(error)bad(Fail,'server','Trường đã tạo nhưng chưa liên kết được bảng lớp '+group.name+'.',500);
+        ready.forEach(id=>linked.add(id));
+      }
+      await audit(db,school.id,user,'create_school','import_directory');
+      results.push({key:group.key,schoolId:school.id,created:true,
+        teachers:members.length,boards:ready.length,review:group.reviewBoardIds.length});
+    }
+    return {ok:true,results};
+  }
   if(op==='feature') {
     const boardId=getUuid(body.board_id),feature=asText(body.feature,40);
     if(!boardId||!SCHOOL_FEATURES.includes(feature))
