@@ -17,7 +17,7 @@
       if(!String(q.text||'').trim() || rates.length!==3 || rates.some(x=>!finite01(x)))throw new Error('Điền đủ câu hỏi q'+(i+1)+' và P(đúng | c1–c3) từ 0 đến 1.');
       return {id:'q'+(i+1),text:String(q.text).trim(),likelihoods:rates};
     });
-    return {causes:causes.map(c=>({...c,prior:c.prior/sum})),questions,source:'MC02-1 (giáo viên xác nhận)',maxQuestions:LIMIT,threshold:THRESHOLD};
+    return {causes:causes.map(c=>({...c,prior:c.prior/sum})),questions,source:'MC02-1 (tham số do giáo viên nhập; cần đối chiếu phiếu gốc)',maxQuestions:LIMIT,threshold:THRESHOLD};
   }
   function entropy(p){return p.reduce((s,x)=>x>0?s-x*Math.log2(x):s,0);}
   function outcome(p,rates,yes){
@@ -29,6 +29,29 @@
     const y=outcome(p,q.likelihoods,true),n=outcome(p,q.likelihoods,false);
     const remain=(y.mass>EPS?y.mass*entropy(y.posterior):0)+(n.mass>EPS?n.mass*entropy(n.posterior):0);
     return Math.max(0,entropy(p)-remain);
+  }
+  // Exact upper bound across every pair of DIFFERENT binary questions/answers.
+  // A bound below 0.80 means no response path in the current MC02 bank can qualify.
+  // This is a property of assumed parameters, not an observed student outcome.
+  function maxReachableConfidence(config){
+    const prior=config.causes.map(c=>c.prior);
+    let best=Math.max(...prior);
+    const qs=config.questions;
+    for(let i=0;i<qs.length;i++){
+      for(const a of [true,false]){
+        const first=outcome(prior,qs[i].likelihoods,a);
+        if(!first.posterior)continue;
+        best=Math.max(best,...first.posterior);
+        for(let j=0;j<qs.length;j++){
+          if(j===i)continue;
+          for(const b of [true,false]){
+            const second=outcome(first.posterior,qs[j].likelihoods,b);
+            if(second.posterior)best=Math.max(best,...second.posterior);
+          }
+        }
+      }
+    }
+    return best;
   }
   function decision(state){
     const p=state.posterior, sorted=p.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v);
@@ -99,12 +122,16 @@
       const d=decision(st);
       const rows=st.config.causes.map((c,i)=>`<tr><td>${txt(c.id)} – ${txt(c.label)}</td><td>${percent(st.posterior[i])}</td></tr>`).join('');
       const history=st.history.map((h,i)=>`<li>q${h.questionId.slice(1)}: ${txt(h.question)} → <strong>${txt(h.response)}</strong>; IG = ${fmt(h.igBefore)} bit</li>`).join('');
+      const ceiling=maxReachableConfidence(st.config);
+      const reachWarning=ceiling+EPS<THRESHOLD
+        ? `<p class="as-warn"><strong>Giới hạn theo bảng đang nhập:</strong> Với tối đa 2 câu hỏi nhị phân không lặp, xác suất cao nhất ở mọi nhánh chỉ ${percent(ceiling)}, thấp hơn ngưỡng 80%. Đây không phải lỗi tính Bayes. Cần câu hỏi phân biệt tốt hơn và hiệu chuẩn lại bằng phản hồi có thực; không hạ ngưỡng hoặc sửa xác suất để ép đạt chỉ tiêu.</p>`
+        : '';
       const status=d.status==='qualified'?`<p class="as-ok"><strong>Đã đạt ngưỡng 0,80:</strong> ${txt(d.cause.label)} (${percent(d.confidence)}). Giáo viên phải xác minh trước khi chốt nguyên nhân.</p>`:
         d.status==='inconclusive'?`<p class="as-warn"><strong>Chưa đủ căn cứ.</strong> ${txt(d.reason)}</p>`:
         `<p class="as-ok"><strong>M5 chọn ${txt(d.question.id)}:</strong> ${txt(d.question.text)} (IG = ${fmt(d.ig)} bit)</p><div class="row-gap"><button type="button" class="btn btn-sm btn-brand" data-m56-answer="1">Trả lời: Đúng</button><button type="button" class="btn btn-sm" data-m56-answer="0">Trả lời: Sai</button></div>`;
       el.innerHTML=`<div class="as-tbl"><table><thead><tr><th>Giả thuyết</th><th>Bayes P(c)</th></tr></thead><tbody>${rows}</tbody></table></div>
         <p class="meta">Entropy hiện tại: ${fmt(entropy(st.posterior))} bit · Đã hỏi ${st.history.length}/${LIMIT} câu.</p>
-        ${st.history.length?`<p><strong>Nhật ký câu trả lời (giáo viên nhập):</strong></p><ol>${history}</ol>`:''}${status}
+        ${reachWarning}${st.history.length?`<p><strong>Nhật ký câu trả lời (giáo viên nhập):</strong></p><ol>${history}</ol>`:''}${status}
         ${d.status==='ask'?`<p class="meta">Xếp hạng IG: ${d.ranked.map(x=>`${txt(x.question.id)}=${fmt(x.ig)}`).join(' · ')}</p>`:''}`;
       el.querySelectorAll('[data-m56-answer]').forEach(btn=>btn.onclick=()=>{
         const error=root.querySelector('[data-m56-error-text]');error.textContent='';
@@ -133,7 +160,7 @@
     };
     render();
   }
-  const api={validate,entropy,gain,outcome,decision,answer,open};
+  const api={validate,entropy,gain,outcome,maxReachableConfidence,decision,answer,open};
   if(typeof window!=='undefined')window.TuongAiM56=api;
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })();
