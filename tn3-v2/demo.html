@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TN3-v2 · Bản thử câu hỏi chẩn đoán</title>
+<style>
+:root{font-family:Arial, sans-serif;color:#14283e;background:#f3f7fb}*{box-sizing:border-box}
+main{max-width:940px;margin:25px auto;padding:22px}h1{font-size:26px;margin:7px 0}
+p{line-height:1.55}.panel{border:1px solid #dce6f2;background:#fff;border-radius:16px;padding:20px;margin:15px 0;box-shadow:0 8px 22px #102a4510}
+.note{border-left:5px solid #c67e15;padding:12px 15px;background:#fff3d5;border-radius:6px}
+label{display:block;font-weight:700;margin:10px 0 6px}select,textarea{width:100%;border:1px solid #b7c7d8;border-radius:9px;padding:12px;font-size:15px;background:#fff}
+textarea{min-height:102px;resize:vertical}button{border:0;background:#205896;color:#fff;border-radius:10px;font-weight:700;padding:12px 18px;cursor:pointer;margin-top:12px;margin-right:7px}
+button.secondary{background:#dae7f5;color:#244564}.muted{color:#5d6d80}.tag{font-size:11px;color:#6a4800;background:#ffe8b0;padding:6px 10px;border-radius:10px}
+.columns{display:grid;grid-template-columns:1fr 1fr;gap:14px}ol{line-height:1.6}
+#qtext{font-size:18px;font-weight:700;line-height:1.6}#result strong{font-size:19px}
+meter{width:150px;height:13px}@media(max-width:680px){.columns{grid-template-columns:1fr}main{padding:12px;margin:0}}
+</style></head>
+<body><main>
+<span class="tag">BẢN THỬ NGHIỆM KỸ THUẬT · KHÔNG PHẢI KẾT QUẢ TN3 ĐÃ XÁC NHẬN</span>
+<h1>TN3 phiên bản cải tiến v2</h1>
+<p class="muted">Truy gốc nguyên nhân bằng câu hỏi yêu cầu giải thích, mã hóa phản hồi theo 4 dạng và cập nhật Bayes. Giới hạn 2 câu, ngưỡng posterior 0,80. Không gửi dữ liệu lên máy chủ và không ghi đè v1.</p>
+<div class="note"><b>Quan trọng:</b> Các xác suất trong bản thử là GIẢ ĐỊNH để kiểm tra ý tưởng, chưa được hiệu chuẩn theo 45 ca học sinh. Không dùng số phần trăm tại đây làm kết quả nghiên cứu thực nghiệm hoặc ký xác nhận.</div>
+<div class="panel"><label for="dh">Dấu hiệu lỗi</label><select id="dh"></select>
+  <button id="start">Bắt đầu tình huống mới</button><button class="secondary" id="export">Xuất nhật ký JSON minh họa</button></div>
+<div id="work" class="panel" hidden>
+ <div class="columns"><section><h2>Giả thuyết nguyên nhân</h2><ol id="causes"></ol></section>
+ <section><h2>Hậu nghiệm (giả định)</h2><div id="probs"></div></section></div>
+ <hr><div id="result"></div><section id="questionBox" hidden>
+ <p id="qtext"></p><p class="muted" id="ig"></p>
+ <label for="answer">Ghi nguyên văn câu trả lời/giải thích</label>
+ <textarea id="answer" placeholder="Nhập lời giải thích quan sát được; không điền đáp án giả thay học sinh."></textarea>
+ <label for="pattern">Mã hóa phản hồi dựa trên bằng chứng</label>
+ <select id="pattern"></select>
+ <p class="muted">Mã r3 không tự chứng minh nguyên nhân “sơ suất”. Giáo viên vẫn phải xác minh độc lập trước khi ghi nguyên nhân chuẩn.</p>
+ <button id="submit">Cập nhật sau câu trả lời</button>
+ </section><p id="error" role="alert" style="color:#a02b2b"></p>
+ <h3>Lịch sử câu hỏi</h3><ol id="history"></ol>
+</div>
+<p class="muted">MC02-v1 được giữ nguyên. TN3-v2 yêu cầu phê duyệt riêng, hiệu chuẩn xác suất từ mẫu thực, kiểm định độc lập và biên bản GV1/GV2 trước khi báo cáo H2/H3 đạt.</p>
+</main>
+<script src="./engine.js"></script><script src="./model.js"></script>
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const models=window.TN3V2_MODELS, core=window.TN3V2;
+let state=null;
+const dh=$('#dh');Object.keys(models).forEach(k=>dh.add(new Option(k+' · '+models[k].name,k)));
+function draw(){
+  if(!state)return;
+  const conf=state.config,d=core.status(state);
+  $('#work').hidden=false;
+  $('#causes').replaceChildren(...conf.causes.map(c=>{const li=document.createElement('li');li.textContent=c;return li;}));
+  $('#probs').replaceChildren(...state.posterior.map((p,i)=>{const e=document.createElement('p');e.textContent='c'+(i+1)+': '+(p*100).toFixed(1)+'%';return e;}));
+  $('#history').replaceChildren(...state.history.map(h=>{const li=document.createElement('li');li.textContent=h.q+' | '+h.outcome+' | '+h.rawText;return li;}));
+  $('#questionBox').hidden=d.kind!=='ask';
+  $('#error').textContent='';
+  if(d.kind==='ask'){
+    $('#result').textContent='Chưa đủ căn cứ để kết luận. Đã hỏi '+state.history.length+'/2 câu.';
+    $('#qtext').textContent=d.question+': '+d.text;
+    $('#ig').textContent='Lượng thông tin kỳ vọng = '+d.ig.toFixed(3)+' bit';
+    $('#pattern').replaceChildren(...conf.rubrics.map((r,i)=>new Option(r,['r1','r2','r3','U'][i])));
+    $('#answer').value='';
+  }else if(d.kind==='qualified'){
+    $('#result').textContent='Đề xuất theo MÔ HÌNH GIẢ ĐỊNH: '+d.cause+' ('+(d.confidence*100).toFixed(1)+'%). CẦN GV XÁC MINH, KHÔNG TỰ CHỐT.';
+  }else {
+    $('#result').textContent='CHƯA ĐỦ CĂN CỨ ('+d.reason+'). Giữ nguyên trạng thái chưa kết luận.';
+  }
+}
+$('#start').addEventListener('click',()=>{state=core.begin(models[dh.value]);draw();});
+$('#submit').addEventListener('click',()=>{try{core.answer(state,$('#pattern').value,$('#answer').value);draw();}catch(e){$('#error').textContent=e.message;}});
+$('#export').addEventListener('click',()=>{
+  if(!state){alert('Hãy bắt đầu tình huống trước.');return;}
+  const output={schema:'tn3-v2-prototype',type:'ILLUSTRATION_NOT_VERIFIED_TN3',
+    calibration:'ASSUMED_NON_EMPIRICAL',exportedAt:new Date().toISOString(),
+    dh:state.config.dh,history:state.history,posterior:state.posterior,decision:core.status(state)};
+  const blob=new Blob([JSON.stringify(output,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='TN3_V2_BAN_THU_MINH_HOA.json';a.click();URL.revokeObjectURL(url);
+});
+</script></body></html>
